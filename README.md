@@ -36,7 +36,7 @@ All documentation is available inside the `docs/` folder, organized as follows:
 ### 1️⃣ Clone the repository
 
 ```bash
-git clone https://github.com/svianaj/OSVAS.git
+git clone https://github.com/ACCORD-NWP/OSVAS.git
 cd OSVAS
 ```
 

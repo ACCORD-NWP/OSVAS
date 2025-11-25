@@ -3,7 +3,7 @@
 ```
 mkdir OSVAS
 cd OSVAS
-git clone https://github.com/svianaj/OSVAS.git .
+git clone https://github.com/ACCORD-NWP/OSVAS.git .
 ``` 
 ### Conda Environment
   It is advised to install the needed python packages as a conda environment.
