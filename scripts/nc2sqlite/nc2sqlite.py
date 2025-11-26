@@ -45,10 +45,10 @@ def create_fc_table(conn, param_name, experiment_name):
     cursor.execute("DROP TABLE IF EXISTS FC")
     cursor.execute(f"""
         CREATE TABLE FC (
-            fcst_dttm DOUBLE,
-            lead_time DOUBLE,
-            z INT,
-            SID INT,
+            fcst_dttm INT,
+            lead_time INT,
+            z DOUBLE,
+            SID DOUBLE,
             lat DOUBLE,
             lon DOUBLE,
             valid_dttm INT,
