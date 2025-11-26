@@ -16,10 +16,9 @@ set -x
 ###############################################################
 
 ###################################################################################################
-# 6.1 Location of OSVAS setup ################################################
+# 7 Location of OSVAS setup ################################################
 ###################################################################################################
-HPCPERM=/ec/res4/hpcperm/sp3c
-OSVAS_HOME=$PERM/OSVAS                            #SET PATH TO YOUR OSVAS SETUP
+OSVAS_HOME=$HOME/OSVAS                            #SET PATH TO YOUR OSVAS SETUP
 
 #Make sure to load here the python3 version for which grib2sqlite was installed as a user package
 
