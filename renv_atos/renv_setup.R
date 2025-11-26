@@ -1,5 +1,13 @@
 #!/usr/bin/env Rscript
 
+#IF R_LIBS_USER is not set, it is set to $HOME/x86_64-pc-linux-gnu-library/{Rversion}
+#and the local R libraries are installed there
+
+userlib <- Sys.getenv("R_LIBS_USER")
+if (!dir.exists(userlib)) dir.create(userlib, recursive = TRUE)
+.libPaths(c(userlib, .libPaths()))
+
+
 # Github token here if desired
 #Sys.setenv(GITHUB_PAT="ADD_YOUR_TOKEN_HERE")
 
