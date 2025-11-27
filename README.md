@@ -14,24 +14,34 @@ OSVAS automates the entire cycle:
 
 ---
 
-## 📚 Documentation Structure
+## 📚 Documentation
 
 All documentation is available inside the `docs/` folder, organized as follows:
 
-### 🔧 **Setup & Configuration**: Install requirements in a conda environment
+### 🔧 <u>[**Setup & Configuration: Install requirements in a conda environment**](docs/installation.md)</u>
 
-### 🧪 **OSVAS Workflow**
-1. **Step 0:** Paths & Global Configuration
-2. **Step 1:** Forcing Data Generation
-3. **Step 2:** Validation Data Download
-4. **Step 3:** SURFEX Simulation Runs
-5. **Step 4:** Extraction of Model Outputs (`nc2sqlite`)
-6. **Step 5:** HARP Verification
-7. **Step 6:** Visualization Apps
+### 🧪 <u>[**OSVAS central control script**](docs/OSVAS_workflow.md)</u>
+
+### 🧪 <u>**Detailed description of steps in the OSVAS Workflow:**</u>
+
+**Step 0:** [Paths & Global Configuration](docs/step0_paths_and_config.md)
+   
+**Step 1:** [Forcing Data Generation](docs/step1_forcing.md)
+ 
+**Step 2:** [Validation Data Download](docs/step2_validation.md)
+ 
+**Step 3:** [SURFEX Simulation Runs](docs/step3_surfex_runs.md)
+
+**Step 4:** [Extraction of Model Outputs (`nc2sqlite`)](docs/step4_nc2sqlite.md)
+
+**Step 5:** [HARP Verification](docs/step5_harp_verification.md)
+
+**Step 6:** [Visualization Apps](docs/step6_visualization.md)
+
+In addition, [a pdf presentation is available](docs/OSVAS_Workflow.pdf)
 
 ---
-
-## ⚡ Quick Start
+## ⚡ Quick Start guide
 
 ### 1️⃣ Clone the repository
 
