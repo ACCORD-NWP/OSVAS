@@ -26,7 +26,16 @@ cd scripts/bash_scripts
 ./create_conda_environment.sh
 ```
   - This will create an OSVASENV conda environment and install the dependencies. These include a specific yaml handling library for bash linux (yq, Go version from conda-forge and a number of python packages)
-  - For running the verification step, a functional HARP installation must be done & oper-harp-verif scripts downloaded from the repo.
+  - For running the verification step, a functional HARP installation (https://harphub.github.io/harp_training_2024/get-started.html#installation) must be done, and oper-harp-verif scripts (https://github.com/harphub/oper-harp-verif.git) downloaded from the repo. If you installed OSVAS on ATOS, HARP is already installed by the installation script and oper-harp-verif scripts are ready to be used. If you installed outside ATOS, to use oper-harp-verif scripts, you need to install their dependencies by using this code in an R console:
+  ```
+  pkg_list <- c("here","argparse","yaml","dplyr","tidyr",
+              "purrr","forcats","stringr","RColorBrewer","grid",
+              "gridExtra","pracma","RSQLite","scales","pals",
+              "shiny","shinyWidgets","lubridate","scico","cowplot")
+for (pkg in pkg_list) {
+  install.packages(pkg)
+}
+``` 
   - Activate the conda environment to start using OSVAS.
 ```
 conda env activate OSVASENV
