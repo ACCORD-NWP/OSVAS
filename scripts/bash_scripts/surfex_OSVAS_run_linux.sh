@@ -13,8 +13,9 @@ export STATION_NAME=Majadas_del_tietar
 export OSVAS=/home/pn56/OSVASgh/ #SET PATH TO YOUR OSVAS SETUP
 export HARP=/home/pn56/operharpverif/  #SET PATH TO HARP SCRIPTS
 yaml_file="$OSVAS/config_files/Stations/${STATION_NAME}.yml"
-extension=$([ "$JUPYTER" = "no" ] && echo ".ipynb" || echo ".py") #Change to "no" if jupyter not available
+extension=$([ "$JUPYTER" = "yes" ] && echo ".ipynb" || echo ".py") #Change to "no" if jupyter not available
 command=$([ "$extension" = ".ipynb" ] && echo "jupyter nbconvert --to notebook --execute --inplace" || echo "python3")
+
 # --- Read execution control from YAML (case-insensitive booleans)
 Create_forcing=$(yq -r '.OSVAS_steps.Create_forcing // "false"' "$yaml_file" | tr '[:upper:]' '[:lower:]')
 Get_validation=$(yq -r '.OSVAS_steps.Get_validation // "false"' "$yaml_file" | tr '[:upper:]' '[:lower:]')
