@@ -13,7 +13,8 @@ export STATION_NAME=Majadas_del_tietar
 export OSVAS=/home/pn56/OSVASgh/ #SET PATH TO YOUR OSVAS SETUP
 export HARP=/home/pn56/operharpverif/  #SET PATH TO HARP SCRIPTS
 yaml_file="$OSVAS/config_files/Stations/${STATION_NAME}.yml"
-
+extension=$([ "$JUPYTER" = "no" ] && echo ".ipynb" || echo ".py") #Change to "no" if jupyter not available
+command=$([ "$extension" = ".ipynb" ] && echo "jupyter nbconvert --to notebook --execute --inplace" || echo "python3")
 # --- Read execution control from YAML (case-insensitive booleans)
 Create_forcing=$(yq -r '.OSVAS_steps.Create_forcing // "false"' "$yaml_file" | tr '[:upper:]' '[:lower:]')
 Get_validation=$(yq -r '.OSVAS_steps.Get_validation // "false"' "$yaml_file" | tr '[:upper:]' '[:lower:]')
@@ -29,12 +30,12 @@ EXPNAMES=$(yq -r '.OSVAS_steps.Expnames[]?' "$yaml_file" | xargs)
 ###################################################################################################
 
 cd $OSVAS
-FORCING_NOTEBOOK=${OSVAS}/scripts/notebooks/Write_ICOS_forcing.ipynb
-# Run the notebook from this bash script using nbconvert 
+FORCING_SCRIPT=${OSVAS}/scripts/notebooks/Write_ICOS_forcing
+# Run the jupyter notebook or python script from this bash script using nbconvert 
 # The script reads the yaml config in ${OSVAS}/config_files/Stations/{STATION_NAME.yml}
 if [[ "$Create_forcing" == true ]]; then
     echo "▶ Running Step 1: Create forcing data"
-    jupyter nbconvert --to notebook --execute --inplace "$FORCING_NOTEBOOK"
+    $command "$FORCING_NOTEBOOK"$extension
 else
     echo "⏩ Skipping Step 1: Create forcing data"
 fi
@@ -42,12 +43,12 @@ fi
 #### STEP 2: Get Validation data from ICOS stations ################################################
 #### This is done by calling ICOS_Flux_Downloader.ipynb ############################################
 ####################################################################################################
-VALIDATION_NOTEBOOK=${OSVAS}/scripts/notebooks/ICOS_Flux_Downloader.ipynb
-# Run the notebook from this bash script using nbconvert 
+VALIDATION_SCRIPT=${OSVAS}/scripts/notebooks/ICOS_Flux_Downloader
+# Run the jupyter notebook or python script from this bash script using nbconvert 
 # The script reads the yaml config in ${OSVAS}/config_files/Stations/{STATION_NAME.yml}
 if [[ "$Get_validation" == true ]]; then
     echo "▶ Running Step 2: Get validation data"
-    jupyter nbconvert --to notebook --execute --inplace "$VALIDATION_NOTEBOOK"
+    $command "$VALIDATION_SCRIPT"$extension
 else
     echo "⏩ Skipping Step 2: Get validation data"
 fi
