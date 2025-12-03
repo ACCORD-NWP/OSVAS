@@ -11,7 +11,7 @@
 import os
 # Default values defined in the notebook for Station and OSVAS install:
 OSVAS='/home/pn56/OSVASgh/'  # Main OSVAS path
-Station_name='Meteopole'
+Station_name='Majadas_del_tietar'
 
 # If an environment variable STATION or OSVAS exists, override the default
 Station_name = os.getenv("STATION_NAME", Station_name)
@@ -785,6 +785,47 @@ if "Forc_DIR_SW" in Station_forcing.columns:
     if neg_count > 0:
         print(f"Setting {neg_count} negative Forc_DIR_SW values to zero.")
         Station_forcing.loc[Station_forcing["Forc_DIR_SW"] < 0, "Forc_DIR_SW"] = 0
+# Step 4: Compute wet-bulb temperature Tw2m and split precipitation ---
+
+required_cols = ["Forc_TA", "Forc_RH", "Forc_RAIN"]
+if all(col in Station_forcing.columns for col in required_cols):
+
+    T2m = Station_forcing["Forc_TA"]
+    RH2m = Station_forcing["Forc_RH"]
+
+    # Avoid NaN or impossible humidity
+    valid = RH2m.notna() & T2m.notna()
+
+    if valid.any():
+        # Compute wet-bulb temperature Tw2m (°C) using given formula
+        Tw2m = (
+            (T2m-273.15) * np.arctan(0.151977 * np.sqrt(RH2m + 8.313659))
+            + 0.00391838 * np.sqrt(RH2m ** 3) * np.arctan(0.023101 * RH2m)
+            - np.arctan(RH2m - 1.676331)
+            + np.arctan(T2m-273.15 + RH2m)
+            - 4.686035
+        )
+
+        Station_forcing["Forc_Tw2m"] = Tw2m
+
+        # Initialize Snow column if missing
+        if "Forc_Snow" not in Station_forcing.columns:
+            Station_forcing["Forc_Snow"] = 0.0
+
+        # Rows where temperature is at or below freezing → all precip becomes snow
+        snow_mask = valid & (Tw2m <= 0)
+
+        if snow_mask.any():
+            # Move liquid precip (Forc_RAIN) to Forc_Snow
+            Station_forcing.loc[snow_mask, "Forc_Snow"] += Station_forcing.loc[snow_mask, "Forc_RAIN"]
+            Station_forcing.loc[snow_mask, "Forc_RAIN"] = 0.0
+
+            print(f"Converted {snow_mask.sum()} precipitation records to snowfall based on Tw2m ≤ 0°C.")
+    else:
+        print("Wet-bulb temperature calculation skipped: no valid TA/RH rows.")
+else:
+    print("Cannot compute wet-bulb temperature or split precipitation: missing Forc_TA, Forc_RH, or Forc_RAIN.")
+
 
 
 # In[ ]:
@@ -842,11 +883,23 @@ if forcing_format=='netcdf':
 # In[ ]:
 
 
+
+
+
+# In[ ]:
+
+
 dfs
 
 
 # In[ ]:
 
 
-common_td.seconds
+Station_forcing["Forc_TA"]
+
+
+# In[ ]:
+
+
+
 

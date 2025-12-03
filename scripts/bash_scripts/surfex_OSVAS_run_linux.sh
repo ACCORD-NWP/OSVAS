@@ -9,11 +9,14 @@ set -x
 # Select name of the Station where to run the simulation, and the experiment name to import the yaml
 # configuration, namelist, etc Currently select between Majadas_del_tietar (ES), Meteopole(FR),
 # Loobos(NL). Make sure you have a recent token for the ICOS API stored in $OSVAS/icos_cookie.txt
-export STATION_NAME=Majadas_del_tietar
+export STATION_NAME=Meteopole
 export OSVAS=/home/pn56/OSVASgh/ #SET PATH TO YOUR OSVAS SETUP
 export HARP=/home/pn56/operharpverif/  #SET PATH TO HARP SCRIPTS
 yaml_file="$OSVAS/config_files/Stations/${STATION_NAME}.yml"
-extension=$([ "$JUPYTER" = "yes" ] && echo ".ipynb" || echo ".py") #Change to "no" if jupyter not available
+
+
+JUPYTER=yes # Set to no in case that no jupyter is available in the system
+extension=$([ "$JUPYTER" = "yes" ] && echo ".ipynb" || echo ".py")
 command=$([ "$extension" = ".ipynb" ] && echo "jupyter nbconvert --to notebook --execute --inplace" || echo "python3")
 
 # --- Read execution control from YAML (case-insensitive booleans)
@@ -36,7 +39,7 @@ FORCING_SCRIPT=${OSVAS}/scripts/notebooks/Write_ICOS_forcing
 # The script reads the yaml config in ${OSVAS}/config_files/Stations/{STATION_NAME.yml}
 if [[ "$Create_forcing" == true ]]; then
     echo "▶ Running Step 1: Create forcing data"
-    $command "$FORCING_NOTEBOOK"$extension
+    $command "$FORCING_SCRIPT"$extension
 else
     echo "⏩ Skipping Step 1: Create forcing data"
 fi
@@ -71,17 +74,10 @@ SURFEXEXE=$SURFEX_HOME/src/dir_obj-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0/MASTER/
 # Add these to the $PATH
 export PATH=${SURFEXEXE}:$PATH
 
-#Source the SURFEX profile file:
-SURFEXPROFILE=${SURFEX_HOME}/conf/$SURFEX_PROFILE
-source $SURFEXPROFILE
-
 #SET PATH TO YOUR PHYSIOGRAPHY FILES
 PARAMFILES=${SURFEX_HOME}/MY_RUN/ECOCLIMAP/  # ECOCLIMAP param/bin files
 DIRFILES=$HOME/PHYSIO/                       # hdr/dir files of ECOCLIMAP I/II version in the namelists
 
-# After the export, make sure that the correct executables will be used
-echo $PATH
-which OFFLINE
 
 #####################################################################################################
 #####################################################################################################
@@ -130,6 +126,12 @@ echo "$seconds_since_midnight"
 #####################################################################################################
 if [[ "$Run_surfex" == true ]]; then
     echo "▶ Running Step 3: Run SURFEX offline simulations"
+    #Source the SURFEX profile file:
+    SURFEX_PROFILE_PATH=${SURFEX_HOME}/conf/$SURFEX_PROFILE
+    source $SURFEX_PROFILE_PATH
+    # After the export, make sure that the correct executables will be used
+    echo $PATH
+    which OFFLINE
     for EXPNAME in $EXPNAMES; do
 	mkdir -p $OSVAS/RUNS/$STATION_NAME/$EXPNAME/run/
 	mkdir -p $OSVAS/RUNS/$STATION_NAME/$EXPNAME/output/
