@@ -25,7 +25,10 @@ export STATION_NAME=Majadas_del_tietar
 export OSVAS=/perm/sp3c/OSVAS/ #SET PATH TO YOUR OSVAS SETUP
 export HARP=/perm/sp3c/harmonie_release/oper-harp-verif_orig/  #SET PATH TO HARP SCRIPTS
 yaml_file="$OSVAS/config_files/Stations/${STATION_NAME}.yml"
-extension=$([ "$JUPYTER" = "yes" ] && echo ".ipynb" || echo ".py") #Change to "no" if jupyter not available
+
+
+JUPYTER=yes # Set to no in case that no jupyter is available in the system
+extension=$([ "$JUPYTER" = "yes" ] && echo ".ipynb" || echo ".py")
 command=$([ "$extension" = ".ipynb" ] && echo "jupyter nbconvert --to notebook --execute --inplace" || echo "python3")
 
 # --- Read execution control from YAML (case-insensitive booleans)
@@ -48,7 +51,7 @@ FORCING_SCRIPT=${OSVAS}/scripts/notebooks/Write_ICOS_forcing
 # The script reads the yaml config in ${OSVAS}/config_files/Stations/{STATION_NAME.yml}
 if [[ "$Create_forcing" == true ]]; then
     echo "▶ Running Step 1: Create forcing data"
-    $command "$FORCING_NOTEBOOK"$extension
+    $command "$FORCING_SCRIPT"$extension
 else
     echo "⏩ Skipping Step 1: Create forcing data"
 fi
@@ -302,6 +305,3 @@ if [[ "$Display_HARP" == true ]]; then
     Rscript launch_dynamicapp_atos.R "$verif_path" 9999 > $OSVAS/dynamicapp.log 2>&1 &
     Rscript launch_visapp_atos.R -img_dir "$verif_path" -port 9998 > $OSVAS/visapp.log 2>&1 &
 fi
-yq --version
-echo $PATH
-which yq

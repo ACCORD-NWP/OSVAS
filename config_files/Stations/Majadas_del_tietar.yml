@@ -1,5 +1,5 @@
 OSVAS_steps:
- Create_forcing: false
+ Create_forcing: true
  Get_validation: false
  Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
@@ -9,8 +9,8 @@ OSVAS_steps:
  Expnames: #Don't forget a space before each item
   - MEBREFOL
  Extract_model_sqlites: false
- Run_HARP: true
- Display_HARP: true
+ Run_HARP: false
+ Display_HARP: false
 
 Station_metadata:
   Station_name: Majadas_del_tietar
@@ -24,7 +24,7 @@ Forcing_data:
   height_T: 2                       # Height of the temperature measurement
   height_V: 10                      # Height of the windspeed   measurement
   run_start: '2021-5-01 00:00:00'    # Timestamp for the forcing start
-  run_end: '2022-12-31 23:30:00'      # Timestamp for the forcing end
+  run_end: '2021-7-31 23:30:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
   dataset1:
     doi: https://meta.icos-cp.eu/objects/fPAqntOb1uiTQ2KI1NS1CHlB
@@ -43,8 +43,8 @@ Forcing_data:
       Forc_TA: TA, +273.15
       Forc_RH: RH
 Validation_data:
-  validation_start: '2022-1-01 00:00:00'
-  validation_end: '2021-12-31 23:30:00'
+  validation_start: '2021-5-01 00:00:00'
+  validation_end: '2021-7-31 23:30:00'
   common_obstable: FALSE  # Write obs to a common obstable or to a single-station one
   dataset1: 
     doi: https://meta.icos-cp.eu/objects/fPAqntOb1uiTQ2KI1NS1CHlB
