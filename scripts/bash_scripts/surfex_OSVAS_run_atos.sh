@@ -13,6 +13,7 @@ set -x
 module load conda
 export CONDAENV=OSVASENV
 conda activate $CONDAENV
+export PATH=$PATH:$HOME/.local/bin/
 
 ###### OSVAS ######################################################################################
 ###### (OFFLINE SURFEX VALIDATION SYSTEM) #########################################################
