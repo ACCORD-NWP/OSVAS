@@ -40,7 +40,7 @@ All documentation is available inside the `docs/` folder and in https://accord-n
 
 In addition, [a pdf presentation is available](docs/OSVAS_Workflow.pdf)
 
-### 🧪 <u>[**ICOS data**](https://accord-nwp.github.io/OSVAS/ICOS_data.html)</u>
+### 🧪 <u>[**ICOS data**](docs/ICOS_data.md)</u>
 
 ---
 ## ⚡ Quick Start guide
