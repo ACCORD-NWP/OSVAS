@@ -10,3 +10,4 @@ See the sections:
 - [Step 4](step4_nc2sqlite.md)
 - [Step 5](step5_harp_verification.md)
 - [Step 6](step6_visualization.md)
+- [Information about ICOS data](ICOS_data.md)
