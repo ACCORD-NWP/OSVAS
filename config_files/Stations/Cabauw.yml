@@ -1,0 +1,90 @@
+OSVAS_steps:
+ Create_forcing: false
+ Get_validation: false
+ Run_surfex: false
+ Surfex_steps: #Don't forget a space before each item
+  - PGD
+  - PREP
+  - OFFLINE
+ Expnames: #Don't forget a space before each item
+  - MEBREFOL
+ Extract_model_sqlites: false
+ Run_HARP: false
+ Display_HARP: true
+
+Station_metadata:
+  Station_name: Cabauw
+  SID: 13536M001
+  elev: 0
+  lat: 51.9703
+  lon: 4.9264
+  vegtype: 9
+
+Forcing_data:
+  height_T: 2                       # Height of the temperature measurement
+  height_V: 10                      # Height of the windspeed   measurement
+  run_start: '2021-05-01 00:00:00'    # Timestamp for the forcing start
+  run_end: '2021-07-31 23:30:00'      # Timestamp for the forcing end
+  forcing_format: 'ascii'          # Choose between netcdf or ascii
+  dataset1:
+    doi: https://browser.dataplatform.knmi.nl/metadata/cesar_surface_meteo_lc1_t10~v1.0~metadata.xml
+    timedelta: 30  # in minutes
+    variables:
+      Forc_CO2: -, 0.00062
+      Forc_PS: PA, *1000
+      Forc_RAIN: P, /(timedelta*60)
+      Forc_SNOW: 
+      Forc_WIND: WS
+      Forc_DIR: WD      
+      Forc_DIR_SW: SW_IN
+      Forc_LW: LW_IN
+      Forc_QA: 
+      Forc_SCA_SW: 
+      Forc_TA: TA, +273.15
+      Forc_RH: RH
+Validation_data:
+  validation_start: '2021-05-01 00:00:00'
+  validation_end: '2021-07-31 23:30:00'
+  common_obstable: FALSE  # Write obs to a common obstable or to a single-station one
+  dataset1: 
+    doi: https://meta.icos-cp.eu/objects/fPAqntOb1uiTQ2KI1NS1CHlB
+    timedelta: 30
+    variables: # Map ICOS variables (right) to a name (left) in the OBSTABLE
+      SW_OUT: SW_OUT
+      LW_OUT: LW_OUT
+      SW_IN: SW_IN
+      LW_IN: LW_IN  
+      TS_1: TS_1
+      TS_2: TS_2
+      TS_3: TS_3
+      TS_4: TS_4
+      TS_5: TS_5
+      SWC_1: SWC_1
+      SWC_2: SWC_2
+      SWC_3: SWC_3
+      SWC_4: SWC_4
+      SWC_5: SWC_5
+    units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
+      SW_OUT: W/m2
+      LW_OUT: W/m2
+      LW_IN: W/m2
+      SW_IN: W/m2
+      TS_1: degC
+      TS_2: degC
+      TS_3: degC
+      TS_4: degC
+      TS_5: degC        
+      SWC_1: percent
+      SWC_2: percent
+      SWC_3: percent
+      SWC_4: percent
+      SWC_5: percent
+  dataset2:
+    doi: https://meta.icos-cp.eu/objects/tONKGY9pOYqVInayCYac-4LI
+    timedelta: 30
+    variables:
+      H: H
+      LE: LE
+    units:
+      H: W/m2
+      LE: W/m2

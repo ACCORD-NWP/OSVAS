@@ -9,7 +9,7 @@ set -x
 # Select name of the Station where to run the simulation, and the experiment name to import the yaml
 # configuration, namelist, etc Currently select between Majadas_del_tietar (ES), Meteopole(FR),
 # Loobos(NL). Make sure you have a recent token for the ICOS API stored in $OSVAS/icos_cookie.txt
-export STATION_NAME=Majadas_del_tietar
+export STATION_NAME=Cabauw
 export OSVAS=/home/alvaro/master/TFM/OSVAS #SET PATH TO YOUR OSVAS SETUP
 export HARP=/home/alvaro/master/TFM/oper-harp-verif  #SET PATH TO HARP SCRIPTS
 yaml_file="$OSVAS/config_files/Stations/${STATION_NAME}.yml"
