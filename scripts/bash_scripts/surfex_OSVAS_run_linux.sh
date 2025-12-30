@@ -9,9 +9,9 @@ set -x
 # Select name of the Station where to run the simulation, and the experiment name to import the yaml
 # configuration, namelist, etc Currently select between Majadas_del_tietar (ES), Meteopole(FR),
 # Loobos(NL). Make sure you have a recent token for the ICOS API stored in $OSVAS/icos_cookie.txt
-export STATION_NAME=Meteopole
-export OSVAS=/home/pn56/OSVASgh/ #SET PATH TO YOUR OSVAS SETUP
-export HARP=/home/pn56/operharpverif/  #SET PATH TO HARP SCRIPTS
+export STATION_NAME=Majadas_del_tietar
+export OSVAS=/home/alvaro/master/TFM/OSVAS #SET PATH TO YOUR OSVAS SETUP
+export HARP=/home/alvaro/master/TFM/oper-harp-verif  #SET PATH TO HARP SCRIPTS
 yaml_file="$OSVAS/config_files/Stations/${STATION_NAME}.yml"
 
 
@@ -65,18 +65,18 @@ fi
 #### in the namelists, run SURFEX for each experiment################################################
 #####################################################################################################
 # Define path of SURFEX code and SURFEX executables, add to $PATH
-SURFEX_PARENT=$HOME
-SURFEX_VER=SURFEX_NWP
+SURFEX_PARENT=/home/alvaro/master/TFM
+SURFEX_VER=SURFEX-NWP-ACCORD_NWP_v81
 SURFEX_HOME=$SURFEX_PARENT/$SURFEX_VER  #PATH TO THE SURFEX SETUP
-SURFEX_PROFILE=profile_surfex-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0
-SURFEXEXE=$SURFEX_HOME/src/dir_obj-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0/MASTER/ #PATH TO SURFEX BINS 
+SURFEX_PROFILE=profile_surfex-LXgfortran-SFX-V8-1-1-MPIAUTO-OMP-O2-X0
+SURFEXEXE=$SURFEX_HOME/src/dir_obj-LXgfortran-SFX-V8-1-1-MPIAUTO-OMP-O2-X0/MASTER #PATH TO SURFEX BINS 
 
 # Add these to the $PATH
 export PATH=${SURFEXEXE}:$PATH
 
 #SET PATH TO YOUR PHYSIOGRAPHY FILES
-PARAMFILES=${SURFEX_HOME}/MY_RUN/ECOCLIMAP/  # ECOCLIMAP param/bin files
-DIRFILES=$HOME/PHYSIO/                       # hdr/dir files of ECOCLIMAP I/II version in the namelists
+PARAMFILES=$SURFEX_HOME/MY_RUN/ECOCLIMAP  # ECOCLIMAP param/bin files
+DIRFILES="$SURFEX_HOME/ECOCLIMAP_II_V2.2" # hdr/dir files of ECOCLIMAP I/II version in the namelists
 
 
 #####################################################################################################
@@ -173,6 +173,7 @@ if [[ "$Run_surfex" == true ]]; then
         cd "$RUNDIR"
         for step in $SURFEX_STEPS; do
             echo "Running $step ..."
+	    echo $RUNDIR
             $step || { echo "❌ Error running $step"; exit 1; }
         done
 	#Move output files to the output folder of the experiment

@@ -1,16 +1,16 @@
 OSVAS_steps:
- Create_forcing: true
+ Create_forcing: false
  Get_validation: false
  Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
-  - pgd
+  - PGD
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
   - MEBREFOL
  Extract_model_sqlites: false
  Run_HARP: false
- Display_HARP: false
+ Display_HARP: true
 
 Station_metadata:
   Station_name: Majadas_del_tietar
@@ -43,8 +43,8 @@ Forcing_data:
       Forc_TA: TA, +273.15
       Forc_RH: RH
 Validation_data:
-  validation_start: '2021-5-01 00:00:00'
-  validation_end: '2021-7-31 23:30:00'
+  validation_start: '2021-05-01 00:00:00'
+  validation_end: '2021-07-31 23:30:00'
   common_obstable: FALSE  # Write obs to a common obstable or to a single-station one
   dataset1: 
     doi: https://meta.icos-cp.eu/objects/fPAqntOb1uiTQ2KI1NS1CHlB

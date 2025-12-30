@@ -23,13 +23,13 @@ verif:
   force_valid_thr: FALSE                    # Set to TRUE if you really want threshold scores over valid times/hours
   lt_split: FALSE                           # Split some auxiliary scores (e.g. scatterplots, freq hist) between short (<=24), long (>24), and all leadtimes 
   fcst_path:
-  - /home/pn56/OSVASgh/sqlites/model_data/
+  - /home/alvaro/master/TFM/OSVAS/sqlites/model_data/Majadas_del_tietar
   obs_path:
-  - /home/pn56/OSVASgh/sqlites/validation_data/Majadas_del_tietar/
+  - /home/alvaro/master/TFM/OSVAS/sqlites/validation_data/Majadas_del_tietar
   verif_path:
-  - /home/pn56/OSVASgh/RUNS/Majadas_del_tietar/HARPVERIF/
+  - /home/alvaro/master/TFM/OSVAS/RUNS/Majadas_del_tietar/HARPVERIF/
 post:
   plot_output:
-  - /home/pn56/OSVASgh/RUNS/Majadas_del_tietar/HARPVERIF/
+  - /home/alvaro/master/TFM/OSVAS/RUNS/Majadas_del_tietar/HARPVERIF/
   create_png: true
   cmap: trubetskoy
