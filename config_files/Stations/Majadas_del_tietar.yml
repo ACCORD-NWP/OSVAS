@@ -1,7 +1,7 @@
 OSVAS_steps:
  Create_forcing: false
  Get_validation: false
- Run_surfex: false
+ Run_surfex: true
  Surfex_steps: #Don't forget a space before each item
   - PGD
   - PREP
@@ -10,7 +10,7 @@ OSVAS_steps:
   - MEBREFOL
  Extract_model_sqlites: false
  Run_HARP: false
- Display_HARP: true
+ Display_HARP: false
 
 Station_metadata:
   Station_name: Majadas_del_tietar

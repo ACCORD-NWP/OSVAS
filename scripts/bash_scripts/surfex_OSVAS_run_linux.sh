@@ -35,6 +35,9 @@ EXPNAMES=$(yq -r '.OSVAS_steps.Expnames[]?' "$yaml_file" | xargs)
 
 cd $OSVAS
 FORCING_SCRIPT=${OSVAS}/scripts/notebooks/Write_ICOS_forcing
+if [[ "$STATION_NAME" == 'Cabauw' ]]; then
+    FORCING_SCRIPT=${OSVAS}/scripts/notebooks/Write_CABAUW_forcing
+fi
 # Run the jupyter notebook or python script from this bash script using nbconvert 
 # The script reads the yaml config in ${OSVAS}/config_files/Stations/{STATION_NAME.yml}
 if [[ "$Create_forcing" == true ]]; then
