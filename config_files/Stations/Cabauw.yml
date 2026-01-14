@@ -1,7 +1,7 @@
 OSVAS_steps:
  Create_forcing: false
- Get_validation: false
- Run_surfex: true
+ Get_validation: true
+ Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - PGD
   - PREP
@@ -9,13 +9,13 @@ OSVAS_steps:
  Expnames: #Don't forget a space before each item
   - MEBREFOL
  Extract_model_sqlites: false
- Run_HARP: false
- Display_HARP: false
+ Run_HARP: true
+ Display_HARP: true
 
 Station_metadata:
   Station_name: Cabauw
-  SID: 6348
-  elev: 1
+  SID: 4300000008
+  elev: 0
   lat: 51.9703
   lon: 4.9264
   vegtype: 9
@@ -23,8 +23,8 @@ Station_metadata:
 Forcing_data:
   height_T: 2                       # Height of the temperature measurement
   height_V: 10                      # Height of the windspeed   measurement
-  run_start: '2025-09-01 00:00:00'    # Timestamp for the forcing start
-  run_end: '2025-11-30 23:30:00'      # Timestamp for the forcing end
+  run_start: '2019-01-01 00:00:00'    # Timestamp for the forcing start
+  run_end: '2019-12-31 23:59:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
   dataset1:
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_meteo_lc1_t10/versions/v1.0/files/
@@ -43,48 +43,59 @@ Forcing_data:
       Forc_LW: LWD
       
 Validation_data:
-  validation_start: '2021-05-01 00:00:00'
-  validation_end: '2021-07-31 23:30:00'
+  validation_start: '2019-01-01 00:00:00'
+  validation_end: '2019-12-31 23:59:00'
   common_obstable: FALSE  # Write obs to a common obstable or to a single-station one
   dataset1: 
-    doi: https://meta.icos-cp.eu/objects/fPAqntOb1uiTQ2KI1NS1CHlB
-    timedelta: 30
-    variables: # Map ICOS variables (right) to a name (left) in the OBSTABLE
-      SW_OUT: SW_OUT
-      LW_OUT: LW_OUT
-      SW_IN: SW_IN
-      LW_IN: LW_IN  
-      TS_1: TS_1
-      TS_2: TS_2
-      TS_3: TS_3
-      TS_4: TS_4
-      TS_5: TS_5
-      SWC_1: SWC_1
-      SWC_2: SWC_2
-      SWC_3: SWC_3
-      SWC_4: SWC_4
-      SWC_5: SWC_5
+    doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_radiation_lc1_t10/versions/v1.0/files
+    timedelta: 10
+    variables: # Map Cesar variables (right) to a name (left) in the OBSTABLE
+      SW_OUT: SWU
+      LW_OUT: LWU
+      SW_IN: SWD
+      LW_IN: LWD 
     units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
       SW_OUT: W/m2
       LW_OUT: W/m2
       LW_IN: W/m2
       SW_IN: W/m2
-      TS_1: degC
-      TS_2: degC
-      TS_3: degC
-      TS_4: degC
-      TS_5: degC        
-      SWC_1: percent
-      SWC_2: percent
-      SWC_3: percent
-      SWC_4: percent
-      SWC_5: percent
   dataset2:
-    doi: https://meta.icos-cp.eu/objects/tONKGY9pOYqVInayCYac-4LI
-    timedelta: 30
+    doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_flux_lc1_t10/versions/v1.0/files
+    timedelta: 10
     variables:
       H: H
       LE: LE
     units:
       H: W/m2
       LE: W/m2
+  dataset3:
+    doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_soil_heat_lb1_t10/versions/v1.0/files
+    timedelta: 10
+    variables:
+      TS_1: TS00 #Which ones
+      TS_2: TS02
+      TS_3: TS04
+      TS_4: TS06
+      TS_5: TS08
+    units:
+      TS_1: degC
+      TS_2: degC
+      TS_3: degC
+      TS_4: degC
+      TS_5: degC
+#  dataset4: This data cannot be accessed
+#    doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_soil_water_lb1_t10/versions/v1.1/files
+#    timedelta: 10
+#    variables:
+#      SWC_1: SWC_1
+#      SWC_2: SWC_2
+#      SWC_3: SWC_3
+#      SWC_4: SWC_4
+#      SWC_5: SWC_5
+#    units:
+#      SWC_1: percent
+#      SWC_2: percent
+#      SWC_3: percent
+#      SWC_4: percent
+#      SWC_5: percent
+      

@@ -51,6 +51,9 @@ fi
 #### This is done by calling ICOS_Flux_Downloader.ipynb ############################################
 ####################################################################################################
 VALIDATION_SCRIPT=${OSVAS}/scripts/notebooks/ICOS_Flux_Downloader
+if [[ "$STATION_NAME" == 'Cabauw' ]]; then
+    VALIDATION_SCRIPT=${OSVAS}/scripts/notebooks/CABAUW_Flux_Downloader
+fi
 # Run the jupyter notebook or python script from this bash script using nbconvert 
 # The script reads the yaml config in ${OSVAS}/config_files/Stations/{STATION_NAME.yml}
 if [[ "$Get_validation" == true ]]; then

@@ -1,7 +1,7 @@
 OSVAS_steps:
  Create_forcing: false
- Get_validation: false
- Run_surfex: true
+ Get_validation: true
+ Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - PGD
   - PREP
