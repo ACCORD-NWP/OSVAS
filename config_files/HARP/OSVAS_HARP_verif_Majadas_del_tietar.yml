@@ -1,0 +1,35 @@
+verif:
+  project_name:
+  - OSVAS_HARP_MSIB
+  fcst_model:
+  - MEBREFOL
+  lead_time: seq(0,24,3)
+  lead_time_UA: NULL
+  by_step: "24h"
+  fcst_type: "det"                          # det or eps
+  domains:                                  # what domains to verify ("All" will use all stations available)
+    - "All"
+  domains_UA:                               # what domains to verify for UA variables. Defaults to "domains" if NULL or missing.
+    - NULL
+  members:                                  # What members to verify for each ensemble. Include a list if the members differ between fcst_model. Set to NULL to use all available members in an ensemble.
+    - NULL
+  lags:                                     # How to lag the members for each ensemble. Include a list if the lags differ between fcst_model. Set to "0h" for no lagging.
+    - "0h"
+  shifts:                                   # Experimental: Used to shift forecasts forward/backward in time using "shift_forecast". Follows the same format as members/lags. Set to NULL in most cases.
+    - NULL
+  num_ref_members: "Inf"                    # Number of reference members to use when computing fair scores for an ensemble (e.g. "Inf"). Not used for det runs.
+  ua_fcst_cycle: FALSE                      # For upper air variables, do you want to group by fcst_cycle? Either TRUE or FALSE
+  ua_restrict_vh: TRUE                      # For upper air variables, restict forecast-observation data to valid hours 00, 06, 12, 18Z. 
+  force_valid_thr: FALSE                    # Set to TRUE if you really want threshold scores over valid times/hours
+  lt_split: FALSE                           # Split some auxiliary scores (e.g. scatterplots, freq hist) between short (<=24), long (>24), and all leadtimes 
+  fcst_path:
+  - /home/alvaro/master/TFM/OSVAS/sqlites/model_data/Majadas_del_tietar
+  obs_path:
+  - /home/alvaro/master/TFM/OSVAS/sqlites/validation_data/Majadas_del_tietar
+  verif_path:
+  - /home/alvaro/master/TFM/OSVAS/RUNS/Majadas_del_tietar/HARPVERIF/
+post:
+  plot_output:
+  - /home/alvaro/master/TFM/OSVAS/RUNS/Majadas_del_tietar/HARPVERIF/
+  create_png: true
+  cmap: trubetskoy
