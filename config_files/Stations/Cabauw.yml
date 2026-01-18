@@ -1,6 +1,6 @@
 OSVAS_steps:
  Create_forcing: false
- Get_validation: true
+ Get_validation: false
  Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - PGD
@@ -18,13 +18,13 @@ Station_metadata:
   elev: 0
   lat: 51.9703
   lon: 4.9264
-  vegtype: 9
+  vegtype: 10
 
 Forcing_data:
   height_T: 2                       # Height of the temperature measurement
   height_V: 10                      # Height of the windspeed   measurement
-  run_start: '2019-01-01 00:00:00'    # Timestamp for the forcing start
-  run_end: '2019-12-31 23:59:00'      # Timestamp for the forcing end
+  run_start: '2018-01-01 00:00:00'    # Timestamp for the forcing start
+  run_end: '2020-12-31 23:59:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
   dataset1:
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_meteo_lc1_t10/versions/v1.0/files/
@@ -40,11 +40,15 @@ Forcing_data:
       Forc_TA: TA002
       Forc_DIR_SW: SWD
       Forc_SCA_SW:
+  dataset2:
+    doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_radiation_lc1_t10/versions/v1.0/files/
+    timedelta: 10
+    variables:
       Forc_LW: LWD
-      
+    
 Validation_data:
-  validation_start: '2019-01-01 00:00:00'
-  validation_end: '2019-12-31 23:59:00'
+  validation_start: '2018-01-01 00:00:00'
+  validation_end: '2020-12-31 23:59:00'
   common_obstable: FALSE  # Write obs to a common obstable or to a single-station one
   dataset1: 
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_radiation_lc1_t10/versions/v1.0/files
