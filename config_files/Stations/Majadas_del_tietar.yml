@@ -1,13 +1,13 @@
 OSVAS_steps:
- Create_forcing: true
+ Create_forcing: false
  Get_validation: false
- Run_surfex: false
+ Run_surfex: true
  Surfex_steps: #Don't forget a space before each item
   - pgd
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
-  - MEBREFOL
+  - MEBREFOLv9
  Extract_model_sqlites: false
  Run_HARP: false
  Display_HARP: false
