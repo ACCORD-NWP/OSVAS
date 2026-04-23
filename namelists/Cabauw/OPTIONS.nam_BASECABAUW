@@ -1,124 +1,8 @@
-               
-
-&NAM_SURF_CSTS
-                       XTAU_LW       = 0.4 
-/
-&NAM_MEB_ISBA          LMEB_PATCH    = .F., .F., .F., .F., .F., .F., .F., .F., .F., .T., .F., .F.,
-                       LFORC_MEASURE = .T.,
-                       LMEB_LITTER   = .F.,
-/
-
-&NAM_PREP_ISBA
-                   ! Replace with CFILE_TG CFILE_WG
-
-                   XHUG_SURF = 0.5359, 
-                   XHUG_ROOT = 1.3738, 
-                   XHUG_DEEP = 2.0791, 
-                   XTG_SURF  = 284.37,
-                   XTG_ROOT  = 285.33,
-                   XTG_DEEP  = 286.64,
-/
-
-&NAM_PREP_ISBA
-                   ! Replace with CFILE_TG CFILE_WG
-
-                   XHUG_SURF = 0.5359, 
-                   XHUG_ROOT = 1.3738, 
-                   XHUG_DEEP = 2.0791, 
-                   XTG_SURF  = 284.37,
-                   XTG_ROOT  = 285.33,
-                   XTG_DEEP  = 286.64,
-/
-
-&NAM_ISBA              
-                    NPATCH        = 12            ,
-                    CISBA         = 'DIF'         ,
-                    XUNIF_CLAY    = 0.45          ,
-                    XUNIF_SAND    = 0.00          ,
-                    YSANDFILETYPE = 'DIRECT'      ,
-    	            XUNIF_RUNOFFB = 0.0           ,
-    	            XUNIF_WDRAIN  = 0.000         ,
-                    CPEDO_FUNCTION= 'CH78'        ,
-                    CALBEDO       = 'DRY'         ,
-                    CPHOTO        = 'AST'         ,
-                    LTR_ML        = .true.        ,
-                    LMEB=.TRUE.                   ,
-                    NGROUND_LAYER = 14            ,
-
-/
-&NAM_FRAC           LECOCLIMAP   = T,
-                    XUNIF_SEA    = 0.,
-                    XUNIF_WATER  = 0.,
-                    XUNIF_TOWN   = 0.,
-                    XUNIF_NATURE = 1.
+&NAM_CH_ISBAn          CCH_DRY_DEP = "WES89 " 
 /
 &NAM_COVER 	       YCOVER = 'ECOCLIMAP_II_EUROP_V2.2',
     		       YCOVERFILETYPE = 'DIRECT' ,
     		       XRM_COVER = 0.01
-/
-&NAM_PGD_GRID          CGRID = 'LONLAT REG' 
-/
-&NAM_LONLAT_REG        XLONMIN = 4.90         , 
-                       XLONMAX = 4.95         , 
-                       XLATMIN = 51.95        , 
-                       XLATMAX = 52.0         , 
-                       NLON    = 1            , 
-                       NLAT    = 1 
-/
-&NAM_PGD_SCHEMES       CNATURE = 'ISBA  '    , 
-                       CSEA    = 'NONE  '    , 
-                       CTOWN   = 'NONE  '    , 
-                       CWATER  = 'NONE  ' 
-/
-&NAM_PGD_ARRANGE_COVER  LWATER_TO_NATURE = T ,
-                        LTOWN_TO_ROCK    = T
-/
-&NAM_PREPFILE          CPREPFILE = 'PREP'
-/
-&NAM_ZS                XUNIF_ZS  = 0.
-/
-&NAM_PREP_SURF_ATM NYEAR  = 2017,
-                   NMONTH = 11,
-                   NDAY   = 01,
-                   XTIME  = 0.  
-/
-&NAM_PREP_ISBA_SNOW    CSNOW = '3-L' 
-/
-&NAM_IO_OFFLINE        LPRINT  = T                       ,
-                       CFORCING_FILETYPE =    'NETCDF'   ,
-                       CSURF_FILETYPE =       'ASCII'    ,
-                       CTIMESERIES_FILETYPE = 'NETCDF'   ,
-                       XTSTEP_SURF = 300.                ,
-                       XTSTEP_OUTPUT = 1800.
-/
-&NAM_DIAG_SURFn        LSURF_BUDGET = T      , 
-                       N2M          = 1      ,
-        		       LRAD_BUDGET  = T      ,
-                       LCOEF        = F      ,
-                       LSURF_VARS   = T      , 
-        		       LSURF_BUDGETC = F
-/
-&NAM_DIAG_SURF_ATMn    LFRAC        = F
-/
-&NAM_WRITE_DIAG_SURFn  LPROVAR_TO_DIAG   = T
-        		       LSELECT           = F ,
-/
-&NAM_WRITE_SURF_ATM    LSPLIT_PATCH      = T
-/
-&NAM_DIAG_ISBAn        LPGD              = T , 
-                       LSURF_EVAP_BUDGET = T , 
-                       LSURF_MISC_BUDGET = T 
-/
-&NAM_SGH_ISBAn         CRUNOFF    = "WSAT"
-/
-&NAM_ISBAn             CSCOND     = "PL98"     ,
-                       CC1DRY     = 'DEF '     ,
-                       CSOILFRZ   = 'LWT'      ,
-                       CDIFSFCOND = 'DEF '     ,
-                       CSNOWRES   = 'RIL'      ,
-                       CCPSURF    = 'DRY' 
-/
-&NAM_CH_ISBAn          CCH_DRY_DEP = "WES89 " 
 /
 &NAM_DATA_ISBA         NTIME = 12,
 
@@ -309,10 +193,120 @@
      XUNIF_WSAT(23)      =     0.8 , 
      XUNIF_WSAT(24)      =     0.8 , 
 /
+&NAM_DIAG_ISBAn        LPGD              = T , 
+                       LSURF_EVAP_BUDGET = T , 
+                       LSURF_MISC_BUDGET = T 
+/
+&NAM_DIAG_SURFn        LSURF_BUDGET = T      , 
+                       N2M          = 1      ,
+        		       LRAD_BUDGET  = T      ,
+                       LCOEF        = F      ,
+                       LSURF_VARS   = T      , 
+        		       LSURF_BUDGETC = F
+/
 &nam_diag_surfn
     lcoef = .true.
     lsurf_budget = .true.
     lrad_budget = .true.
     N2M=2
 /
+&NAM_DIAG_SURF_ATMn    LFRAC        = F
+/
+&NAM_FRAC           LECOCLIMAP   = T,
+                    XUNIF_SEA    = 0.,
+                    XUNIF_WATER  = 0.,
+                    XUNIF_TOWN   = 0.,
+                    XUNIF_NATURE = 1.
+/
+&NAM_IO_OFFLINE        LPRINT  = T                       ,
+                       CFORCING_FILETYPE =    'NETCDF'   ,
+                       CSURF_FILETYPE =       'ASCII'    ,
+                       CTIMESERIES_FILETYPE = 'NETCDF'   ,
+                       XTSTEP_SURF = 300.                ,
+                       XTSTEP_OUTPUT = 1800.
+/
+&NAM_ISBA              
+                    NPATCH        = 12            ,
+                    CISBA         = 'DIF'         ,
+                    XUNIF_CLAY    = 0.45          ,
+                    XUNIF_SAND    = 0.00          ,
+                    YSANDFILETYPE = 'DIRECT'      ,
+    	            XUNIF_RUNOFFB = 0.0           ,
+    	            XUNIF_WDRAIN  = 0.000         ,
+                    CPEDO_FUNCTION= 'CH78'        ,
+                    CALBEDO       = 'DRY'         ,
+                    CPHOTO        = 'AST'         ,
+                    LTR_ML        = .true.        ,
+                    LMEB=.TRUE.                   ,
+                    NGROUND_LAYER = 14            ,
 
+/
+&NAM_ISBAn             CSCOND     = "PL98"     ,
+                       CC1DRY     = 'DEF '     ,
+                       CSOILFRZ   = 'LWT'      ,
+                       CDIFSFCOND = 'DEF '     ,
+                       CSNOWRES   = 'RIL'      ,
+                       CCPSURF    = 'DRY' 
+/
+&NAM_LONLAT_REG        XLONMIN = 4.90         , 
+                       XLONMAX = 4.95         , 
+                       XLATMIN = 51.95        , 
+                       XLATMAX = 52.0         , 
+                       NLON    = 1            , 
+                       NLAT    = 1 
+/
+&NAM_MEB_ISBA          LMEB_PATCH    = .F., .F., .F., .F., .F., .F., .F., .F., .F., .T., .F., .F.,
+                       LFORC_MEASURE = .T.,
+                       LMEB_LITTER   = .F.,
+/
+&NAM_PGD_ARRANGE_COVER  LWATER_TO_NATURE = T ,
+                        LTOWN_TO_ROCK    = T
+/
+&NAM_PGD_GRID          CGRID = 'LONLAT REG' 
+/
+&NAM_PGD_SCHEMES       CNATURE = 'ISBA  '    , 
+                       CSEA    = 'NONE  '    , 
+                       CTOWN   = 'NONE  '    , 
+                       CWATER  = 'NONE  ' 
+/
+&NAM_PREPFILE          CPREPFILE = 'PREP'
+/
+&NAM_PREP_ISBA
+                   ! Replace with CFILE_TG CFILE_WG
+
+                   XHUG_SURF = 0.5359, 
+                   XHUG_ROOT = 1.3738, 
+                   XHUG_DEEP = 2.0791, 
+                   XTG_SURF  = 284.37,
+                   XTG_ROOT  = 285.33,
+                   XTG_DEEP  = 286.64,
+/
+&NAM_PREP_ISBA
+                   ! Replace with CFILE_TG CFILE_WG
+
+                   XHUG_SURF = 0.5359, 
+                   XHUG_ROOT = 1.3738, 
+                   XHUG_DEEP = 2.0791, 
+                   XTG_SURF  = 284.37,
+                   XTG_ROOT  = 285.33,
+                   XTG_DEEP  = 286.64,
+/
+&NAM_PREP_ISBA_SNOW    CSNOW = '3-L' 
+/
+&NAM_PREP_SURF_ATM NYEAR  = 2017,
+                   NMONTH = 11,
+                   NDAY   = 01,
+                   XTIME  = 0.  
+/
+&NAM_SGH_ISBAn         CRUNOFF    = "WSAT"
+/
+&NAM_SURF_CSTS
+                       XTAU_LW       = 0.4 
+/
+&NAM_WRITE_DIAG_SURFn  LPROVAR_TO_DIAG   = T
+        		       LSELECT           = F ,
+/
+&NAM_WRITE_SURF_ATM    LSPLIT_PATCH      = T
+/
+&NAM_ZS                XUNIF_ZS  = 0.
+/

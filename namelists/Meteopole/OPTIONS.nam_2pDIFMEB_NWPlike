@@ -1,179 +1,10 @@
 &nam_cover
     ycover = 'ecosg_final_map'
     ycoverfiletype = 'DIRECT'
- &nam_diag_isban
-    lpatch_budget = .true.
-    lpgd = .true.
-    lsurf_misc_budget = .true.
-    lsurf_misc_dif = .true.
-    LSURF_EVAP_BUDGET = T , 
-/
-
-&nam_diag_surf_atmn
-    lt2mmw = .true.
-/
-
-&nam_diag_surfn
-    lcoef = .true.
-    lreset_budgetc = .true.
-    lsurf_budget = .true.
-    lsurf_budgetc = .true.
-    lsurf_vars = .true.
-    n2m = 2
-/
-
-&nam_flaken
-    lsediments = .false.
-/
-
-&nam_frac
-    lecosg = .true.
-/
-
-&nam_io_offline
-    lfagmap = .true.
-    lrestart_2m = .true.
-    nhalo = 0
-    lprint                = T                       ,
-    cpgdfile              = 'PGD'
-    cprepfile             = 'PREP'
-    csurffile             = 'SURFOUT'
-    csurf_filetype        = 'NC'
-    cforcing_filetype     = 'ASCII ' ,
-    csurf_filetype        = 'NC '   ,
-    ctimeseries_filetype  = 'NETCDF '  ,
-    xtstep_surf           = 300.    ,
-    xtstep_output         = 1800.   ,
-    llimit_qair           = T       ,
-    lset_forc_zs          = F       ,
-    xdelta_orog           = 2200.   ,
-    lrestart              = T       ,
-    lrestart_2m           = .true.
-    lprint                = T       ,
-    lout_tilename         = T       ,
-    lwrite_coord          = T       ,
-    nb_read_forc          = 0       ,
-    lallow_add_dim        = F
-    
-/
-
-&nam_isba
-    cgndres = 'DSL'
-    cisba = 'DIF'
-    cpedo_function = 'CO84'
-    cphoto = 'NON'
-    lmeb = .true.
-    nground_layer = 14
-    npatch = 2
-    xunif_runoffb = 0.2
-    yclay = 'CLAY_SOILGRID.dir'
-    yclayfiletype = 'DIRECT'
-    ysand = 'SAND_SOILGRID.dir'
-    ysandfiletype = 'DIRECT'
-    ysocfiletype = 'DIRECT'
-    ysoc_sub = 'soc_sub'
-    ysoc_top = 'soc_top'
-/
-&nam_meb_isba
-    cmeb_gndres = 'DSL'
-    lmeb_litter = .true.
-    lmeb_patch = .false., .true.
-    LFORC_MEASURE = .T.,
-/
-&nam_pgd_schemes
-    cnature = 'ISBA'
-    csea = 'SEAFLX'
-    ctown = 'TEB'
-    cwater = 'FLAKE'
-/
-&nam_seafluxn
-    csea_flux = 'ECUME6'
-    lpertflux = .false.
-    lprecip = .false.
-    lpwebb = .false.
-    lpwg = .false.
-/
-&nam_seaice_sice
-    lice_has_snow = .false.
-    lice_mass_balance = .true.
-    xocean_heat_flux = 2.0
-/
-&nam_seabathy
-    xunif_seabathy = 0.0
-/
-&nam_sgh_isban
-    chort = 'DEF'
-    crain = 'SGH'
-    crunoff = 'DT92'
-    lsoc = .true.
-/
-&nam_sson
-    crough = 'OROT'
-    xcorot = 500
-    xfracz0 = 15.0
-    xsorot = 2500.0
-    xvorot = 8.0
-/
-&nam_surf_atm
-    xcd_coeff1 = 10.0
-    xcd_coeff2 = 5.0
-    xch_coeff1 = 15.0
-    xrimax = 0.4
-/
-&nam_surf_csts
-    xz0hsn = 0.0003
-    xz0sn = 0.003
-/
-&NAM_PREP_SURF_ATM NYEAR  = 2019,
-                   NMONTH = 01,
-                   NDAY   = 01,
-                   XTIME  = 0.  
-/
-&nam_surf_snow_csts
-    lessoilsnowflux = .true.
-/
-&nam_treedrag
-    lfaketree = .false., .true., .true., .true., .true., .true., .true.
-    xallen_term = 2.5
-    xforfrac1 = 1.0
-    xforfrac2 = 0.0
-    xforlat1 = 1.0
-    xforlat2 = 0.0
-    xgrass_h_dnm = 3.0
-    xz0_max_limit = 1.6
-    xz0_min_limit = 0.0
-/
-&nam_write_diag_surfn
-    cselect = 'FMU', 'FMV', 'T2M', 'T2MMIN', 'T2MMAX', 'Q2M', 'HU2M', 'HU2MMIN',
-              'HU2MMAX', 'ZON10M', 'MER10M', 'W10M', 'W10MMAX', 'TS', 'RI',
-              'RN', 'H', 'LE', 'SWD', 'SWU', 'LWD', 'LWU', 'GFLUX', 'Z0',
-              'Z0H', 'T2M_ISBA', 'T2MMIN_ISBA', 'T2MMAX_ISBA', 'Q2M_ISBA',
-              'MER10M_ISBA', 'ZON10M_ISBA', 'HU2M_ISBA', 'W10M_ISBA', 'W10MMAX_ISBA',
-              'PSNG_ISBA', 'PSNV_ISBA', 'PSN_ISBA', 'DSN_T_ISBA', 'WSN_T_ISBA',
-              'TSWI_T_ISBA', 'TALB_ISBA', 'TS_ISBA', 'RNC_ISBA', 'HC_ISBA',
-              'LEC_ISBA', 'FMUC_ISBA', 'FMVC_ISBA', 'SWDC_ISBA', 'SWUC_ISBA',
-              'LWDC_ISBA', 'LWUC_ISBA', 'T2M_P', 'T2MMIN_P', 'T2MMAX_P',
-              'Q2M_P', 'HU2M_P', 'ZON10M_P', 'MER10M_P', 'W10M_P', 'DSN_T_P',
-              'TG1', 'TG2', 'WG1', 'WG2', 'WGI1', 'WGI2', 'RSN_VEG1', 'WSN_VEG1',
-              'ASN_VEG', 'PSN', 'LAI', 'RNC_P', 'HC_P', 'LEC_P', 'FMUC_P',
-              'FMVC_P', 'SWDC_P', 'SWUC_P', 'LWDC_P', 'LWUC_P', 'T2M_SEA',
-              'HU2M_SEA', 'Q2M_SEA', 'MER10M_SEA', 'ZON10M_SEA', 'W10M_SEA',
-              'W10MMAX_SEA', 'SST', 'SIC', 'TICE_01', 'TICE_02', 'TICE_03',
-              'TICE_04', 'T2M_WAT', 'Q2M_WAT', 'HU2M_WAT', 'ZON10M_WAT',
-              'MER10M_WAT', 'W10M_WAT', 'TS_WATER', 'T2M_TEB', 'Q2M_TEB',
-              'HU2M_TEB', 'ZON10M_TEB', 'MER10M_TEB', 'T2MMIN_TEB', 'T2MMAX_TEB',
-              'HU2MMIN_TEB', 'HU2MMAX_TEB', 'W10MMAX_TEB', 'TROAD1', 'T_SNOW',
-              'T_ICE', 'T_WML', 'T_MNW', 'T_BOT', 'H_ML', 'H_SNOW', 'H_ICE',
-              'WS_ROAD', 'WSN_RD1', 'VEG', 'EMIS', 'CD', 'CH', 'CE'
-    lselect = .true.
-    lprovar_to_diag=.TRUE.
-/
-&nam_write_surf_atm
-    lsplit_patch = .true.
-/
-&nam_zs
-    yzs = 'gmted2010'
-    yzsfiletype = 'DIRECT'
+&nam_data_flake
+    ywater_depth = 'GlobalLakeDepth'
+    ywater_depthfiletype = 'DIRECT'
+    ywater_depth_status = 'GlobalLakeStatus'
 /
 &nam_data_isba
     cfnam_albnir_soil(:,1) = 'albnir_soil_1_0105', 'albnir_soil_2_0105',
@@ -2460,17 +2291,180 @@
                   216.0, 216.0, 169.5, 40.0, 40.0, 120.0, 60.0, 60.0, 135.6,
                   150.0, 40.0
 /
-&nam_data_flake
-    ywater_depth = 'GlobalLakeDepth'
-    ywater_depthfiletype = 'DIRECT'
-    ywater_depth_status = 'GlobalLakeStatus'
+ &nam_diag_isban
+    lpatch_budget = .true.
+    lpgd = .true.
+    lsurf_misc_budget = .true.
+    lsurf_misc_dif = .true.
+    LSURF_EVAP_BUDGET = T , 
 /
-&nam_pgd_grid          cgrid = 'LONLAT REG'
-/                      
+&nam_diag_surfn
+    lcoef = .true.
+    lreset_budgetc = .true.
+    lsurf_budget = .true.
+    lsurf_budgetc = .true.
+    lsurf_vars = .true.
+    n2m = 2
+/
+&nam_diag_surf_atmn
+    lt2mmw = .true.
+/
+&nam_flaken
+    lsediments = .false.
+/
+&nam_frac
+    lecosg = .true.
+/
+&nam_io_offline
+    lfagmap = .true.
+    lrestart_2m = .true.
+    nhalo = 0
+    lprint                = T                       ,
+    cpgdfile              = 'PGD'
+    cprepfile             = 'PREP'
+    csurffile             = 'SURFOUT'
+    csurf_filetype        = 'NC'
+    cforcing_filetype     = 'ASCII ' ,
+    csurf_filetype        = 'NC '   ,
+    ctimeseries_filetype  = 'NETCDF '  ,
+    xtstep_surf           = 300.    ,
+    xtstep_output         = 1800.   ,
+    llimit_qair           = T       ,
+    lset_forc_zs          = F       ,
+    xdelta_orog           = 2200.   ,
+    lrestart              = T       ,
+    lrestart_2m           = .true.
+    lprint                = T       ,
+    lout_tilename         = T       ,
+    lwrite_coord          = T       ,
+    nb_read_forc          = 0       ,
+    lallow_add_dim        = F
+    
+/
+&nam_isba
+    cgndres = 'DSL'
+    cisba = 'DIF'
+    cpedo_function = 'CO84'
+    cphoto = 'NON'
+    lmeb = .true.
+    nground_layer = 14
+    npatch = 2
+    xunif_runoffb = 0.2
+    yclay = 'CLAY_SOILGRID.dir'
+    yclayfiletype = 'DIRECT'
+    ysand = 'SAND_SOILGRID.dir'
+    ysandfiletype = 'DIRECT'
+    ysocfiletype = 'DIRECT'
+    ysoc_sub = 'soc_sub'
+    ysoc_top = 'soc_top'
+/
 &nam_lonlat_reg        xlonmin = 1.35         ,
                        xlonmax = 1.38         ,
                        xlatmin = 43.55        ,
                        xlatmax = 43.58        ,
                        nlon    = 1            ,
                        nlat    = 1
+/
+&nam_meb_isba
+    cmeb_gndres = 'DSL'
+    lmeb_litter = .true.
+    lmeb_patch = .false., .true.
+    LFORC_MEASURE = .T.,
+/
+&nam_pgd_grid          cgrid = 'LONLAT REG'
+/                      
+&nam_pgd_schemes
+    cnature = 'ISBA'
+    csea = 'SEAFLX'
+    ctown = 'TEB'
+    cwater = 'FLAKE'
+/
+&NAM_PREP_SURF_ATM NYEAR  = 2019,
+                   NMONTH = 01,
+                   NDAY   = 01,
+                   XTIME  = 0.  
+/
+&nam_seabathy
+    xunif_seabathy = 0.0
+/
+&nam_seafluxn
+    csea_flux = 'ECUME6'
+    lpertflux = .false.
+    lprecip = .false.
+    lpwebb = .false.
+    lpwg = .false.
+/
+&nam_seaice_sice
+    lice_has_snow = .false.
+    lice_mass_balance = .true.
+    xocean_heat_flux = 2.0
+/
+&nam_sgh_isban
+    chort = 'DEF'
+    crain = 'SGH'
+    crunoff = 'DT92'
+    lsoc = .true.
+/
+&nam_sson
+    crough = 'OROT'
+    xcorot = 500
+    xfracz0 = 15.0
+    xsorot = 2500.0
+    xvorot = 8.0
+/
+&nam_surf_atm
+    xcd_coeff1 = 10.0
+    xcd_coeff2 = 5.0
+    xch_coeff1 = 15.0
+    xrimax = 0.4
+/
+&nam_surf_csts
+    xz0hsn = 0.0003
+    xz0sn = 0.003
+/
+&nam_surf_snow_csts
+    lessoilsnowflux = .true.
+/
+&nam_treedrag
+    lfaketree = .false., .true., .true., .true., .true., .true., .true.
+    xallen_term = 2.5
+    xforfrac1 = 1.0
+    xforfrac2 = 0.0
+    xforlat1 = 1.0
+    xforlat2 = 0.0
+    xgrass_h_dnm = 3.0
+    xz0_max_limit = 1.6
+    xz0_min_limit = 0.0
+/
+&nam_write_diag_surfn
+    cselect = 'FMU', 'FMV', 'T2M', 'T2MMIN', 'T2MMAX', 'Q2M', 'HU2M', 'HU2MMIN',
+              'HU2MMAX', 'ZON10M', 'MER10M', 'W10M', 'W10MMAX', 'TS', 'RI',
+              'RN', 'H', 'LE', 'SWD', 'SWU', 'LWD', 'LWU', 'GFLUX', 'Z0',
+              'Z0H', 'T2M_ISBA', 'T2MMIN_ISBA', 'T2MMAX_ISBA', 'Q2M_ISBA',
+              'MER10M_ISBA', 'ZON10M_ISBA', 'HU2M_ISBA', 'W10M_ISBA', 'W10MMAX_ISBA',
+              'PSNG_ISBA', 'PSNV_ISBA', 'PSN_ISBA', 'DSN_T_ISBA', 'WSN_T_ISBA',
+              'TSWI_T_ISBA', 'TALB_ISBA', 'TS_ISBA', 'RNC_ISBA', 'HC_ISBA',
+              'LEC_ISBA', 'FMUC_ISBA', 'FMVC_ISBA', 'SWDC_ISBA', 'SWUC_ISBA',
+              'LWDC_ISBA', 'LWUC_ISBA', 'T2M_P', 'T2MMIN_P', 'T2MMAX_P',
+              'Q2M_P', 'HU2M_P', 'ZON10M_P', 'MER10M_P', 'W10M_P', 'DSN_T_P',
+              'TG1', 'TG2', 'WG1', 'WG2', 'WGI1', 'WGI2', 'RSN_VEG1', 'WSN_VEG1',
+              'ASN_VEG', 'PSN', 'LAI', 'RNC_P', 'HC_P', 'LEC_P', 'FMUC_P',
+              'FMVC_P', 'SWDC_P', 'SWUC_P', 'LWDC_P', 'LWUC_P', 'T2M_SEA',
+              'HU2M_SEA', 'Q2M_SEA', 'MER10M_SEA', 'ZON10M_SEA', 'W10M_SEA',
+              'W10MMAX_SEA', 'SST', 'SIC', 'TICE_01', 'TICE_02', 'TICE_03',
+              'TICE_04', 'T2M_WAT', 'Q2M_WAT', 'HU2M_WAT', 'ZON10M_WAT',
+              'MER10M_WAT', 'W10M_WAT', 'TS_WATER', 'T2M_TEB', 'Q2M_TEB',
+              'HU2M_TEB', 'ZON10M_TEB', 'MER10M_TEB', 'T2MMIN_TEB', 'T2MMAX_TEB',
+              'HU2MMIN_TEB', 'HU2MMAX_TEB', 'W10MMAX_TEB', 'TROAD1', 'T_SNOW',
+              'T_ICE', 'T_WML', 'T_MNW', 'T_BOT', 'H_ML', 'H_SNOW', 'H_ICE',
+              'WS_ROAD', 'WSN_RD1', 'VEG', 'EMIS', 'CD', 'CH', 'CE'
+    lselect = .true.
+    lprovar_to_diag=.TRUE.
+/
+&nam_write_surf_atm
+    lsplit_patch = .true.
+/
+&nam_zs
+    yzs = 'gmted2010'
+    yzsfiletype = 'DIRECT'
 /
