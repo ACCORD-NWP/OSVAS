@@ -169,8 +169,8 @@ else:
 # Step 5: HARP verification
 if run_harp:
     print("▶ Running Step 5: HARP verification")
-    harp_config_template = f"{os.environ['OSVAS']}/config_files/HARP/OSVAS_HARP_verif.yml"
-    harp_config = f"{os.environ['OSVAS']}/config_files/HARP/OSVAS_HARP_verif_{os.environ['STATION_NAME']}.yml"
+    harp_config_template = f"{os.environ['OSVAS']}/config_files/HARP/yaml_files/OSVAS_HARP_verif_template.yml"
+    harp_config = f"{os.environ['OSVAS']}/config_files/HARP/yaml_files/OSVAS_HARP_verif_{os.environ['STATION_NAME']}.yml"
     shutil.copy(harp_config_template, harp_config)
     
     with open(harp_config, 'r') as f:
