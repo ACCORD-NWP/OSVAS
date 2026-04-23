@@ -1,15 +1,16 @@
 OSVAS_steps:
  Create_forcing: False
- Get_validation: False
- Run_surfex: False
+ Get_validation: false
+ Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - pgd
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
-  - MEB_REFBNR
- Extract_model_sqlites: False
- Run_HARP: True
+  - DIF
+  - DIFMEB
+ Extract_model_sqlites: false
+ Run_HARP: false
  Display_HARP: true
 
 Station_metadata:
@@ -25,7 +26,7 @@ Forcing_data:
   height_T: 2                       # Height of the temperature measurement
   height_V: 10                      # Height of the windspeed   measurement
   run_start: '2020-05-01 00:00:00'    # Timestamp for the forcing start
-  run_end: '2021-12-31 23:30:00'      # Timestamp for the forcing end
+  run_end: '2020-12-31 23:30:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
   dataset1:
     doi: https://meta.icos-cp.eu/objects/VIoR-cJnMUUjbaEkuNHMKgSv
@@ -44,8 +45,8 @@ Forcing_data:
       Forc_TA: TA, +273.15
       Forc_RH: RH
 Validation_data:
-  validation_start: '2021-01-01 00:00:00'
-  validation_end: '2021-12-31 23:30:00'
+  validation_start: '2020-05-01 00:00:00'
+  validation_end: '2020-12-31 23:30:00'
   common_obstable: FALSE
   dataset1: 
     doi: https://meta.icos-cp.eu/objects/VIoR-cJnMUUjbaEkuNHMKgSv

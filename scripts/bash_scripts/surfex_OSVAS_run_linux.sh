@@ -9,7 +9,7 @@ set -x
 # Select name of the Station where to run the simulation, and the experiment name to import the yaml
 # configuration, namelist, etc Currently select between Majadas_del_tietar (ES), Meteopole(FR),
 # Loobos(NL). Make sure you have a recent token for the ICOS API stored in $OSVAS/icos_cookie.txt
-export STATION_NAME=Meteopole
+export STATION_NAME=Majadas_del_tietar
 export OSVAS=/home/pn56/OSVASgh/ #SET PATH TO YOUR OSVAS SETUP
 export HARP=/home/pn56/operharpverif/  #SET PATH TO HARP SCRIPTS
 yaml_file="$OSVAS/config_files/Stations/${STATION_NAME}.yml"
@@ -66,7 +66,7 @@ fi
 #####################################################################################################
 # Define path of SURFEX code and SURFEX executables, add to $PATH
 SURFEX_PARENT=$HOME
-SURFEX_VER=SURFEX_NWP
+SURFEX_VER=SURFEX_ACCORD
 SURFEX_HOME=$SURFEX_PARENT/$SURFEX_VER  #PATH TO THE SURFEX SETUP
 SURFEX_PROFILE=profile_surfex-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0
 SURFEXEXE=$SURFEX_HOME/src/dir_obj-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0/MASTER/ #PATH TO SURFEX BINS 
@@ -211,8 +211,8 @@ fi
 ############ STEP 5: Configure a HARP yaml file to be used by oper-harp-verif   #####################
 ############ to run a HARP point verification for the runs                  #########################
 #####################################################################################################
-HARPCONFIG_yml_template="$OSVAS/config_files/HARP/OSVAS_HARP_verif.yml"
-HARPCONFIG_yml="$OSVAS/config_files/HARP/OSVAS_HARP_verif_${STATION_NAME}.yml"
+HARPCONFIG_yml_template="$OSVAS/config_files/HARP/yaml_files/OSVAS_HARP_verif_template.yml"
+HARPCONFIG_yml="$OSVAS/config_files/HARP/yaml_files/OSVAS_HARP_verif_${STATION_NAME}.yml"
 validation_start=$(yq '.Validation_data.validation_start' "$yaml_file" | tr -d "'\"")
 validation_end=$(yq '.Validation_data.validation_end' "$yaml_file" | tr -d "'\"")
 # Parse with 'date' to normalize
@@ -229,7 +229,7 @@ day_end=$(date -d "$validation_end" +%d)
 vars=$(yq -r '.Validation_data |
     with_entries(select(.key|test("dataset[0-9]+"))) |
     .[].variables | keys | .[]' $yaml_file | paste -sd "," -)
-
+#vars=H
 echo "Variables to verify with HARP: $vars"
 if [[ "$Run_HARP" == true ]]; then
     echo "▶ Running Step 5: HARP verification"
@@ -259,7 +259,7 @@ if [[ "$Run_HARP" == true ]]; then
       -end_date   "${year_end}${month_end}${day_end}" \
       -config_file "$HARPCONFIG_yml" \
       -params_file "${OSVAS}/config_files/HARP/set_params.R" \
-      -params_list=$vars
+      -params_list=$vars    \
 
 else
     echo "⏩ Skipping Step 5: HARP verification"

@@ -3,7 +3,7 @@ verif:
   - OSVAS_HARP_MSIB
   fcst_model:
   - MEBREFOL
-  lead_time: seq(0,24,3)
+  lead_time: seq(0,24,1)
   lead_time_UA: NULL
   by_step: "24h"
   fcst_type: "det"                          # det or eps

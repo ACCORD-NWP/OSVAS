@@ -235,8 +235,8 @@ fi
 ############ STEP 5: Configure a HARP yaml file to be used by oper-harp-verif   #####################
 ############ to run a HARP point verification for the runs                  #########################
 #####################################################################################################
-HARPCONFIG_yml_template="$OSVAS/config_files/HARP/OSVAS_HARP_verif.yml"
-HARPCONFIG_yml="$OSVAS/config_files/HARP/OSVAS_HARP_verif_${STATION_NAME}.yml"
+HARPCONFIG_yml_template="$OSVAS/config_files/HARP/yaml_files/OSVAS_HARP_verif_template.yml"
+HARPCONFIG_yml="$OSVAS/config_files/HARP/yaml_files/OSVAS_HARP_verif_${STATION_NAME}.yml"
 validation_start=$(yq '.Validation_data.validation_start' "$yaml_file" | tr -d "'\"")
 validation_end=$(yq '.Validation_data.validation_end' "$yaml_file" | tr -d "'\"")
 # Parse with 'date' to normalize
