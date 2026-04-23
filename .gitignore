@@ -1,3 +1,11 @@
 RUNS/*
 forcings/*
 .ipynb_checkpoints/*
+harp_output/*
+sqlites/model_data/Loobos/
+sqlites/model_data/Majadas_del_tietar/
+sqlites/model_data/Meteopole/
+sqlites/validation_data/Meteopole/*
+sqlites/validation_data/Majadas_del_tietar/*
+sqlites/validation_data/Loobos/*
+sqlites/validation_data/common_obstables/*
