@@ -34,7 +34,7 @@ expnames = config['OSVAS_steps'].get('Expnames', [])
 # Jupyter settings
 jupyter = True
 extension = '.ipynb' if jupyter else '.py'
-command = ['jupyter', 'nbconvert', '--to', 'notebook', '--execute', '--inplace'] if jupyter else ['python3']
+command = ['jupyter', 'nbconvert', '--to', 'notebook', '--execute', '--output', '/dev/null'] if jupyter else ['python3']
 
 print("Starting OSVAS workflow on ATOS...")
 

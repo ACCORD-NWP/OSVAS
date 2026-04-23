@@ -30,7 +30,7 @@ yaml_file="$OSVAS/config_files/Stations/${STATION_NAME}.yml"
 
 JUPYTER=yes # Set to no in case that no jupyter is available in the system
 extension=$([ "$JUPYTER" = "yes" ] && echo ".ipynb" || echo ".py")
-command=$([ "$extension" = ".ipynb" ] && echo "jupyter nbconvert --to notebook --execute --inplace" || echo "python3")
+command=$([ "$extension" = ".ipynb" ] && echo "jupyter nbconvert --to notebook --execute --output /dev/null || echo "python3")
 
 # --- Read execution control from YAML (case-insensitive booleans)
 Create_forcing=$(yq -r '.OSVAS_steps.Create_forcing // "false"' "$yaml_file" | tr '[:upper:]' '[:lower:]')
