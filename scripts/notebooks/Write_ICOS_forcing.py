@@ -624,7 +624,7 @@ def apply_transformation(series, op, val):
 #    get station metadata
 
 write_forcing='yes' #Set to yes to write forcing
-CONFIG_PATH = os.path.join(OSVAS, "config_files", "Stations", f"{Station_name}.yml")
+CONFIG_PATH = os.path.join(OSVAS, "config_files", "Stations", f"{Station_name}", f"{Station_name}.yml")
 
 with open(CONFIG_PATH, "r") as f:
     config = yaml.safe_load(f)

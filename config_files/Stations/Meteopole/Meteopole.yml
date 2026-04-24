@@ -1,17 +1,17 @@
 OSVAS_steps:
  Create_forcing: False
- Get_validation: false
+ Get_validation: true
  Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - pgd
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
-  - DIF
-  - DIFMEB
+  - DIF_v9
+  - DIFMEB_v9
  Extract_model_sqlites: false
  Run_HARP: false
- Display_HARP: true
+ Display_HARP: false
 
 Station_metadata:
   Station_name: Meteopole
@@ -26,7 +26,7 @@ Forcing_data:
   height_T: 2                       # Height of the temperature measurement
   height_V: 10                      # Height of the windspeed   measurement
   run_start: '2020-05-01 00:00:00'    # Timestamp for the forcing start
-  run_end: '2020-12-31 23:30:00'      # Timestamp for the forcing end
+  run_end: '2020-07-31 23:30:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
   dataset1:
     doi: https://meta.icos-cp.eu/objects/VIoR-cJnMUUjbaEkuNHMKgSv
@@ -56,16 +56,8 @@ Validation_data:
       LW_OUT: LW_OUT
       SW_IN: SW_IN
       LW_IN: LW_IN  
-      TS_1: TS_1
-      TS_2: TS_2
-      TS_3: TS_3
-      TS_4: TS_4
-      TS_5: TS_5
-      SWC_1: SWC_1
-      SWC_2: SWC_2
-      SWC_3: SWC_3
-      SWC_4: SWC_4
-      SWC_5: SWC_5
+      TS_*: TS_*
+      SWC_*: SWC_*
       G: G
     units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
       SW_OUT: W/m2
@@ -97,4 +89,7 @@ Validation_data:
       VPD: hPa 
       NEE: W/m2
 
-
+Initialization_data:
+  initialization_start: '2020-05-01 00:00:00'
+  initialization_end: '2020-12-31 23:30:00'
+  metadata_filename: 'ICOSETC_FR-Tou_VARINFO_METEO_L2.csv'
