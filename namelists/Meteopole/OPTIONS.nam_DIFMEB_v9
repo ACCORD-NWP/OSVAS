@@ -198,7 +198,6 @@
                        XUNIF_ALBVIS_SOIL(10,10) = 0.15243788,
                        XUNIF_ALBVIS_SOIL(10,11) = 0.15564332,
                        XUNIF_ALBVIS_SOIL(10,12) = 0.1538921,
-
                        XUNIF_ALBUV_SOIL(10,1)  = 0.06,
                        XUNIF_ALBUV_SOIL(10,2)  = 0.06,
                        XUNIF_ALBUV_SOIL(10,3)  = 0.06,
@@ -211,14 +210,10 @@
                        XUNIF_ALBUV_SOIL(10,10) = 0.06,
                        XUNIF_ALBUV_SOIL(10,11) = 0.06,
                        XUNIF_ALBUV_SOIL(10,12) = 0.06,
-
-!                       XUNIF_H_TREE(10)       = 0.5, ! not needed
-
-		       XUNIF_GROUND_DEPTH   = 2.5,
+		       XUNIF_GROUND_DEPTH   = 12,
                        XUNIF_ROOT_DEPTH     = 0.65,
 		       XUNIF_ROOT_LIN       = 0.05,
 		       XUNIF_ROOT_EXTINCTION= 0.943,
-
       XUNIF_WFC(1)      =     0.37 ,
       XUNIF_WFC(2)      =     0.37 ,
       XUNIF_WFC(3)      =     0.37 ,
@@ -299,6 +294,7 @@
                        LSURF_EVAP_BUDGET = T ,
                        LSURF_MISC_BUDGET = T ,
                        LSPECMOD         = F 
+/
 &NAM_DIAG_SURFn        LSURF_BUDGET = T      ,
                        N2M          = 1      ,
 		       LRAD_BUDGET    = T    ,
@@ -331,7 +327,6 @@
 /
 &NAM_ISBA              XUNIF_CLAY    = 0.145         ,
                        XUNIF_SAND    = 0.51         ,
-                       YSANDFILETYPE = 'DIRECT'      ,
                        XUNIF_RUNOFFB = 0.0           ,
                        XUNIF_WDRAIN  = 0.000         ,
                        CPEDO_FUNCTION= 'CH78'        ,
@@ -341,11 +336,8 @@
                        LTR_ML        = .true.        ,
                        NPATCH        = 12            ,
                        LMEB=.TRUE.,
-                       NSAND_LAYER   = 24            ,
-                       NCLAY_LAYER   = 24            ,
                        CGNDRES       = 'NON'         ,
-                       NGROUND_LAYER = 24            ,
-                       XSOILGRID     = 0.005,0.02,0.04,0.06,0.08,0.12,0.16,0.25,0.35,0.45,0.55,0.65,0.75,0.85,0.95,1.08,1.3,1.5,1.7,1.9,2.1,2.4,3.5,5.0
+                       NGROUND_LAYER = 14            ,
 /
 &NAM_ISBAn             CSCOND     = "PL98"     ,
                        CC1DRY     = 'DEF '     ,

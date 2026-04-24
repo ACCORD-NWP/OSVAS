@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 ###### OSVAS ########################################################
@@ -9,6 +9,7 @@
 ###### STEP 2: Downloading validation data from ICOS #############
 #### STEP 2.0: DEFINING STATION and OSVAS PATH ########################
 import os
+import tempfile, shutil, subprocess
 # Default values defined in the notebook for Station and OSVAS install:
 OSVAS='/home/pn56/OSVASgh/'  # Main OSVAS path
 Station_name='Loobos'
@@ -20,7 +21,7 @@ OSVAS = os.getenv("OSVAS", OSVAS)
 print(f"Creating Validation files for: {Station_name} with OSVAS installation in {OSVAS}" )
 
 
-# In[2]:
+# In[ ]:
 
 
 ###### OSVAS ##################################################################
@@ -35,6 +36,78 @@ from icoscp.cpb.dobj import Dobj
 from icoscp_core.icos import bootstrap
 from icoscp import cpauth
 
+def expand_wildcard_variables(variables, units, df_columns):
+    """
+    Expand wildcard entries in the variables (and units) dicts.
+
+    A wildcard entry has a '*' in the ICOS source name, e.g.:
+        SWC_*: SWC_*
+        TS_*:  TS_*
+
+    For each such entry, every column in df_columns whose name matches the
+    prefix before '*' is added as an explicit mapping.  The destination name
+    (left-hand side) is built by replacing '*' with the same suffix found in
+    the source column name.
+
+    Non-wildcard entries are passed through unchanged.
+
+    Parameters
+    ----------
+    variables : dict   {dest_name: source_name}  from the YAML
+    units     : dict   {dest_name: unit_string}   from the YAML
+    df_columns: list   actual column names present in the downloaded dataset
+
+    Returns
+    -------
+    expanded_variables : dict
+    expanded_units     : dict
+    """
+    import fnmatch
+
+    expanded_variables = {}
+    expanded_units = {}
+
+    for dest, src in variables.items():
+        if src is None:
+            continue
+
+        dest_str = str(dest)
+        src_str  = str(src)
+
+        if '*' not in src_str:
+            # plain entry – keep as-is
+            expanded_variables[dest_str] = src_str
+            if dest_str in units:
+                expanded_units[dest_str] = units[dest_str]
+            continue
+
+        # wildcard entry: find the prefix before '*'
+        prefix = src_str.split('*')[0]   # e.g. 'SWC_'
+        dest_prefix = dest_str.split('*')[0]  # e.g. 'SWC_'
+
+        # collect matching columns, sorted for deterministic order
+        matched = sorted(
+            col for col in df_columns
+            if col.startswith(prefix) and col != prefix
+        )
+
+        if not matched:
+            print(f"⚠️  Wildcard '{src_str}' matched no columns in the dataset – skipping.")
+            continue
+
+        # look up the unit for the wildcard entry (keyed by dest pattern or src pattern)
+        wildcard_unit = units.get(dest_str, units.get(src_str, ""))
+
+        for col in matched:
+            suffix   = col[len(prefix):]          # e.g. '1', '2', '3' …
+            new_dest = f"{dest_prefix}{suffix}"   # e.g. 'SWC_1'
+            new_src  = col                         # e.g. 'SWC_1'
+            expanded_variables[new_dest] = new_src
+            expanded_units[new_dest] = wildcard_unit
+            print(f"    ↳ wildcard '{src_str}' → mapped '{new_src}' → '{new_dest}'")
+
+    return expanded_variables, expanded_units
+    
 def fetch_flux_data(doi):
     dobj = Dobj(doi)
     df = dobj.data
@@ -297,7 +370,7 @@ def enforce_seb_closure(df,
     return df_out
 
 
-# In[3]:
+# In[ ]:
 
 
 ###### OSVAS ###################################################################
@@ -306,7 +379,7 @@ def enforce_seb_closure(df,
 #### THE GENERATION OF VALIDATION SQLITES FROM THE STATION'S YAML FILE #########
 
 os.chdir(OSVAS)
-CONFIG_PATH = f"config_files/Stations/{Station_name}.yml"
+CONFIG_PATH = f"config_files/Stations/{Station_name}/{Station_name}.yml"
 
 with open(CONFIG_PATH, "r") as f:
     config = yaml.safe_load(f)
@@ -336,7 +409,7 @@ obj_flux='https://meta.icos-cp.eu/objects/dDlpnhS3XKyZjB22MUzP_nAm'
 dobj_flux=Dobj(obj_flux).data
 
 
-# In[4]:
+# In[ ]:
 
 
 ###### OSVAS ###################################################################
@@ -352,9 +425,17 @@ for ds_name, ds_info in datasets.items():
     timedelta_minutes = ds_info["timedelta"]
     timedeltas.append(timedelta_minutes)
 
-    variable_map = {k: v for k, v in ds_info["variables"].items() if v is not None}
-    units_map.update({k: v for k, v in ds_info["units"].items() if v is not None})
-    # Fetch and process
+    # Fetch raw data first so wildcard expansion can inspect actual column names
+    df_raw = fetch_flux_data(doi)
+
+    # Expand any wildcard entries (e.g. SWC_*: SWC_*) against the real columns
+    raw_variables = {k: v for k, v in ds_info["variables"].items() if v is not None}
+    raw_units     = {k: v for k, v in ds_info.get("units", {}).items() if v is not None}
+    variable_map, expanded_units = expand_wildcard_variables(
+        raw_variables, raw_units, list(df_raw.columns)
+    )
+    units_map.update(expanded_units)
+
     df_raw = fetch_flux_data(doi)
     df_processed = process_data(df_raw, variable_map, station_info, start_date, end_date)
 
@@ -368,7 +449,7 @@ for ds_name, ds_info in datasets.items():
     dfs.append(df_processed)
 
 
-# In[5]:
+# In[ ]:
 
 
 ###### OSVAS ############################################################################
@@ -384,7 +465,7 @@ df_merged = df_merged.sort_values("valid_dttm").reset_index(drop=True)
 #df_merged=enforce_seb_closure(df_merged,closure_type)
 
 
-# In[6]:
+# In[ ]:
 
 
 ###### OSVAS ############################################################################

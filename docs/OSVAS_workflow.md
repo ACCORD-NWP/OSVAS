@@ -1,6 +1,6 @@
 ## The OSVAS Workfow
 ### OSVAS's central control script
-- Currently, all the steps of the OSVAS system are run from a bash script, with versions available for general linux ( surfex_OSVAS_run_linux.sh ) or for the ATOS HPC (surfex_OSVAS_run_atos.sh). The script reads the file "$OSVAS/config_files/Stations/${STATION_NAME}.yml" created for every used ICOS station, where one can define what OSVAS steps to run for the station, what ICOS datasets read for forcing and validation, start and end periods for the run and for the validation, what SURFEX steps to run, names of the SURFEX OFFLINE experiments to run, etc.
+- Currently, all the steps of the OSVAS system are run from a bash script, with versions available for general linux ( surfex_OSVAS_run_linux.sh ) or for the ATOS HPC (surfex_OSVAS_run_atos.sh). The script reads the file "$OSVAS/config_files/Stations/${STATION_NAME}/${STATION_NAME}.yml" created for every used ICOS station, where one can define what OSVAS steps to run for the station, what ICOS datasets read for forcing and validation, start and end periods for the run and for the validation, what SURFEX steps to run, names of the SURFEX OFFLINE experiments to run, etc.
 - This bash script needs to be edited only to specify the name of the ICOS station, locate the OSVAS and HARP paths, and make sure that SURFEX profile and binaries are correctly referenced:
 ```
 export STATION_NAME=Majadas_del_tietar

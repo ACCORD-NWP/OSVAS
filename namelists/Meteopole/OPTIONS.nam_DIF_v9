@@ -198,7 +198,6 @@
                        XUNIF_ALBVIS_SOIL(10,10) = 0.15243788,
                        XUNIF_ALBVIS_SOIL(10,11) = 0.15564332,
                        XUNIF_ALBVIS_SOIL(10,12) = 0.1538921,
-
                        XUNIF_ALBUV_SOIL(10,1)  = 0.06,
                        XUNIF_ALBUV_SOIL(10,2)  = 0.06,
                        XUNIF_ALBUV_SOIL(10,3)  = 0.06,
@@ -211,12 +210,10 @@
                        XUNIF_ALBUV_SOIL(10,10) = 0.06,
                        XUNIF_ALBUV_SOIL(10,11) = 0.06,
                        XUNIF_ALBUV_SOIL(10,12) = 0.06,
-!                       XUNIF_H_TREE(10)       = 0.5, ! not needed
-		       XUNIF_GROUND_DEPTH   = 1.9,
+		       XUNIF_GROUND_DEPTH   = 12,
                        XUNIF_ROOT_DEPTH     = 0.65,
 		       XUNIF_ROOT_LIN       = 0.05,
 		       XUNIF_ROOT_EXTINCTION= 0.943,
-
       XUNIF_WFC(1)      =     0.37 ,
       XUNIF_WFC(2)      =     0.37 ,
       XUNIF_WFC(3)      =     0.37 ,
@@ -340,8 +337,7 @@
                        NPATCH        = 12            ,
                        LMEB=.FALSE.,
                        CGNDRES       = 'NON'         ,
-                       NGROUND_LAYER = 20            ,
-                       XSOILGRID     = 0.005,0.02,0.04,0.06,0.08,0.12,0.16,0.25,0.35,0.45,0.55,0.65,0.75,0.85,0.95,1.08,1.3,1.5,1.7,1.9,
+                       NGROUND_LAYER = 14            ,
 /
 &NAM_LONLAT_REG        XLONMIN = 1.35         ,
                        XLONMAX = 1.38         ,
@@ -381,12 +377,6 @@
                        XUNIF_HUG_SOIL(12)     = .20,
                        XUNIF_HUG_SOIL(13)     = .20,
                        XUNIF_HUG_SOIL(14)     = .20,
-                       XUNIF_HUG_SOIL(15)     = .20,
-                       XUNIF_HUG_SOIL(16)      = .20,
-                       XUNIF_HUG_SOIL(17)     = .20,
-                       XUNIF_HUG_SOIL(18)      = .20,
-                       XUNIF_HUG_SOIL(19)     = .20,
-                       XUNIF_HUG_SOIL(20)      = .20,
                        XUNIF_TG_SOIL(1)      = 277.00,
                        XUNIF_TG_SOIL(2)      = 277.00,
                        XUNIF_TG_SOIL(3)      = 277.00,
@@ -400,16 +390,6 @@
                        XUNIF_TG_SOIL(11)     = 277.00,
                        XUNIF_TG_SOIL(12)     = 277.00,
                        XUNIF_TG_SOIL(13)     = 277.00,
-                       XUNIF_TG_SOIL(14)     = 277.00,
-                       XUNIF_TG_SOIL(15)     = 277.00,
-                       XUNIF_TG_SOIL(16)      = 277.00,
-                       XUNIF_TG_SOIL(17)     = 277.00,
-                       XUNIF_TG_SOIL(18)     = 277.00,
-                       XUNIF_TG_SOIL(19)     = 277.00,
-                       XUNIF_TG_SOIL(20)      = 277.00,
-
-
-
 /
 &NAM_PREP_ISBA_SNOW    CSNOW = '3-L' 
 /

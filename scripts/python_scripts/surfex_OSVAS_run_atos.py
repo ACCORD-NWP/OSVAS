@@ -17,7 +17,7 @@ os.environ['STATION_NAME'] = 'Majadas_del_tietar'
 os.environ['OSVAS'] = '/perm/sp3c/OSVAS/'
 os.environ['HARP'] = '/perm/sp3c/harmonie_release/oper-harp-verif_orig/'
 
-yaml_file = f"{os.environ['OSVAS']}/config_files/Stations/{os.environ['STATION_NAME']}.yml"
+yaml_file = f"{os.environ['OSVAS']}/config_files/Stations/{os.environ['STATION_NAME']}/{os.environ['STATION_NAME']}.yml"
 
 with open(yaml_file, 'r') as f:
     config = yaml.safe_load(f)
@@ -34,7 +34,22 @@ expnames = config['OSVAS_steps'].get('Expnames', [])
 # Jupyter settings
 jupyter = True
 extension = '.ipynb' if jupyter else '.py'
-command = ['jupyter', 'nbconvert', '--to', 'notebook', '--execute', '--inplace'] if jupyter else ['python3']
+
+def run_notebook(script_path):
+    if jupyter:
+        py_path = script_path.replace('.ipynb', '.py')
+        try:
+            subprocess.run(
+                ['jupyter', 'nbconvert', '--to', 'script', script_path,
+                 '--output', py_path.replace('.py', '')],
+                check=True
+            )
+            subprocess.run(['python3', py_path], check=True)
+        finally:
+            if os.path.exists(py_path):
+                os.remove(py_path)
+    else:
+        subprocess.run(['python3', script_path], check=True)
 
 print("Starting OSVAS workflow on ATOS...")
 
@@ -42,7 +57,7 @@ print("Starting OSVAS workflow on ATOS...")
 if create_forcing:
     print("▶ Running Step 1: Create forcing data")
     forcing_script = f"{os.environ['OSVAS']}/scripts/notebooks/Write_ICOS_forcing{extension}"
-    subprocess.run(command + [forcing_script], check=True)
+    run_notebook(forcing_script)
 else:
     print("⏩ Skipping Step 1: Create forcing data")
 
@@ -50,7 +65,7 @@ else:
 if get_validation:
     print("▶ Running Step 2: Get validation data")
     validation_script = f"{os.environ['OSVAS']}/scripts/notebooks/ICOS_Flux_Downloader{extension}"
-    subprocess.run(command + [validation_script], check=True)
+    run_notebook(validation_script)
 else:
     print("⏩ Skipping Step 2: Get validation data")
 
