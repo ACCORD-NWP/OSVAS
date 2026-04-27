@@ -35,7 +35,7 @@ expnames = config['OSVAS_steps'].get('Expnames', [])
 jupyter = True
 extension = '.ipynb' if jupyter else '.py'
 
-def run_notebook(script_path):
+def run_notebook(script_path,ldelete=False):
     if jupyter:
         py_path = script_path.replace('.ipynb', '.py')
         try:
@@ -46,7 +46,7 @@ def run_notebook(script_path):
             )
             subprocess.run(['python3', py_path], check=True)
         finally:
-            if os.path.exists(py_path):
+            if os.path.exists(py_path) and ldelete==True:
                 os.remove(py_path)
     else:
         subprocess.run(['python3', script_path], check=True)

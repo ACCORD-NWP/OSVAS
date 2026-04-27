@@ -107,7 +107,118 @@ def expand_wildcard_variables(variables, units, df_columns):
             print(f"    ↳ wildcard '{src_str}' → mapped '{new_src}' → '{new_dest}'")
 
     return expanded_variables, expanded_units
-    
+
+SOIL_PREFIXES = ("TS_", "SWC_")
+
+def is_soil_variable(name):
+    """Return True if the variable name (or wildcard pattern) refers to a soil variable."""
+    return any(str(name).startswith(p) for p in SOIL_PREFIXES)
+
+def write_obstable(df_merged, output_dir, units_map):
+    """
+    Write a merged dataframe to per-year OBSTABLE_{yyyy}.sqlite files.
+    The dataframe must have valid_dttm as UTC datetime before this call.
+    """
+    df_out = df_merged.copy()
+    df_out["valid_dttm"] = pd.to_datetime(df_out["valid_dttm"], utc=True)
+    df_out["year_obs"] = df_out["valid_dttm"].dt.year
+    df_out["valid_dttm"] = df_out["valid_dttm"].apply(lambda x: int(x.timestamp()))
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    # ---  Loop over years ---
+    for year, df_year in df_out.groupby("year_obs"):
+        output_file = os.path.join(output_dir, f"OBSTABLE_{year}.sqlite")
+
+        with sqlite3.connect(output_file) as conn:
+            incoming_cols = list(df_year.columns)
+            # ---  Build CREATE TABLE statement with correct types ---
+            col_defs = []
+            for c in incoming_cols:
+                if c == "valid_dttm":
+                    col_defs.append(f'"{c}" INTEGER')
+                elif c == "SID":
+                    col_defs.append(f'"{c}" DOUBLE')
+                else:
+                    col_defs.append(f'"{c}" REAL')
+
+            conn.execute(f"""
+                CREATE TABLE IF NOT EXISTS SYNOP (
+                    {", ".join(col_defs)},
+                    UNIQUE("valid_dttm","SID")
+                );
+            """)
+            # --- Detect existing columns ---
+            existing_cols = [row[1] for row in conn.execute("PRAGMA table_info(SYNOP);")]
+            # --- Add new columns as REAL (except SID, which should already exist) ---
+            for col in incoming_cols:
+                if col not in existing_cols:
+                    if col in ("SID", "valid_dttm"):
+                        conn.execute(f'ALTER TABLE SYNOP ADD COLUMN "{col}" INTEGER;')
+                    else:
+                        conn.execute(f'ALTER TABLE SYNOP ADD COLUMN "{col}" REAL;')
+
+            # --- Refresh column list ---
+            existing_cols = [row[1] for row in conn.execute("PRAGMA table_info(SYNOP);")]
+            # --- Fill any missing columns in df ---
+            for col in existing_cols:
+                if col not in df_year.columns:
+                    df_year[col] = None
+
+            # --- Enforce integer type for SID before writing ---
+            if "SID" in df_year.columns:
+                df_year["SID"] = pd.to_numeric(df_year["SID"], errors="coerce").astype("Int64")
+
+            df_year = df_year[existing_cols]
+            # ---  Write to temporary table ---
+            df_year.to_sql("SYNOP_tmp", conn, if_exists="replace", index=False)
+            # --- Merge logic ---
+            conn.execute("""
+                DELETE FROM SYNOP
+                WHERE (valid_dttm, SID) IN (
+                    SELECT valid_dttm, SID FROM SYNOP_tmp
+                );
+            """)
+
+            col_names = ", ".join([f'"{c}"' for c in existing_cols])
+            conn.execute(f"""
+                INSERT INTO SYNOP ({col_names})
+                SELECT {col_names} FROM SYNOP_tmp;
+            """)
+
+            conn.execute("DROP TABLE SYNOP_tmp")
+            # ---- create SYNOP_params if missing ----
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS SYNOP_params (
+                    parameter VARCHAR PRIMARY KEY,
+                    accum_hours REAL,
+                    units VARCHAR
+                );
+            """)
+
+            # ---- get SYNOP columns from the actual table schema ----
+            synop_cols = [row[1] for row in conn.execute("PRAGMA table_info(SYNOP);")]
+            # ---- define which columns are metadata and should NOT be listed in SYNOP_params ----
+            skip_cols = {"SID", "valid_dttm", "lat", "lon", "elev", "year_obs"}
+            # ---- find which parameter names are already present to avoid duplicates ----
+            existing_params = {row[0] for row in conn.execute("SELECT parameter FROM SYNOP_params;")}
+            # ---- prepare rows for insertion: only column names in SYNOP that are not metadata and not already present ----
+            rows_to_insert = []
+            for col in synop_cols:
+                if col in skip_cols or col in existing_params:
+                    continue
+                unit = units_map.get(col, "")
+                rows_to_insert.append((col, 0.0, unit))
+            # ---- insert missing parameter rows ----
+            if rows_to_insert:
+                conn.executemany(
+                    "INSERT INTO SYNOP_params (parameter, accum_hours, units) VALUES (?, ?, ?);",
+                    rows_to_insert
+                )
+                conn.commit()
+
+        print(f"✅ Year {year} data merged into {output_file}")
+
 def fetch_flux_data(doi):
     dobj = Dobj(doi)
     df = dobj.data
@@ -435,8 +546,6 @@ for ds_name, ds_info in datasets.items():
         raw_variables, raw_units, list(df_raw.columns)
     )
     units_map.update(expanded_units)
-
-    df_raw = fetch_flux_data(doi)
     df_processed = process_data(df_raw, variable_map, station_info, start_date, end_date)
 
     # Abort if no data in the specified time window
@@ -476,127 +585,93 @@ import sqlite3
 import os
 import pandas as pd
 
-# --- 1️⃣ Preprocess dataframe ---
-df_merged["valid_dttm"] = pd.to_datetime(df_merged["valid_dttm"], utc=True)
-df_merged["year_obs"] =df_merged["valid_dttm"].dt.year  # extract year for splitting
-df_merged["valid_dttm"] = df_merged["valid_dttm"].apply(lambda x: int(x.timestamp()))
-#df_merged["valid_dttm"] =_to_datetime_series(df_merged["valid_dttm"])
-
 output_dir = (
     "sqlites/validation_data/common_obstables"
     if common_obstable
     else f"sqlites/validation_data/{station_info['Station_name']}"
 )
-os.makedirs(output_dir, exist_ok=True)
 
-# --- 2️⃣ Loop over years ---
-for year, df_year in df_merged.groupby("year_obs"):
-    output_file = os.path.join(output_dir, f"OBSTABLE_{year}.sqlite")
-
-    with sqlite3.connect(output_file) as conn:
-        incoming_cols = list(df_year.columns)
-
-        # --- 1️⃣ Build CREATE TABLE statement with correct types ---
-        col_defs = []
-        for c in incoming_cols:
-            if c == "valid_dttm":
-                col_defs.append(f'"{c}" INTEGER')
-            elif c == "SID":
-                col_defs.append(f'"{c}" DOUBLE')                
-            else:
-                col_defs.append(f'"{c}" REAL')
-
-        conn.execute(f"""
-            CREATE TABLE IF NOT EXISTS SYNOP (
-                {", ".join(col_defs)},
-                UNIQUE("valid_dttm","SID")
-            );
-        """)
-
-        # --- 2️⃣ Detect existing columns ---
-        existing_cols = [row[1] for row in conn.execute("PRAGMA table_info(SYNOP);")]
-
-        # --- 3️⃣ Add new columns as REAL (except SID, which should already exist) ---
-        for col in incoming_cols:
-            if col not in existing_cols:
-                if col in ("SID","valid_dttm"):
-                    conn.execute(f'ALTER TABLE SYNOP ADD COLUMN "{col}" INTEGER;')
-                else:
-                    conn.execute(f'ALTER TABLE SYNOP ADD COLUMN "{col}" REAL;')
-
-        # --- 4️⃣ Refresh column list ---
-        existing_cols = [row[1] for row in conn.execute("PRAGMA table_info(SYNOP);")]
-
-        # --- 5️⃣ Fill any missing columns in df ---
-        for col in existing_cols:
-            if col not in df_year.columns:
-                df_year[col] = None
-
-        # --- 6️⃣ Enforce integer type for SID before writing ---
-        if "SID" in df_year.columns:
-            df_year["SID"] = pd.to_numeric(df_year["SID"], errors="coerce").astype("Int64")
-
-        df_year = df_year[existing_cols]
-
-        # --- 7️⃣ Write to temporary table ---
-        df_year.to_sql("SYNOP_tmp", conn, if_exists="replace", index=False)
-
-        # --- 8️⃣ Merge logic ---
-        conn.execute("""
-            DELETE FROM SYNOP
-            WHERE (valid_dttm, SID) IN (
-                SELECT valid_dttm, SID FROM SYNOP_tmp
-            );
-        """)
-
-        col_names = ", ".join([f'"{c}"' for c in existing_cols])
-        conn.execute(f"""
-            INSERT INTO SYNOP ({col_names})
-            SELECT {col_names} FROM SYNOP_tmp;
-        """)
-
-        conn.execute("DROP TABLE SYNOP_tmp")
-        # ---- create SYNOP_params if missing ----
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS SYNOP_params (
-                parameter VARCHAR PRIMARY KEY,
-                accum_hours REAL,
-                units VARCHAR
-            );
-        """)
-
-        # ---- get SYNOP columns from the actual table schema ----
-        synop_cols = [row[1] for row in conn.execute("PRAGMA table_info(SYNOP);")]
-
-        # ---- define which columns are metadata and should NOT be listed in SYNOP_params ----
-        skip_cols = {"SID", "valid_dttm", "lat", "lon", "elev", "year_obs"}
-
-        # ---- find which parameter names are already present to avoid duplicates ----
-        existing_params = {row[0] for row in conn.execute("SELECT parameter FROM SYNOP_params;")}
-
-        # ---- prepare rows for insertion: only column names in SYNOP that are not metadata and not already present ----
-        rows_to_insert = []
-        for col in synop_cols:
-            if col in skip_cols:
-                continue
-            if col in existing_params:
-                continue
-            unit = units_map.get(col, "")   # default to empty string if not in units_map
-            rows_to_insert.append((col, 0.0, unit))
-
-        # ---- insert missing parameter rows ----
-        if rows_to_insert:
-            conn.executemany(
-                "INSERT INTO SYNOP_params (parameter, accum_hours, units) VALUES (?, ?, ?);",
-                rows_to_insert
-            )
-            conn.commit()        
-
-    print(f"✅ Year {year} data merged into {output_file}")
+write_obstable(df_merged, output_dir, units_map)
 
 
 # In[ ]:
 
 
+###### OSVAS ############################################################################
+###### ( OFFLINE SURFEX VALIDATION SYSTEM)###############################################
+#### STEP 2.6: Build soil initialization SQLites from Initialization_data block #########
+#### Only datasets containing TS_* or SWC_* variables are processed.            #########
 
+initialization_data = config.get("Initialization_data")
+
+if initialization_data:
+    print("\n▶ Building soil initialization OBSTABLEs...")
+
+    init_start = pd.to_datetime(initialization_data["initialization_start"], utc=True)
+    init_end   = pd.to_datetime(initialization_data["initialization_end"],   utc=True)
+
+    # Re-use the same dataset blocks from Validation_data, filtered to soil-only variables
+    # and limited to the initialization time window.
+    init_dfs     = []
+    init_tdeltas = []
+    init_units   = {}
+    init_datasets = {k: v for k, v in validation_data.items()
+                     if k.startswith("dataset") or k.startswith("dataset_")}
+
+    for ds_name, ds_info in init_datasets.items():
+
+        # Keep only soil variables (TS_* and SWC_*) from this dataset's variable map
+        raw_variables = {k: v for k, v in ds_info["variables"].items() if v is not None}
+        soil_variables = {k: v for k, v in raw_variables.items() if is_soil_variable(k)}
+
+        if not soil_variables:
+            print(f"  ⏩ {ds_name}: no soil variables – skipping for initialization.")
+            continue
+
+        print(f"  Processing {ds_name} for initialization (DOI: {ds_info['doi']})")
+
+        raw_units = {k: v for k, v in ds_info.get("units", {}).items() if v is not None}
+
+        df_raw = fetch_flux_data(ds_info["doi"])
+
+        # Expand wildcards against actual columns, keeping only soil vars
+        soil_map, expanded_units = expand_wildcard_variables(
+            soil_variables, raw_units, list(df_raw.columns)
+        )
+        init_units.update(expanded_units)
+
+        df_processed = process_data(df_raw, soil_map, station_info, init_start, init_end)
+
+        if df_processed.empty:
+            print(f"  ⚠️  No data in initialization window for {ds_name} – skipping.")
+            continue
+
+        init_dfs.append(df_processed)
+        init_tdeltas.append(ds_info["timedelta"])
+
+    if init_dfs:
+        from functools import reduce as _reduce
+        init_common_td = pd.to_timedelta(min(init_tdeltas), unit="m")
+
+        # Build a lightweight datasets dict for upsample_to_common_timedelta
+        init_ds_meta = {f"ds{i}": {"timedelta": td} for i, td in enumerate(init_tdeltas)}
+        init_dfs_resampled = upsample_to_common_timedelta(init_ds_meta, init_dfs, init_common_td)
+
+        df_init_merged = _reduce(
+            lambda l, r: pd.merge(l, r, on=['valid_dttm', 'SID', 'lat', 'lon', 'elev'], how='outer'),
+            init_dfs_resampled
+        ).sort_values("valid_dttm").reset_index(drop=True)
+
+        init_common_obstable = validation_data.get("common_obstable", False)
+        init_output_dir = (
+            "sqlites/initialization_data/common_obstables"
+            if init_common_obstable
+            else f"sqlites/initialization_data/{station_info['Station_name']}"
+        )
+        write_obstable(df_init_merged, init_output_dir, init_units)
+        print("✅ Soil initialization OBSTABLEs written.")
+    else:
+        print("⚠️  No soil data available for the initialization period – no files written.")
+else:
+    print("⏩ No Initialization_data block found in config – skipping initialization SQLites.")
 
