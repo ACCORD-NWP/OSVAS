@@ -219,6 +219,239 @@ def write_obstable(df_merged, output_dir, units_map):
 
         print(f"✅ Year {year} data merged into {output_file}")
 
+# ── Soil profile model (heat-equation analytical solution) ──────────────────
+
+def _fit_harmonic(temperature, w):
+    """
+    Fit T = T_m + A*cos(w*t + phi) to a (depth × time) DataArray.
+
+    Parameters
+    ----------
+    temperature : xr.DataArray  dims = (depth, time_coord)
+    w           : angular frequency [rad / unit-of-time_coord]
+
+    Returns
+    -------
+    T_m, A, phi : xr.DataArray  coords = (depth,)
+    """
+    import xarray as xr
+    time_dim = temperature.dims[1]
+    t = temperature[time_dim].values
+    X = np.column_stack([np.ones_like(t), np.cos(w * t), np.sin(w * t)])
+    Y = temperature.values
+
+    T_m = np.full(Y.shape[0], np.nan)
+    A   = np.full(Y.shape[0], np.nan)
+    phi = np.full(Y.shape[0], np.nan)
+
+    for i in range(Y.shape[0]):
+        y = Y[i, :]
+        mask = ~np.isnan(y)
+        if mask.sum() < 3:
+            continue
+        beta, *_ = np.linalg.lstsq(X[mask], y[mask], rcond=None)
+        tm, a, b = beta
+        T_m[i] = tm
+        A[i]   = np.sqrt(a**2 + b**2)
+        phi[i] = np.arctan2(-b, a)
+
+    T_m = xr.DataArray(T_m, coords={"depth": temperature.depth})
+    A   = xr.DataArray(A,   coords={"depth": temperature.depth})
+    phi = xr.DataArray(phi, coords={"depth": temperature.depth})
+    return T_m, A, phi
+
+
+def _compute_decay(amplitude):
+    """
+    Fit A(z) = A0*exp(-z/d) via log-linear regression.
+
+    Returns
+    -------
+    d  : decay depth  [same units as amplitude.depth]
+    A0 : surface amplitude
+    """
+    log_amp = np.log(amplitude)
+    beta = log_amp.polyfit(dim="depth", deg=1)
+    slope, intercept = beta["polyfit_coefficients"].values
+    d  = -1.0 / slope
+    A0 = np.exp(intercept)
+    return d, A0
+
+
+def _generate_temperature(depths, times, T_m, A_Y, D_Y, phi_Y, w_Y,
+                                                A_D, D_D, phi_D, w_D):
+    """
+    T(z, t) = T_m + A_Y·exp(-z/D_Y)·cos(w_Y·DOY - z/D_Y + phi_Y)
+                  + A_D·exp(-z/D_D)·cos(w_D·TOD - z/D_D + phi_D)
+
+    Parameters
+    ----------
+    depths : 1-D array  [m]
+    times  : 1-D array of np.datetime64 / pandas Timestamp
+    T_m, A_Y, D_Y, phi_Y, w_Y : annual-cycle parameters
+    A_D, D_D, phi_D, w_D      : daily-cycle parameters
+
+    Returns
+    -------
+    xr.DataArray  dims=(depth, time)
+    """
+    import xarray as xr
+    time_da  = xr.DataArray(times,  dims="time",  coords={"time":  times})
+    depth_da = xr.DataArray(depths, dims="depth", coords={"depth": depths})
+
+    doy = time_da.dt.dayofyear
+    tod = time_da.dt.hour + time_da.dt.minute / 60.0 + time_da.dt.second / 3600.0
+
+    z = depth_da
+    annual = A_Y * np.exp(-z / D_Y) * np.cos(w_Y * doy  - z / D_Y + phi_Y)
+    daily  = A_D * np.exp(-z / D_D) * np.cos(w_D * tod  - z / D_D + phi_D)
+
+    T = T_m + annual + daily
+    return xr.DataArray(T, dims=("depth", "time"),
+                        coords={"depth": depths, "time": times})
+
+
+def compute_soil_temperature_profile(temp_xr, profile_time, target_depths,
+                                     coef=None):
+    """
+    Fit (or reuse) an analytical heat-equation model to observed soil
+    temperatures and evaluate it at *target_depths* for *profile_time*.
+
+    Parameters
+    ----------
+    temp_xr      : xr.DataArray  dims=(depth, time)  [°C, no offset needed here]
+    profile_time : array-like of datetime64 / Timestamp
+    target_depths: 1-D array of depths [m] for the output grid
+    coef         : list of 9 floats (from a previous call) or None
+
+    Returns
+    -------
+    coef : list  [T_m, A_Y, D_Y, phi_Y, w_Y, A_D, D_D, phi_D, w_D]
+    Tz   : xr.DataArray  dims=(depth, time)  temperatures at target_depths [°C]
+    """
+    if coef is None:
+        temp_xr.coords["tod"] = (temp_xr.time.dt.hour
+                                 + temp_xr.time.dt.minute / 60.0)
+        temp_xr.coords["doy"] = temp_xr.time.dt.dayofyear
+
+        annual_cycle = temp_xr.groupby("doy").mean("time")
+        daily_cycle  = temp_xr.groupby("tod").mean("time")
+
+        w_Y = 2 * np.pi / 365.25
+        w_D = 2 * np.pi / 24.0
+
+        T_D, A_Dh, phi_D = _fit_harmonic(daily_cycle,  w_D)
+        T_Y, A_Yh, phi_Y = _fit_harmonic(annual_cycle, w_Y)
+
+        if not np.allclose(T_D.values, T_Y.values, atol=0.5):
+            print("⚠️  Mean temperature differs between daily and annual harmonics:")
+            print("    Daily  T_m:", T_D.values)
+            print("    Annual T_m:", T_Y.values)
+
+        D_D, A_D0 = _compute_decay(A_Dh)
+        D_Y, A_Y0 = _compute_decay(A_Yh)
+
+        K_D = D_D**2 * np.pi / (24 * 3600)
+        K_Y = D_Y**2 * np.pi / (24 * 3600 * 365.25)
+        print(f"  Thermal diffusivity — daily: {K_D:.3e} m²/s  annual: {K_Y:.3e} m²/s")
+
+        coef = [float(T_Y[0]), float(A_Y0), float(D_Y),
+                float(phi_Y[0]), float(w_Y),
+                float(A_D0), float(D_D), float(phi_D[0]), float(w_D)]
+
+    Tz = _generate_temperature(target_depths, profile_time, *coef)
+    return coef, Tz
+
+
+def load_soil_temp_from_obstable(obstable_dir, init_start, init_end,
+                                 ts_cols, obs_depths):
+    """
+    Read TS_* columns from initialization OBSTABLEs and build an
+    xr.DataArray with dims=(depth, time) [values in °C].
+
+    Parameters
+    ----------
+    obstable_dir : str   path that contains OBSTABLE_{yyyy}.sqlite files
+    init_start   : pd.Timestamp (UTC)
+    init_end     : pd.Timestamp (UTC)
+    ts_cols      : list of str   e.g. ['TS_1','TS_2',...]
+    obs_depths   : list of float matching depths [m] for each ts_col
+
+    Returns
+    -------
+    xr.DataArray  dims=(depth, time)
+    """
+    import xarray as xr
+
+    start_year = init_start.year
+    end_year   = init_end.year
+
+    dfs = []
+    for year in range(start_year, end_year + 1):
+        fpath = os.path.join(obstable_dir, f"OBSTABLE_{year}.sqlite")
+        if not os.path.exists(fpath):
+            print(f"  ⚠️  {fpath} not found – skipping year {year}.")
+            continue
+        with sqlite3.connect(fpath) as conn:
+            cols_sql = ", ".join([f'"{c}"' for c in ["valid_dttm"] + ts_cols])
+            df = pd.read_sql(f"SELECT {cols_sql} FROM SYNOP", conn)
+        dfs.append(df)
+
+    if not dfs:
+        raise RuntimeError("No initialization OBSTABLE files found in "
+                           f"{obstable_dir} for the requested period.")
+
+    df_all = pd.concat(dfs, ignore_index=True)
+    df_all["valid_dttm"] = pd.to_datetime(df_all["valid_dttm"], unit="s", utc=True)
+    df_all = df_all.sort_values("valid_dttm")
+
+    # Keep only the requested window
+    mask = (df_all["valid_dttm"] >= init_start) & (df_all["valid_dttm"] <= init_end)
+    df_all = df_all.loc[mask].reset_index(drop=True)
+
+    if df_all.empty:
+        raise RuntimeError("Initialization OBSTABLE contains no data in the "
+                           f"window {init_start} – {init_end}.")
+
+    # Build xarray DataArray (depth × time)
+    times  = df_all["valid_dttm"].values
+    data   = df_all[ts_cols].values.T          # shape: (n_depths, n_times)
+    temp   = xr.DataArray(data,
+                          dims=("depth", "time"),
+                          coords={"depth": obs_depths, "time": times})
+    return temp
+
+
+def format_namelist_block(values, variable_name):
+    """
+    Format a 1-D array as a SURFEX namelist block, e.g.:
+
+        XUNIF_TG_SOIL(1)  = 277.00,
+        XUNIF_TG_SOIL(2)  = 277.00,
+        ...
+
+    Parameters
+    ----------
+    values        : array-like of floats
+    variable_name : str  e.g. 'XUNIF_TG_SOIL'
+
+    Returns
+    -------
+    str
+    """
+    n      = len(values)
+    idx_w  = len(str(n))            # width for index field
+    lines  = []
+    for i, v in enumerate(values, start=1):
+        key = f"{variable_name}({i})"
+        lines.append(f"                       {key:<{len(variable_name)+idx_w+2+1}}= {v:.2f},")
+    return "\n".join(lines)
+
+
+# ── end of soil profile model (heat-equation analytical solution) ──────────────────
+
+
+
 def fetch_flux_data(doi):
     dobj = Dobj(doi)
     df = dobj.data
@@ -594,7 +827,7 @@ output_dir = (
 write_obstable(df_merged, output_dir, units_map)
 
 
-# In[ ]:
+# In[1]:
 
 
 ###### OSVAS ############################################################################
@@ -672,6 +905,106 @@ if initialization_data:
         print("✅ Soil initialization OBSTABLEs written.")
     else:
         print("⚠️  No soil data available for the initialization period – no files written.")
+        init_output_dir = None
+        df_init_merged  = None
 else:
     print("⏩ No Initialization_data block found in config – skipping initialization SQLites.")
+    init_output_dir = None
+    df_init_merged  = None
+
+
+# In[ ]:
+
+
+###### OSVAS ############################################################################
+###### ( OFFLINE SURFEX VALIDATION SYSTEM)###############################################
+#### STEP 2.7: Compute initial soil temperature profile for SURFEX namelist      #########
+#### Fits an analytical heat-equation model (daily + annual harmonic) to the     #########
+#### TS_* observations, then evaluates it at the model grid (XSOILGRID) for      #########
+#### the run_start date read from the YAML. Output: XUNIF_TG_SOIL namelist block.#########
+
+if initialization_data and init_output_dir is not None:
+    print("\n▶ Computing initial soil temperature profile (Step 2.7)...")
+
+    # ── Grid definitions ─────────────────────────────────────────────────────
+    # Target model grid (metres, top → bottom).  Override here or move to YAML.
+    XSOILGRID    = [0.01, 0.04, 0.10, 0.20, 0.40, 0.60, 0.80,
+                    1.00, 1.50, 2.00, 3.00, 5.00, 8.00, 12.0]
+
+    # Observation depths: derived from the TS_* column names found in the
+    # initialization dataset.  Assumes names like TS_1, TS_2, … with depths
+    # provided in Initialization_data.soil_depths (metres), or inferred as
+    # sequential integers converted to cm (TS_1 → 0.01 m, TS_2 → 0.02 m …).
+    soil_depths_cfg = initialization_data.get("soil_depths")   # optional list
+
+    # Collect the TS_* columns that ended up in the obstable
+    ts_cols = sorted(
+        [c for c in df_init_merged.columns if c.startswith("TS_")],
+        key=lambda x: int(x.split("_")[1])
+    ) if df_init_merged is not None else []
+
+    if not ts_cols:
+        print("⚠️  No TS_* columns found in the initialization data – skipping Step 2.7.")
+    else:
+        if soil_depths_cfg:
+            XSOILGRIDOBS = list(soil_depths_cfg)
+        else:
+            # Fall back: use the index number as depth in cm → m
+            # (TS_1 → 0.01 m, TS_2 → 0.02 m …)
+            XSOILGRIDOBS = [int(c.split("_")[1]) * 0.01 for c in ts_cols]
+            print(f"  ℹ️  soil_depths not specified in YAML – inferring obs depths "
+                  f"from column indices: {XSOILGRIDOBS} m")
+
+        # ── Profile date = Forcing_data.run_start ────────────────────────────
+        run_start_str  = config["Forcing_data"]["run_start"]
+        profile_date   = pd.to_datetime(run_start_str, utc=True)
+        profile_times  = np.array([profile_date], dtype="datetime64[ns]")
+
+        # ── Load temperature from obstable ───────────────────────────────────
+        print(f"  Loading TS data from {init_output_dir} …")
+        temp_xr = load_soil_temp_from_obstable(
+            init_output_dir,
+            init_start,
+            init_end,
+            ts_cols,
+            XSOILGRIDOBS
+        )
+
+        # ── Try to reuse saved coefficients ──────────────────────────────────
+        profile_path = os.path.join(OSVAS, "profiles", Station_name)
+        os.makedirs(profile_path, exist_ok=True)
+        coeff_file   = os.path.join(profile_path, "TG_coefficients.txt")
+
+        try:
+            coef = list(np.loadtxt(coeff_file))
+            print(f"  ✅ Reusing saved coefficients from {coeff_file}")
+        except OSError:
+            coef = None
+            print(f"  ℹ️  No saved coefficients found – fitting model to observations.")
+
+        # ── Fit / evaluate model ──────────────────────────────────────────────
+        coef, Tz = compute_soil_temperature_profile(
+            temp_xr, profile_times, XSOILGRID, coef
+        )
+        np.savetxt(coeff_file, coef)
+        print(f"  Coefficients saved to {coeff_file}")
+
+        # ── Convert °C → K ───────────────────────────────────────────────────
+        Tz_K = Tz + 273.15
+
+        # ── Format namelist block ─────────────────────────────────────────────
+        tg_profile   = Tz_K.sel(time=profile_times[0]).values
+        namelist_block = format_namelist_block(tg_profile, "XUNIF_TG_SOIL")
+
+        print("\n  SURFEX namelist block for initial soil temperatures:")
+        print(namelist_block)
+
+        # ── Write to file ─────────────────────────────────────────────────────
+        profile_str  = profile_date.strftime("%Y%m%d_%H%M%S")
+        out_nam_file = os.path.join(profile_path, f"TG_init_{profile_str}.nam")
+        with open(out_nam_file, "w") as f:
+            f.write(namelist_block + "\n")
+        print(f"\n  ✅ Namelist block written to {out_nam_file}")
+else:
+    print("⏩ Skipping Step 2.7 (no initialization data available).")
 
