@@ -32,9 +32,13 @@ import numpy as np
 import sqlite3
 import os
 import yaml
-from icoscp.cpb.dobj import Dobj
+from icoscp.dobj import Dobj
 from icoscp_core.icos import bootstrap
 from icoscp import cpauth
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+
 
 def expand_wildcard_variables(variables, units, df_columns):
     """
@@ -113,6 +117,139 @@ SOIL_PREFIXES = ("TS_", "SWC_")
 def is_soil_variable(name):
     """Return True if the variable name (or wildcard pattern) refers to a soil variable."""
     return any(str(name).startswith(p) for p in SOIL_PREFIXES)
+
+def read_soil_depths_from_metadata(metadata_file, ts_cols, swc_cols):
+    """
+    Parse an ICOS VARINFO CSV file and return per-variable depth vectors
+    for TS and SWC, matched to the variable lists actually present in the data.
+
+    The CSV has a long format with columns:
+        SITE_ID, GROUP_ID, VARIABLE_GROUP, VARIABLE, DATAVALUE
+    where each GROUP_ID groups rows for one sensor instance.
+    Relevant VARIABLE values: VAR_INFO_VARNAME, VAR_INFO_HEIGHT.
+    VAR_INFO_HEIGHT is negative (below surface, in metres); we negate it.
+
+    When a variable name appears in multiple GROUP_IDs (replicate sensors at the
+    same depth), the depth is taken as the mean of all reported depths for that
+    variable name (they are always identical in practice).
+
+    Parameters
+    ----------
+    metadata_file : str   full path to the CSV
+    ts_cols       : list of str   e.g. ['TS_1','TS_2',...]  present in obstable
+    swc_cols      : list of str   e.g. ['SWC_1','SWC_2',...] present in obstable
+
+    Returns
+    -------
+    depths_ts  : list of float  [m], one entry per ts_col (same order)
+    depths_swc : list of float  [m], one entry per swc_col (same order)
+    """
+    df = pd.read_csv(metadata_file)
+
+    # Pivot GROUP_ID → {VAR_INFO_VARNAME, VAR_INFO_HEIGHT}
+    pivot = (
+        df[df["VARIABLE"].isin(["VAR_INFO_VARNAME", "VAR_INFO_HEIGHT"])]
+        .pivot_table(index="GROUP_ID", columns="VARIABLE",
+                     values="DATAVALUE", aggfunc="first")
+        .reset_index()
+    )
+    pivot = pivot.rename(columns={"VAR_INFO_VARNAME": "varname",
+                                   "VAR_INFO_HEIGHT":  "height"})
+    pivot["height"] = pd.to_numeric(pivot["height"], errors="coerce")
+
+    # Keep only soil variables; depth = -height (heights are negative = below surface)
+    soil = pivot[pivot["varname"].str.match(r"(TS|SWC)_\d+", na=False)].copy()
+    soil["depth_m"] = -soil["height"]
+
+    # One depth per variable name (average over replicates, but they're always equal)
+    depth_map = soil.groupby("varname")["depth_m"].mean().to_dict()
+
+    def _resolve(cols, label):
+        depths = []
+        missing = []
+        for c in cols:
+            if c in depth_map:
+                depths.append(round(depth_map[c], 4))
+            else:
+                missing.append(c)
+        if missing:
+            raise RuntimeError(
+                f"Columns {missing} not found in metadata file {metadata_file}. "
+                f"Cannot determine {label} depths."
+            )
+        return depths
+
+    depths_ts  = _resolve(ts_cols,  "TS")
+    depths_swc = _resolve(swc_cols, "SWC")
+    return depths_ts, depths_swc
+
+
+def get_soil_depths(initialization_data, ts_cols, swc_cols, osvas_path, station_name):
+    """
+    Resolve observation depth vectors for TS and SWC columns using the
+    following priority:
+
+    1. Explicit lists in YAML:
+           Initialization_data.soil_depths_ts   (for TS)
+           Initialization_data.soil_depths_swc  (for SWC)
+       If only one generic ``soil_depths`` key is found it is used for both.
+    2. Metadata file defined by Initialization_data.metadata_filename,
+       looked up in config_files/{station_name}/.
+    3. Error — no silent fallback from variable-name indices.
+
+    Parameters
+    ----------
+    initialization_data : dict   the Initialization_data YAML block
+    ts_cols, swc_cols   : lists of str   columns present in the obstable
+    osvas_path          : str   $OSVAS root
+    station_name        : str
+
+    Returns
+    -------
+    depths_ts  : list of float [m]
+    depths_swc : list of float [m]
+    """
+    # --- Priority 1: explicit YAML lists ---
+    if "soil_depths_ts" in initialization_data or "soil_depths_swc" in initialization_data:
+        depths_ts  = list(initialization_data.get("soil_depths_ts",  []))
+        depths_swc = list(initialization_data.get("soil_depths_swc", []))
+        if not depths_ts and ts_cols:
+            raise RuntimeError("soil_depths_ts not specified in YAML but TS columns are present.")
+        if not depths_swc and swc_cols:
+            raise RuntimeError("soil_depths_swc not specified in YAML but SWC columns are present.")
+        print("  ℹ️  Soil depths read from YAML (soil_depths_ts / soil_depths_swc).")
+        return depths_ts, depths_swc
+
+    if "soil_depths" in initialization_data:
+        d = list(initialization_data["soil_depths"])
+        print("  ℹ️  Soil depths read from YAML (generic soil_depths – applied to both TS and SWC).")
+        return d, d
+
+    # --- Priority 2: metadata file ---
+    if "metadata_filename" in initialization_data:
+        meta_file = os.path.join(
+            osvas_path, "config_files", "Stations",station_name,
+            initialization_data["metadata_filename"]
+        )
+        if not os.path.exists(meta_file):
+            raise FileNotFoundError(
+                f"metadata_filename '{initialization_data['metadata_filename']}' "
+                f"not found at {meta_file}."
+            )
+        print(f"  ℹ️  Reading soil depths from metadata file: {meta_file}")
+        depths_ts, depths_swc = read_soil_depths_from_metadata(meta_file, ts_cols, swc_cols)
+        print(f"    TS  depths (m): {depths_ts}")
+        print(f"    SWC depths (m): {depths_swc}")
+        return depths_ts, depths_swc
+
+    # --- No source found ---
+    raise RuntimeError(
+        "Cannot determine soil observation depths. "
+        "Please add 'soil_depths_ts'/'soil_depths_swc' or 'metadata_filename' "
+        "to the Initialization_data block of the YAML config."
+    )
+
+
 
 def write_obstable(df_merged, output_dir, units_map):
     """
@@ -445,6 +582,130 @@ def format_namelist_block(values, variable_name):
     for i, v in enumerate(values, start=1):
         key = f"{variable_name}({i})"
         lines.append(f"                       {key:<{len(variable_name)+idx_w+2+1}}= {v:.2f},")
+    return "\n".join(lines)
+
+
+def plot_soil_temperature_diagnostics(temp_xr, Tz_full, tg_profile_K,
+                                      obs_depths, XSOILGRID,
+                                      profile_date, profile_path, station_name):
+    """
+    Produce two PNG diagnostic figures for the soil temperature profile fit.
+
+    Figure 1 — timeseries_{date}.png
+        One panel per observation depth: observed (grey) vs modelled (colour)
+        temperature over the full initialization period.
+
+    Figure 2 — profile_{date}.png
+        Vertical profile at the profile date: observed values at obs_depths
+        (dots) vs the modelled profile at XSOILGRID (line).
+
+    Parameters
+    ----------
+    temp_xr       : xr.DataArray (depth, time) observed temperatures [°C]
+    Tz_full       : xr.DataArray (depth, time) modelled temperatures at obs_depths [°C]
+    tg_profile_K  : 1-D array  modelled profile at XSOILGRID [K]
+    obs_depths    : list of float  observation depths [m]
+    XSOILGRID     : list of float  model grid depths [m]
+    profile_date  : pd.Timestamp  the initialisation date/time
+    profile_path  : str  output directory
+    station_name  : str  used in figure titles
+    """
+    n_depths   = len(obs_depths)
+    date_str   = profile_date.strftime("%Y%m%d_%H%M%S")
+    date_label = profile_date.strftime("%Y-%m-%d %H:%M UTC")
+
+    # ── Figure 1: timeseries per depth ───────────────────────────────────────
+    ncols = min(3, n_depths)
+    nrows = int(np.ceil(n_depths / ncols))
+
+    fig, axes = plt.subplots(nrows, ncols,
+                             figsize=(6 * ncols, 3 * nrows),
+                             sharex=True, squeeze=False)
+    fig.suptitle(f"Soil temperature — obs vs model\n{station_name}",
+                 fontsize=13, fontweight="bold", y=1.01)
+
+    # Convert time axis to pandas for nicer date formatting
+    times_pd = pd.to_datetime(temp_xr.time.values)
+
+    cmap   = plt.get_cmap("plasma", n_depths)
+
+    for idx, depth in enumerate(obs_depths):
+        row, col = divmod(idx, ncols)
+        ax = axes[row][col]
+
+        obs_ts = temp_xr.sel(depth=depth).values
+        mod_ts = Tz_full.sel(depth=depth).values
+
+        ax.plot(times_pd, obs_ts, color="0.65", linewidth=0.8,
+                label="Observed", zorder=1)
+        ax.plot(times_pd, mod_ts, color=cmap(idx), linewidth=1.4,
+                label="Modelled", zorder=2)
+
+        # Mark the profile date
+        ax.axvline(profile_date, color="red", linewidth=1.2,
+                   linestyle="--", label=date_label)
+
+        ax.set_title(f"z = {depth:.2f} m", fontsize=10)
+        ax.set_ylabel("T (°C)", fontsize=9)
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
+        ax.xaxis.set_major_locator(mdates.MonthLocator())
+        plt.setp(ax.xaxis.get_majorticklabels(), rotation=30, ha="right",
+                 fontsize=8)
+        ax.grid(True, linestyle=":", linewidth=0.5, alpha=0.7)
+        if idx == 0:
+            ax.legend(fontsize=8, loc="upper right")
+
+    # Hide unused panels
+    for idx in range(n_depths, nrows * ncols):
+        row, col = divmod(idx, ncols)
+        axes[row][col].set_visible(False)
+
+    fig.tight_layout()
+    ts_path = os.path.join(profile_path, f"timeseries_{date_str}.png")
+    fig.savefig(ts_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  📊 Timeseries figure saved to {ts_path}")
+
+    # ── Figure 2: vertical profile at profile date ────────────────────────────
+    # Observed: nearest time step to profile_date in temp_xr
+    obs_times  = pd.to_datetime(temp_xr.time.values, utc=True)
+    profile_date = pd.to_datetime(profile_date, utc=True)
+    nearest_i  = np.argmin(np.abs(obs_times - profile_date))
+    obs_profile_C = temp_xr.isel(time=nearest_i).values   # °C at obs_depths
+    mod_profile_C = tg_profile_K - 273.15                 # K → °C at XSOILGRID
+
+    fig2, ax2 = plt.subplots(figsize=(5, 7))
+
+    ax2.plot(mod_profile_C, XSOILGRID,
+             color="steelblue", linewidth=2, marker=".", markersize=6,
+             label="Model (XSOILGRID)")
+    ax2.scatter(obs_profile_C, obs_depths,
+                color="tomato", zorder=5, s=60, marker="D",
+                label=f"Observed ({obs_times[nearest_i].strftime('%Y-%m-%d %H:%M')} UTC)")
+
+    ax2.set_xlabel("Temperature (°C)", fontsize=11)
+    ax2.set_ylabel("Depth (m)", fontsize=11)
+    ax2.invert_yaxis()
+    ax2.set_title(f"Initial soil temperature profile\n{station_name}  —  {date_label}",
+                  fontsize=11, fontweight="bold")
+    ax2.legend(fontsize=9)
+    ax2.grid(True, linestyle=":", linewidth=0.5, alpha=0.7)
+
+    fig2.tight_layout()
+    prof_path = os.path.join(profile_path, f"profile_{date_str}.png")
+    fig2.savefig(prof_path, dpi=150, bbox_inches="tight")
+    plt.close(fig2)
+    print(f"  📊 Profile figure saved to {prof_path}")
+
+
+def format_namelist_block(values, variable_name):
+    """Format a 1-D array as a SURFEX namelist block."""
+    n     = len(values)
+    idx_w = len(str(n))
+    lines = [
+        f"                       {f'{variable_name}({i})':<{len(variable_name)+idx_w+2+1}}= {v:.2f},"
+        for i, v in enumerate(values, start=1)
+    ]
     return "\n".join(lines)
 
 
@@ -814,10 +1075,6 @@ df_merged = df_merged.sort_values("valid_dttm").reset_index(drop=True)
 ###### ( OFFLINE SURFEX VALIDATION SYSTEM)###############################################
 #### STEP 2.5: Convert to Unix timestamp in seconds and save dataframe to SQLite#########
 
-import sqlite3
-import os
-import pandas as pd
-
 output_dir = (
     "sqlites/validation_data/common_obstables"
     if common_obstable
@@ -827,7 +1084,7 @@ output_dir = (
 write_obstable(df_merged, output_dir, units_map)
 
 
-# In[1]:
+# In[ ]:
 
 
 ###### OSVAS ############################################################################
@@ -919,58 +1176,55 @@ else:
 ###### OSVAS ############################################################################
 ###### ( OFFLINE SURFEX VALIDATION SYSTEM)###############################################
 #### STEP 2.7: Compute initial soil temperature profile for SURFEX namelist      #########
-#### Fits an analytical heat-equation model (daily + annual harmonic) to the     #########
-#### TS_* observations, then evaluates it at the model grid (XSOILGRID) for      #########
-#### the run_start date read from the YAML. Output: XUNIF_TG_SOIL namelist block.#########
-
-if initialization_data and init_output_dir is not None:
+#### Fits an analytical heat-equation model (daily + annual harmonic) to TS_*   #########
+#### observations, evaluates it at the model grid (XSOILGRID) for run_start.    #########
+#### Observation depths are read from the YAML or from the ICOS metadata file.  #########
+#### Output: XUNIF_TG_SOIL namelist block in profiles/{station}/TG_init_*.nam   #########
+####                        + diagnostic PNGs in profiles/{station}/            #########
+if initialization_data and init_output_dir is not None and df_init_merged is not None:
     print("\n▶ Computing initial soil temperature profile (Step 2.7)...")
 
-    # ── Grid definitions ─────────────────────────────────────────────────────
-    # Target model grid (metres, top → bottom).  Override here or move to YAML.
-    XSOILGRID    = [0.01, 0.04, 0.10, 0.20, 0.40, 0.60, 0.80,
-                    1.00, 1.50, 2.00, 3.00, 5.00, 8.00, 12.0]
+    # ── Target model grid (metres, top→bottom) ────────────────────────────────
+    # Define here or move to YAML as Initialization_data.XSOILGRID
+    XSOILGRID = initialization_data.get(
+        "XSOILGRID",
+        [0.01, 0.04, 0.10, 0.20, 0.40, 0.60, 0.80,
+         1.00, 1.50, 2.00, 3.00, 5.00, 8.00, 12.0]
+    )
 
-    # Observation depths: derived from the TS_* column names found in the
-    # initialization dataset.  Assumes names like TS_1, TS_2, … with depths
-    # provided in Initialization_data.soil_depths (metres), or inferred as
-    # sequential integers converted to cm (TS_1 → 0.01 m, TS_2 → 0.02 m …).
-    soil_depths_cfg = initialization_data.get("soil_depths")   # optional list
-
-    # Collect the TS_* columns that ended up in the obstable
-    ts_cols = sorted(
+    # ── Collect TS and SWC column names present in the merged init dataframe ──
+    ts_cols  = sorted(
         [c for c in df_init_merged.columns if c.startswith("TS_")],
         key=lambda x: int(x.split("_")[1])
-    ) if df_init_merged is not None else []
+    )
+    swc_cols = sorted(
+        [c for c in df_init_merged.columns if c.startswith("SWC_")],
+        key=lambda x: int(x.split("_")[1])
+    )
 
     if not ts_cols:
         print("⚠️  No TS_* columns found in the initialization data – skipping Step 2.7.")
     else:
-        if soil_depths_cfg:
-            XSOILGRIDOBS = list(soil_depths_cfg)
-        else:
-            # Fall back: use the index number as depth in cm → m
-            # (TS_1 → 0.01 m, TS_2 → 0.02 m …)
-            XSOILGRIDOBS = [int(c.split("_")[1]) * 0.01 for c in ts_cols]
-            print(f"  ℹ️  soil_depths not specified in YAML – inferring obs depths "
-                  f"from column indices: {XSOILGRIDOBS} m")
-
-        # ── Profile date = Forcing_data.run_start ────────────────────────────
-        run_start_str  = config["Forcing_data"]["run_start"]
-        profile_date   = pd.to_datetime(run_start_str, utc=True)
-        profile_times  = np.array([profile_date], dtype="datetime64[ns]")
-
-        # ── Load temperature from obstable ───────────────────────────────────
-        print(f"  Loading TS data from {init_output_dir} …")
-        temp_xr = load_soil_temp_from_obstable(
-            init_output_dir,
-            init_start,
-            init_end,
+        # ── Resolve observation depths (never inferred from column names) ─────
+        depths_ts, depths_swc = get_soil_depths(
+            initialization_data,
             ts_cols,
-            XSOILGRIDOBS
+            swc_cols,
+            OSVAS,
+            Station_name
         )
 
-        # ── Try to reuse saved coefficients ──────────────────────────────────
+        # ── Profile date = Forcing_data.run_start ─────────────────────────────
+        profile_date  = pd.to_datetime(config["Forcing_data"]["run_start"], utc=True)
+        profile_times = np.array([profile_date], dtype="datetime64[ns]")
+
+        # ── Load temperature observations from obstable ───────────────────────
+        print(f"  Loading TS data from {init_output_dir} …")
+        temp_xr = load_soil_temp_from_obstable(
+            init_output_dir, init_start, init_end, ts_cols, depths_ts
+        )
+
+        # ── Try to reuse saved coefficients ───────────────────────────────────
         profile_path = os.path.join(OSVAS, "profiles", Station_name)
         os.makedirs(profile_path, exist_ok=True)
         coeff_file   = os.path.join(profile_path, "TG_coefficients.txt")
@@ -980,31 +1234,45 @@ if initialization_data and init_output_dir is not None:
             print(f"  ✅ Reusing saved coefficients from {coeff_file}")
         except OSError:
             coef = None
-            print(f"  ℹ️  No saved coefficients found – fitting model to observations.")
+            print("  ℹ️  No saved coefficients found – fitting model to observations.")
 
-        # ── Fit / evaluate model ──────────────────────────────────────────────
-        coef, Tz = compute_soil_temperature_profile(
+        # ── Fit / evaluate model at obs depths (for diagnostics) ─────────────
+        coef, Tz_obs = compute_soil_temperature_profile(
+            temp_xr, temp_xr.time.values, depths_ts, coef
+        )
+
+        # ── Evaluate model at target XSOILGRID for the namelist ──────────────
+        _, Tz_target = compute_soil_temperature_profile(
             temp_xr, profile_times, XSOILGRID, coef
         )
+
         np.savetxt(coeff_file, coef)
         print(f"  Coefficients saved to {coeff_file}")
 
-        # ── Convert °C → K ───────────────────────────────────────────────────
-        Tz_K = Tz + 273.15
-
-        # ── Format namelist block ─────────────────────────────────────────────
-        tg_profile   = Tz_K.sel(time=profile_times[0]).values
+        # ── Convert °C → K and write namelist ────────────────────────────────
+        tg_profile     = Tz_target.sel(time=profile_times[0]).values + 273.15
         namelist_block = format_namelist_block(tg_profile, "XUNIF_TG_SOIL")
 
         print("\n  SURFEX namelist block for initial soil temperatures:")
         print(namelist_block)
 
-        # ── Write to file ─────────────────────────────────────────────────────
         profile_str  = profile_date.strftime("%Y%m%d_%H%M%S")
         out_nam_file = os.path.join(profile_path, f"TG_init_{profile_str}.nam")
         with open(out_nam_file, "w") as f:
             f.write(namelist_block + "\n")
         print(f"\n  ✅ Namelist block written to {out_nam_file}")
+
+        # ── Diagnostic figures ────────────────────────────────────────────────
+        plot_soil_temperature_diagnostics(
+            temp_xr       = temp_xr,
+            Tz_full       = Tz_obs,
+            tg_profile_K  = tg_profile,
+            obs_depths    = depths_ts,
+            XSOILGRID     = XSOILGRID,
+            profile_date  = profile_date,
+            profile_path  = profile_path,
+            station_name  = Station_name
+        )
 else:
     print("⏩ Skipping Step 2.7 (no initialization data available).")
 
