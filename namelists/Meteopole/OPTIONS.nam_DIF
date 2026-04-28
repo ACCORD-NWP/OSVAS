@@ -325,8 +325,8 @@
 
 /
 &NAM_IO_OFFLINE        LPRINT  = T                       ,
-                       CFORCING_FILETYPE =    'ASCII '   ,
-                       CSURF_FILETYPE =       'ASCII '   ,
+                       CFORCING_FILETYPE =    'NETCDF '   ,
+                       CSURF_FILETYPE =       'NC '   ,
                        CTIMESERIES_FILETYPE = 'NETCDF'    ,
                        XTSTEP_SURF = 300.                ,
                        XTSTEP_OUTPUT = 1800.

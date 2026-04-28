@@ -1,7 +1,7 @@
 OSVAS_steps:
- Create_forcing: False
- Get_validation: true
- Run_surfex: false
+ Create_forcing: false
+ Get_validation: false
+ Run_surfex: true
  Surfex_steps: #Don't forget a space before each item
   - pgd
   - PREP
@@ -27,7 +27,7 @@ Forcing_data:
   height_V: 10                      # Height of the windspeed   measurement
   run_start: '2020-05-01 00:00:00'    # Timestamp for the forcing start
   run_end: '2020-07-31 23:30:00'      # Timestamp for the forcing end
-  forcing_format: 'ascii'          # Choose between netcdf or ascii
+  forcing_format: 'netcdf'          # Choose between netcdf or ascii
   dataset1:
     doi: https://meta.icos-cp.eu/objects/VIoR-cJnMUUjbaEkuNHMKgSv
     timedelta: 30  # in minutes
@@ -90,6 +90,7 @@ Validation_data:
       NEE: W/m2
 
 Initialization_data:
-  initialization_start: '2020-05-01 00:00:00'
-  initialization_end: '2020-12-31 23:30:00'
+  initialization_start: '2018-03-02 00:00:00'
+  initialization_end: '2023-03-01 23:30:00'
   metadata_filename: 'ICOSETC_FR-Tou_VARINFO_METEO_L2.csv'
+  reuse_soil_profile: false

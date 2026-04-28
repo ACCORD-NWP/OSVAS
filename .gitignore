@@ -10,3 +10,7 @@ config_files/HARP/yaml_files/*yml
 !config_files/HARP/yaml_files/OSVAS_HARP_verif_template.yml
 dynamicapp.log
 visapp.log
+profiles/*
+!profiles/Meteopole/
+sqlites/initialization_data/*
+!sqlites/initialization_data/.gitkeep

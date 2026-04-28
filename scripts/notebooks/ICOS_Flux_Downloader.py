@@ -1229,12 +1229,33 @@ if initialization_data and init_output_dir is not None and df_init_merged is not
         os.makedirs(profile_path, exist_ok=True)
         coeff_file   = os.path.join(profile_path, "TG_coefficients.txt")
 
-        try:
-            coef = list(np.loadtxt(coeff_file))
-            print(f"  ✅ Reusing saved coefficients from {coeff_file}")
-        except OSError:
-            coef = None
-            print("  ℹ️  No saved coefficients found – fitting model to observations.")
+        reuse_coeffs = bool(initialization_data.get("reuse_soil_profile", False))
+
+        coef = None
+
+        if reuse_coeffs:
+
+            try:
+
+                coef = list(np.loadtxt(coeff_file))
+
+                print(f"  ✅ Reusing saved coefficients from {coeff_file}")
+
+            except OSError:
+
+                coef = None
+
+                print("  ℹ️  No saved coefficients found – fitting model to observations.")
+
+        else:
+
+            if os.path.exists(coeff_file):
+
+                print("  ℹ️  Existing coefficients found but reuse_soil_profile is false; recomputing.")
+
+            else:
+
+                print("  ℹ️  Computing fresh coefficients for soil profile initialization.")
 
         # ── Fit / evaluate model at obs depths (for diagnostics) ─────────────
         coef, Tz_obs = compute_soil_temperature_profile(
@@ -1245,6 +1266,7 @@ if initialization_data and init_output_dir is not None and df_init_merged is not
         _, Tz_target = compute_soil_temperature_profile(
             temp_xr, profile_times, XSOILGRID, coef
         )
+
 
         np.savetxt(coeff_file, coef)
         print(f"  Coefficients saved to {coeff_file}")
