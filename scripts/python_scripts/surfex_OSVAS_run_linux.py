@@ -157,11 +157,17 @@ if run_surfex:
             print(f"Running {step} for {expname}")
             subprocess.run([step], check=True)
         
-        # Move outputs
+        # Move or copy outputs
         for f in os.listdir(run_dir):
-            if f in ['PGD.nc', 'PREP.nc'] or f.startswith('SURFOUT') or f == 'OPTIONS.nam' or f.endswith('OUT.nc') or f.startswith('LISTI') or f.startswith('Param'):
+            if f.startswith('SURFOUT') or f.endswith('OUT.nc') or f.startswith('LISTI') or f.startswith('Param'):
                 shutil.move(f"{run_dir}/{f}", f"{out_dir}/{f}")
+
+        for f in os.listdir(run_dir):
+            if f in ['PGD.nc', 'PREP.nc', 'OPTIONS.nam']:
+                              shutil.copy(f"{run_dir}/{f}", f"{out_dir}/{f}")  
+                
 else:
+
     print("⏩ Skipping Step 3: Run SURFEX")
 
 # Step 4: Extract model SQLites

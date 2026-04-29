@@ -1,11 +1,11 @@
 OSVAS_steps:
  Create_forcing: false
- Get_validation: false
- Run_surfex: true
+ Get_validation: true
+ Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - pgd
   - PREP
-  - OFFLINE
+  #- OFFLINE
  Expnames: #Don't forget a space before each item
   - DIF_v9
   - DIFMEB_v9
@@ -94,3 +94,7 @@ Initialization_data:
   initialization_end: '2023-03-01 23:30:00'
   metadata_filename: 'ICOSETC_FR-Tou_VARINFO_METEO_L2.csv'
   reuse_soil_profile: false
+  Init_to_namelist: true   # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
+  Init_to_prep: true       # patch PREP.txt or PREP.nc for each expname
+  soil_depths_ts: [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 2.2] # These will be read first; if absent, they're extracted from metadata file
+  soil_depths_swc: [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2] #These will be read first; if absent, they're extracted from metadata file

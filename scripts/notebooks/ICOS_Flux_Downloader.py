@@ -38,6 +38,7 @@ from icoscp import cpauth
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import re as _re
 
 
 def expand_wildcard_variables(variables, units, df_columns):
@@ -711,6 +712,114 @@ def format_namelist_block(values, variable_name):
 
 # ── end of soil profile model (heat-equation analytical solution) ──────────────────
 
+## Functions for step 2.8: Update namelists and/or PREP.* with tg profile
+def _update_namelist_tg(namelist_path, tg_profile):
+    """
+    Replace all XUNIF_TG_SOIL(*) lines in OPTIONS.nam with values from
+    tg_profile (K, 0-based list).  The new block is inserted before the
+    first closing '/' of the namelist so it lands inside &NAM_PREP_ISBA.
+    """
+    with open(namelist_path) as f:
+        content = f.read()
+
+    n     = len(tg_profile)
+    idx_w = len(str(n))
+    vname = "XUNIF_TG_SOIL"
+    new_lines = "\n".join(
+        f"                       {f'{vname}({i+1})':<{len(vname)+idx_w+2+1}}= {v:.2f},"
+        for i, v in enumerate(tg_profile)
+    )
+
+    # Remove any existing XUNIF_TG_SOIL(*) lines (with or without trailing comma)
+    content = _re.sub(r'[ \t]*XUNIF_TG_SOIL\(\d+\)\s*=\s*[0-9.]+,?[ \t]*\n?', '', content)
+
+    # Insert new block before the first closing '/' of the namelist
+    new_content = _re.sub(
+        r'(?m)^(\s*/\s*)$',
+        lambda m: new_lines + "\n" + m.group(0),
+        content,
+        count=1
+    )
+    if new_content == content:          # no '/' found — just append
+        new_content = content.rstrip() + "\n" + new_lines + "\n"
+
+    with open(namelist_path, 'w') as f:
+        f.write(new_content)
+
+    print(f"    ✅ OPTIONS.nam updated with {n} XUNIF_TG_SOIL values.")
+
+
+# ── Helper: patch PREP.txt ───────────────────────────────────────────────────
+
+def _update_prep_txt_tg(prep_path, tg_profile):
+    """
+    In PREP.txt, overwrite the value of every &NATURE TGnPm entry whose
+    current value is NOT the SURFEX undefined sentinel (1D+21).
+    Undefined entries are left untouched; only the patch(es) that already
+    carry a defined temperature are updated.
+    Layer index mapping: TGn → tg_profile[n-1].
+    """
+    UNDEF = "0.10000000000000000D+21"
+
+    with open(prep_path) as f:
+        lines = f.readlines()
+
+    n_replaced = 0
+    i = 0
+    while i < len(lines):
+        m = _re.match(r'\s*&NATURE\s+(TG(\d+)P\d+)', lines[i])
+        if m:
+            layer_idx = int(m.group(2)) - 1          # 0-based
+            # PREP.txt block: header / description / value
+            if i + 2 < len(lines):
+                val_line = lines[i + 2].strip()
+                if val_line != UNDEF and layer_idx < len(tg_profile):
+                    # Format value in Fortran D-notation to match SURFEX output
+                    val_f = f"{tg_profile[layer_idx]:.17E}"
+                    val_f = val_f.replace('E+0', 'D+0').replace('E-0', 'D-0') \
+                                 .replace('E+',  'D+').replace('E-',  'D-')
+                    lines[i + 2] = f"      {val_f}\n"
+                    n_replaced += 1
+        i += 1
+
+    with open(prep_path, 'w') as f:
+        f.writelines(lines)
+
+    print(f"    ✅ PREP.txt updated: {n_replaced} defined TG entries replaced.")
+
+
+# ── Helper: patch PREP.nc ────────────────────────────────────────────────────
+
+def _update_prep_nc_tg(prep_path, tg_profile):
+    """
+    In PREP.nc, overwrite every TGnPm variable whose current value is
+    NOT masked (fill value 1e+20) with tg_profile[n-1] (K).
+    """
+    import netCDF4 as nc
+    import numpy as np
+
+    n_replaced = 0
+    with nc.Dataset(prep_path, 'r+') as ds:
+        tg_vars = [v for v in ds.variables if _re.match(r'TG\d+P\d+$', v)]
+        for vname in tg_vars:
+            m = _re.match(r'TG(\d+)P\d+', vname)
+            layer_idx = int(m.group(1)) - 1          # 0-based
+            if layer_idx >= len(tg_profile):
+                continue
+            var = ds[vname]
+            val = var[:]
+            # Skip if fully masked (undefined)
+            if isinstance(val, np.ma.MaskedArray) and val.mask.all():
+                continue
+            # Skip if all values equal the fill value (unmasked file)
+            fv = getattr(var, '_FillValue', None)
+            if fv is not None and not isinstance(val, np.ma.MaskedArray):
+                if np.all(val == fv):
+                    continue
+            var[:] = tg_profile[layer_idx]
+            n_replaced += 1
+
+    print(f"    ✅ PREP.nc updated: {n_replaced} defined TG variables replaced.")
 
 
 def fetch_flux_data(doi):
@@ -1170,7 +1279,7 @@ else:
     df_init_merged  = None
 
 
-# In[ ]:
+# In[1]:
 
 
 ###### OSVAS ############################################################################
@@ -1297,4 +1406,71 @@ if initialization_data and init_output_dir is not None and df_init_merged is not
         )
 else:
     print("⏩ Skipping Step 2.7 (no initialization data available).")
+
+
+# In[ ]:
+
+
+###### OSVAS ############################################################################
+###### ( OFFLINE SURFEX VALIDATION SYSTEM)###############################################
+#### STEP 2.8: Apply soil temperature initialization profile to OPTIONS.nam     #########
+####           and/or PREP files for each experiment.                           #########
+####                                                                            #########
+#### YAML triggers (under Initialization_data):                                 #########
+####   Init_to_namelist: true  → patch XUNIF_TG_SOIL(*) in OPTIONS.nam         #########
+####   Init_to_prep:     true  → patch defined TGnPm entries in PREP.txt/.nc   #########
+####                                                                            #########
+#### The TG profile (tg_profile, K) produced in Step 2.7 is used directly.     #########
+#### Layer index mapping: TGn / XUNIF_TG_SOIL(n) → tg_profile[n-1]            #########
+
+
+
+# ── Step 2.8 execution ───────────────────────────────────────────────────────
+
+init_cfg         = config.get('Initialization_data', {}) if config else {}
+init_to_namelist = init_cfg.get('Init_to_namelist', False)
+init_to_prep     = init_cfg.get('Init_to_prep',     False)
+
+if not (init_to_namelist or init_to_prep):
+    print("⏩ Skipping Step 2.8: Init_to_namelist and Init_to_prep both False "
+          "(or Initialization_data absent).")
+elif 'tg_profile' not in dir() or tg_profile is None:
+    print("⚠️  Step 2.8 skipped: tg_profile not available "
+          "(Step 2.7 must run successfully first).")
+else:
+    print("\n▶ Running Step 2.8: Apply TG initialization profile to experiment files")
+
+    expnames = config['OSVAS_steps'].get('Expnames', [])
+    if not expnames:
+        print("  ⚠️  No Expnames defined in YAML – nothing to update.")
+    else:
+        for expname in expnames:
+            run_dir = os.path.join(OSVAS, "RUNS", Station_name, expname, "run")
+            print(f"\n  [{expname}]  run_dir: {run_dir}")
+
+            # ── Namelist update ───────────────────────────────────────────────
+            if init_to_namelist:
+                namelist_path = os.path.join(run_dir, "OPTIONS.nam")
+                if os.path.exists(namelist_path):
+                    _update_namelist_tg(namelist_path, tg_profile)
+                else:
+                    print(f"    ⚠️  OPTIONS.nam not found in {run_dir} – skipping.")
+
+            # ── PREP file update ──────────────────────────────────────────────
+            if init_to_prep:
+                prep_txt = os.path.join(run_dir, "PREP.txt")
+                prep_nc  = os.path.join(run_dir, "PREP.nc")
+                found_any = False
+                if os.path.exists(prep_txt):
+                    print(f"    Updating PREP.txt …")
+                    _update_prep_txt_tg(prep_txt, tg_profile)
+                    found_any = True
+                if os.path.exists(prep_nc):
+                    print(f"    Updating PREP.nc …")
+                    _update_prep_nc_tg(prep_nc, tg_profile)
+                    found_any = True
+                if not found_any:
+                    print(f"    ⚠️  No PREP.txt or PREP.nc found in {run_dir} – skipping.")
+
+    print("\n✅ Step 2.8 complete.")
 
