@@ -21,7 +21,7 @@ OSVAS = os.getenv("OSVAS", OSVAS)
 print(f"Creating Validation files for: {Station_name} with OSVAS installation in {OSVAS}" )
 
 
-# In[ ]:
+# In[1]:
 
 
 ###### OSVAS ##################################################################
@@ -698,6 +698,137 @@ def plot_soil_temperature_diagnostics(temp_xr, Tz_full, tg_profile_K,
     plt.close(fig2)
     print(f"  📊 Profile figure saved to {prof_path}")
 
+def load_soil_humidity_from_obstable(obstable_dir, init_start, init_end,
+                                     swc_cols, obs_depths):
+    """
+    Read SWC_* columns from initialization OBSTABLEs at the single timestep
+    nearest to init_start and return observed volumetric water content as a
+    plain 1-D numpy array (one value per obs depth).
+
+    SWC values in ICOS are in % volumetric; SURFEX expects a dimensionless
+    fraction in [0, 1] for XUNIF_HUG_SOIL, so values are divided by 100.
+
+    Parameters
+    ----------
+    obstable_dir : str
+    init_start   : pd.Timestamp (UTC)   target date/time
+    init_end     : pd.Timestamp (UTC)   upper bound for search window
+    swc_cols     : list of str
+    obs_depths   : list of float [m]
+
+    Returns
+    -------
+    swc_obs : np.ndarray  shape=(n_depths,)  values in [0, 1]
+    nearest_time : pd.Timestamp  actual time of the selected record
+    """
+    dfs = []
+    for year in range(init_start.year, init_end.year + 1):
+        fpath = os.path.join(obstable_dir, f"OBSTABLE_{year}.sqlite")
+        if not os.path.exists(fpath):
+            continue
+        with sqlite3.connect(fpath) as conn:
+            cols_sql = ", ".join([f'"{c}"' for c in ["valid_dttm"] + swc_cols])
+            dfs.append(pd.read_sql(f"SELECT {cols_sql} FROM SYNOP", conn))
+
+    if not dfs:
+        raise RuntimeError(f"No initialization OBSTABLE files found in {obstable_dir}.")
+
+    df_all = pd.concat(dfs, ignore_index=True)
+    df_all["valid_dttm"] = pd.to_datetime(df_all["valid_dttm"], unit="s", utc=True)
+    df_all = df_all.sort_values("valid_dttm")
+
+    # Select the row nearest to init_start that has at least one non-NaN SWC value
+    mask = (df_all["valid_dttm"] >= init_start) & (df_all["valid_dttm"] <= init_end)
+    df_window = df_all.loc[mask].reset_index(drop=True)
+
+    if df_window.empty:
+        raise RuntimeError(
+            f"No SWC data in window {init_start} – {init_end} in {obstable_dir}."
+        )
+
+    # Pick row closest to init_start
+    idx_nearest  = (df_window["valid_dttm"] - init_start).abs().argmin()
+    nearest_time = df_window.loc[idx_nearest, "valid_dttm"]
+    row          = df_window.loc[idx_nearest, swc_cols].values.astype(float)
+
+    # Convert % → fraction
+    swc_obs = row / 100.0
+
+    print(f"  SWC snapshot taken at {nearest_time.strftime('%Y-%m-%d %H:%M')} UTC")
+    return swc_obs, nearest_time
+
+
+def interp_to_model_grid(obs_depths, obs_values, model_depths):
+    """
+    Linearly interpolate an observed soil profile from obs_depths onto
+    model_depths.  For model levels deeper than the deepest observation,
+    the deepest observed value is used (constant extrapolation).
+    For model levels shallower than the shallowest observation, the
+    shallowest observed value is used.
+
+    Parameters
+    ----------
+    obs_depths   : array-like of float [m], sorted shallow→deep
+    obs_values   : array-like of float, same length as obs_depths
+    model_depths : array-like of float [m]
+
+    Returns
+    -------
+    np.ndarray  shape=(len(model_depths),)
+    """
+    obs_z = np.array(obs_depths,   dtype=float)
+    obs_v = np.array(obs_values,   dtype=float)
+    mod_z = np.array(model_depths, dtype=float)
+
+    return np.interp(mod_z, obs_z, obs_v,
+                     left=obs_v[0], right=obs_v[-1])
+
+
+def plot_soil_humidity_profile(swc_obs, obs_depths, hug_profile,
+                               model_depths, nearest_time,
+                               profile_date, profile_path, station_name):
+    """
+    Plot observed SWC profile (fraction) at obs_depths against the
+    interpolated XUNIF_HUG_SOIL profile at model_depths.
+
+    Parameters
+    ----------
+    swc_obs      : np.ndarray  observed values [0-1] at obs_depths
+    obs_depths   : list of float [m]
+    hug_profile  : np.ndarray  interpolated values [0-1] at model_depths
+    model_depths : list of float [m]
+    nearest_time : pd.Timestamp  actual obs time used
+    profile_date : pd.Timestamp  requested init date
+    profile_path : str
+    station_name : str
+    """
+    date_str   = profile_date.strftime("%Y%m%d_%H%M%S")
+    date_label = profile_date.strftime("%Y-%m-%d %H:%M UTC")
+
+    fig, ax = plt.subplots(figsize=(5, 7))
+
+    ax.plot(hug_profile, model_depths, "s--", color="steelblue", lw=1.5,
+            ms=5, label=f"Interpolated (XSOILGRID)")
+    ax.scatter(swc_obs, obs_depths, color="tomato", zorder=5, s=60,
+               marker="D",
+               label=f"Observed ({nearest_time.strftime('%Y-%m-%d %H:%M')} UTC)")
+
+    ax.invert_yaxis()
+    ax.set_xlabel("Volumetric water content (fraction)", fontsize=11)
+    ax.set_ylabel("Depth (m)", fontsize=11)
+    ax.set_title(
+        f"Initial soil humidity profile\n{station_name}  —  {date_label}",
+        fontsize=12, fontweight="bold"
+    )
+    ax.grid(True, linestyle=":", linewidth=0.5, alpha=0.7)
+    ax.legend(fontsize=9)
+
+    fig.tight_layout()
+    out_path = os.path.join(profile_path, f"humidity_profile_{date_str}.png")
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  📊 Humidity profile figure saved to {out_path}")
+
 
 def format_namelist_block(values, variable_name):
     """Format a 1-D array as a SURFEX namelist block."""
@@ -820,6 +951,104 @@ def _update_prep_nc_tg(prep_path, tg_profile):
             n_replaced += 1
 
     print(f"    ✅ PREP.nc updated: {n_replaced} defined TG variables replaced.")
+
+def _update_namelist_hug(namelist_path, hug_profile):
+    """
+    Replace all XUNIF_HUG_SOIL(*) lines in OPTIONS.nam with values from
+    hug_profile ([0-1] fraction, 0-based list), inserted before the first
+    closing '/' of the namelist.
+    """
+    with open(namelist_path) as f:
+        content = f.read()
+
+    n     = len(hug_profile)
+    idx_w = len(str(n))
+    vname = "XUNIF_HUG_SOIL"
+    new_lines = "\n".join(
+        f"                       {f'{vname}({i+1})':<{len(vname)+idx_w+2+1}}= {v:.2f},"
+        for i, v in enumerate(hug_profile)
+    )
+
+    # Remove any existing XUNIF_HUG_SOIL(*) lines (with or without trailing comma)
+    content = _re.sub(r'[ \t]*XUNIF_HUG_SOIL\(\d+\)\s*=\s*[0-9.]+,?[ \t]*\n?', '', content)
+
+    new_content = _re.sub(
+        r'(?m)^(\s*/\s*)$',
+        lambda m: new_lines + "\n" + m.group(0),
+        content,
+        count=1
+    )
+    if new_content == content:
+        new_content = content.rstrip() + "\n" + new_lines + "\n"
+
+    with open(namelist_path, 'w') as f:
+        f.write(new_content)
+
+    print(f"    ✅ OPTIONS.nam updated with {n} XUNIF_HUG_SOIL values.")
+
+
+def _update_prep_txt_wg(prep_path, hug_profile):
+    """
+    In PREP.txt, overwrite the value of every &NATURE WGnPm entry whose
+    current value is NOT the SURFEX undefined sentinel (1D+21).
+    Layer index mapping: WGn → hug_profile[n-1].
+    """
+    UNDEF = "0.10000000000000000D+21"
+
+    with open(prep_path) as f:
+        lines = f.readlines()
+
+    n_replaced = 0
+    i = 0
+    while i < len(lines):
+        m = _re.match(r'\s*&NATURE\s+(WG(\d+)P\d+)', lines[i])
+        if m:
+            layer_idx = int(m.group(2)) - 1
+            if i + 2 < len(lines):
+                val_line = lines[i + 2].strip()
+                if val_line != UNDEF and layer_idx < len(hug_profile):
+                    val_f = f"{hug_profile[layer_idx]:.17E}"
+                    val_f = val_f.replace('E+0', 'D+0').replace('E-0', 'D-0') \
+                                 .replace('E+',  'D+').replace('E-',  'D-')
+                    lines[i + 2] = f"      {val_f}\n"
+                    n_replaced += 1
+        i += 1
+
+    with open(prep_path, 'w') as f:
+        f.writelines(lines)
+
+    print(f"    ✅ PREP.txt updated: {n_replaced} defined WG entries replaced.")
+
+
+def _update_prep_nc_wg(prep_path, hug_profile):
+    """
+    In PREP.nc, overwrite every WGnPm variable whose current value is NOT
+    masked (fill value 1e+20) with hug_profile[n-1] ([0-1] fraction).
+    """
+    import netCDF4 as nc
+    import numpy as np
+
+    n_replaced = 0
+    with nc.Dataset(prep_path, 'r+') as ds:
+        wg_vars = [v for v in ds.variables if _re.match(r'WG\d+P\d+$', v)]
+        for vname in wg_vars:
+            m = _re.match(r'WG(\d+)P\d+', vname)
+            layer_idx = int(m.group(1)) - 1
+            if layer_idx >= len(hug_profile):
+                continue
+            var = ds[vname]
+            val = var[:]
+            if isinstance(val, np.ma.MaskedArray) and val.mask.all():
+                continue
+            fv = getattr(var, '_FillValue', None)
+            if fv is not None and not isinstance(val, np.ma.MaskedArray):
+                if np.all(val == fv):
+                    continue
+            var[:] = hug_profile[layer_idx]
+            n_replaced += 1
+
+    print(f"    ✅ PREP.nc updated: {n_replaced} defined WG variables replaced.")
+
 
 
 def fetch_flux_data(doi):
@@ -1084,7 +1313,7 @@ def enforce_seb_closure(df,
     return df_out
 
 
-# In[ ]:
+# In[2]:
 
 
 ###### OSVAS ###################################################################
@@ -1279,7 +1508,7 @@ else:
     df_init_merged  = None
 
 
-# In[1]:
+# In[ ]:
 
 
 ###### OSVAS ############################################################################
@@ -1325,8 +1554,7 @@ if initialization_data and init_output_dir is not None and df_init_merged is not
 
         # ── Profile date = Forcing_data.run_start ─────────────────────────────
         profile_date  = pd.to_datetime(config["Forcing_data"]["run_start"], utc=True)
-        profile_times = np.array([profile_date], dtype="datetime64[ns]")
-
+        profile_times = np.array([profile_date.tz_localize(None)], dtype="datetime64[ns]")
         # ── Load temperature observations from obstable ───────────────────────
         print(f"  Loading TS data from {init_output_dir} …")
         temp_xr = load_soil_temp_from_obstable(
@@ -1380,7 +1608,7 @@ if initialization_data and init_output_dir is not None and df_init_merged is not
         np.savetxt(coeff_file, coef)
         print(f"  Coefficients saved to {coeff_file}")
 
-        # ── Convert °C → K and write namelist ────────────────────────────────
+        # ── Convert °C → K and write TG namelist ─────────────────────────────
         tg_profile     = Tz_target.sel(time=profile_times[0]).values + 273.15
         namelist_block = format_namelist_block(tg_profile, "XUNIF_TG_SOIL")
 
@@ -1391,9 +1619,43 @@ if initialization_data and init_output_dir is not None and df_init_merged is not
         out_nam_file = os.path.join(profile_path, f"TG_init_{profile_str}.nam")
         with open(out_nam_file, "w") as f:
             f.write(namelist_block + "\n")
-        print(f"\n  ✅ Namelist block written to {out_nam_file}")
+        print(f"\n  ✅ TG namelist block written to {out_nam_file}")
 
-        # ── Diagnostic figures ────────────────────────────────────────────────
+        # ── Soil humidity: observed profile interpolated to XSOILGRID ────────
+        hug_profile = None
+        if swc_cols:
+            print(f"\n  Loading SWC data from {init_output_dir} …")
+            try:
+                swc_obs, swc_nearest_time = load_soil_humidity_from_obstable(
+                    init_output_dir, init_start, init_end, swc_cols, depths_swc
+                )
+                hug_profile = interp_to_model_grid(depths_swc, swc_obs, XSOILGRID)
+
+                hug_block = format_namelist_block(hug_profile, "XUNIF_HUG_SOIL")
+                print("\n  SURFEX namelist block for initial soil humidity:")
+                print(hug_block)
+
+                out_hug_file = os.path.join(profile_path, f"HUG_init_{profile_str}.nam")
+                with open(out_hug_file, "w") as f:
+                    f.write(hug_block + "\n")
+                print(f"\n  ✅ HUG namelist block written to {out_hug_file}")
+
+                plot_soil_humidity_profile(
+                    swc_obs      = swc_obs,
+                    obs_depths   = depths_swc,
+                    hug_profile  = hug_profile,
+                    model_depths = XSOILGRID,
+                    nearest_time = swc_nearest_time,
+                    profile_date = profile_date,
+                    profile_path = profile_path,
+                    station_name = Station_name
+                )
+            except Exception as e:
+                print(f"  ⚠️  Could not compute HUG profile: {e}")
+        else:
+            print("  ℹ️  No SWC_* columns found – skipping XUNIF_HUG_SOIL.")
+
+        # ── Diagnostic figures (temperature) ─────────────────────────────────
         plot_soil_temperature_diagnostics(
             temp_xr       = temp_xr,
             Tz_full       = Tz_obs,
@@ -1408,6 +1670,7 @@ else:
     print("⏩ Skipping Step 2.7 (no initialization data available).")
 
 
+
 # In[ ]:
 
 
@@ -1417,11 +1680,13 @@ else:
 ####           and/or PREP files for each experiment.                           #########
 ####                                                                            #########
 #### YAML triggers (under Initialization_data):                                 #########
-####   Init_to_namelist: true  → patch XUNIF_TG_SOIL(*) in OPTIONS.nam         #########
-####   Init_to_prep:     true  → patch defined TGnPm entries in PREP.txt/.nc   #########
+####   Init_to_namelist: true  → patch XUNIF_TG_SOIL(*) and XUNIF_HUG_SOIL(*) #########
+####                             in OPTIONS.nam                                 #########
+####   Init_to_prep:     true  → patch defined TGnPm / WGnPm entries in        #########
+####                             PREP.txt and/or PREP.nc                        #########
 ####                                                                            #########
-#### The TG profile (tg_profile, K) produced in Step 2.7 is used directly.     #########
-#### Layer index mapping: TGn / XUNIF_TG_SOIL(n) → tg_profile[n-1]            #########
+#### tg_profile (K) and hug_profile ([0-1]) from Step 2.7 are used directly.  #########
+#### Layer index mapping: TGn/WGn / XUNIF_*_SOIL(n) → profile[n-1]            #########
 
 
 
@@ -1438,7 +1703,7 @@ elif 'tg_profile' not in dir() or tg_profile is None:
     print("⚠️  Step 2.8 skipped: tg_profile not available "
           "(Step 2.7 must run successfully first).")
 else:
-    print("\n▶ Running Step 2.8: Apply TG initialization profile to experiment files")
+    print("\n▶ Running Step 2.8: Apply TG/HUG initialization profiles to experiment files")
 
     expnames = config['OSVAS_steps'].get('Expnames', [])
     if not expnames:
@@ -1453,21 +1718,29 @@ else:
                 namelist_path = os.path.join(run_dir, "OPTIONS.nam")
                 if os.path.exists(namelist_path):
                     _update_namelist_tg(namelist_path, tg_profile)
+                    if 'hug_profile' in dir() and hug_profile is not None:
+                        _update_namelist_hug(namelist_path, hug_profile)
+                    else:
+                        print("    ℹ️  No HUG profile available – XUNIF_HUG_SOIL not updated.")
                 else:
                     print(f"    ⚠️  OPTIONS.nam not found in {run_dir} – skipping.")
 
             # ── PREP file update ──────────────────────────────────────────────
             if init_to_prep:
-                prep_txt = os.path.join(run_dir, "PREP.txt")
-                prep_nc  = os.path.join(run_dir, "PREP.nc")
+                prep_txt  = os.path.join(run_dir, "PREP.txt")
+                prep_nc   = os.path.join(run_dir, "PREP.nc")
                 found_any = False
                 if os.path.exists(prep_txt):
                     print(f"    Updating PREP.txt …")
                     _update_prep_txt_tg(prep_txt, tg_profile)
+                    if 'hug_profile' in dir() and hug_profile is not None:
+                        _update_prep_txt_wg(prep_txt, hug_profile)
                     found_any = True
                 if os.path.exists(prep_nc):
                     print(f"    Updating PREP.nc …")
                     _update_prep_nc_tg(prep_nc, tg_profile)
+                    if 'hug_profile' in dir() and hug_profile is not None:
+                        _update_prep_nc_wg(prep_nc, hug_profile)
                     found_any = True
                 if not found_any:
                     print(f"    ⚠️  No PREP.txt or PREP.nc found in {run_dir} – skipping.")
