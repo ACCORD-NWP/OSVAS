@@ -31,6 +31,11 @@ run_harp = config['OSVAS_steps'].get('Run_HARP', False)
 display_harp = config['OSVAS_steps'].get('Display_HARP', False)
 expnames = config['OSVAS_steps'].get('Expnames', [])
 
+# Read initialization flags
+init_cfg = config.get('Initialization_data', {})
+init_to_namelist = init_cfg.get('Init_to_namelist', False)
+init_to_prep = init_cfg.get('Init_to_prep', False)
+
 # Jupyter settings
 jupyter = True
 extension = '.ipynb' if jupyter else '.py'
@@ -173,12 +178,28 @@ if run_surfex:
         with open(namelist, 'w') as f:
             f.write(content)
         
+        # Apply soil initialization to namelist if enabled
+        if init_to_namelist:
+            print(f"Applying soil initialization to namelist for {expname}")
+            subprocess.run([
+                'python3', f"{os.environ['OSVAS']}/scripts/python_scripts/apply_soil_initialization.py",
+                os.environ['STATION_NAME'], os.environ['OSVAS'], 'namelist'
+            ], check=True)
+        
         # Run SURFEX steps
         surfex_steps = [s.upper() for s in config['OSVAS_steps']['Surfex_steps']]
         os.chdir(run_dir)
         for step in surfex_steps:
             print(f"Running {step} for {expname}")
             subprocess.run([step], check=True)
+            
+            # Apply soil initialization to PREP files after PREP step if enabled
+            if step == 'PREP' and init_to_prep:
+                print(f"Applying soil initialization to PREP files for {expname}")
+                subprocess.run([
+                    'python3', f"{os.environ['OSVAS']}/scripts/python_scripts/apply_soil_initialization.py",
+                    os.environ['STATION_NAME'], os.environ['OSVAS'], 'prep'
+                ], check=True)
         
         # Move outputs
         for f in os.listdir(run_dir):

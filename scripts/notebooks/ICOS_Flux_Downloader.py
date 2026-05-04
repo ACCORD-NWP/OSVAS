@@ -21,7 +21,7 @@ OSVAS = os.getenv("OSVAS", OSVAS)
 print(f"Creating Validation files for: {Station_name} with OSVAS installation in {OSVAS}" )
 
 
-# In[1]:
+# In[ ]:
 
 
 ###### OSVAS ##################################################################
@@ -1313,7 +1313,7 @@ def enforce_seb_closure(df,
     return df_out
 
 
-# In[2]:
+# In[ ]:
 
 
 ###### OSVAS ###################################################################
@@ -1621,6 +1621,10 @@ if initialization_data and init_output_dir is not None and df_init_merged is not
             f.write(namelist_block + "\n")
         print(f"\n  ✅ TG namelist block written to {out_nam_file}")
 
+        tg_profile_file = os.path.join(profile_path, "tg_profile.npy")
+        np.save(tg_profile_file, tg_profile)
+        print(f"  ✅ TG profile saved to {tg_profile_file}")
+
         # ── Soil humidity: observed profile interpolated to XSOILGRID ────────
         hug_profile = None
         if swc_cols:
@@ -1639,6 +1643,10 @@ if initialization_data and init_output_dir is not None and df_init_merged is not
                 with open(out_hug_file, "w") as f:
                     f.write(hug_block + "\n")
                 print(f"\n  ✅ HUG namelist block written to {out_hug_file}")
+
+                hug_profile_file = os.path.join(profile_path, "hug_profile.npy")
+                np.save(hug_profile_file, hug_profile)
+                print(f"  ✅ HUG profile saved to {hug_profile_file}")
 
                 plot_soil_humidity_profile(
                     swc_obs      = swc_obs,
