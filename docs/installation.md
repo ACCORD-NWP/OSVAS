@@ -20,15 +20,26 @@ You will be asked if you wish to update your shell profile to automatically init
 ```
     conda config --set auto_activate_base false
 ```
-After intalling or loading conda's module:
+After installing or loading conda's module:
 ```
 cd scripts/bash_scripts
 ./create_conda_environment.sh
 ```
-  - This will create an OSVASENV conda environment and install the dependencies. These include a specific yaml handling library for bash linux (yq, Go version from conda-forge and a number of python packages)
+  - This will create an `OSVASENV` conda environment and install the dependencies, including Python packages used by the workflow launcher and notebook conversion.
+  - The workflow entrypoints are Python scripts in `scripts/python_scripts/`, and station-specific settings are read from `config_files/Stations/${STATION_NAME}/${STATION_NAME}.yml`.
   - For running the verification step:
-    -  A functional HARP installation. If you installed OSVAS on ATOS, HARP is already installed by the installation script. Otherwise, you can follow e.g. these instructions: (https://harphub.github.io/harp_training_2024/get-started.html#installation).
-    -  oper-harp-verif scripts (https://github.com/harphub/oper-harp-verif.git) must be downloaded from the repo. They don't need installation, but they have a number of dependencies of other packages so in practice, they do. On ATOS, these dependencies are also taken care of by the installation script. Outside ATOS, these dependencies can be installed by using this code in an R console:
+    - A functional HARP installation. If you installed OSVAS on ATOS, HARP is already installed by the installation script. Otherwise, you can follow e.g. these instructions: https://harphub.github.io/harp_training_2024/get-started.html#installation.
+    - `oper-harp-verif` scripts (https://github.com/harphub/oper-harp-verif.git) must be available. They are not bundled with OSVAS and may require additional R package dependencies.
+
+### Workflow entrypoints
+OSVAS is launched through Python control scripts rather than a single shell wrapper.
+- Local Linux: `python3 scripts/python_scripts/surfex_OSVAS_run_linux.py`
+- ATOS: `python3 scripts/python_scripts/surfex_OSVAS_run_atos.py`
+
+These Python scripts read station YAML and may convert notebooks into Python before execution when `jupyter=True`.
+
+### Required dependencies
+The Conda environment script installs the Python packages used by the workflow launchers and notebook conversion. In addition, OSVAS relies on several R packages for HARP verification and visualization.
   ```
   pkg_list <- c("here","argparse","yaml","dplyr","tidyr",
               "purrr","forcats","stringr","RColorBrewer","grid",

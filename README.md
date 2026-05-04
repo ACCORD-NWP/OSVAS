@@ -18,7 +18,7 @@ OSVAS automates the entire cycle:
 
 All documentation is available inside the `docs/` folder and in https://accord-nwp.github.io/OSVAS/ , organized as follows:
 
-### 🔧 <u>[**Setup & Configuration: Install requirements in a conda environment**](https://accord-nwp.github.io/OSVAS/installation.html))</u>
+### 🔧 <u>[**Setup & Configuration: Install requirements in a conda environment**](https://accord-nwp.github.io/OSVAS/installation.html)</u>
 
 ### 🧪 <u>[**OSVAS central control script**](https://accord-nwp.github.io/OSVAS/OSVAS_workflow.html)</u>
 
@@ -60,19 +60,27 @@ cd scripts/bash_scripts
 conda activate OSVASENV
 ```
 
-### 3️⃣ Edit your run script
+### 3️⃣ Choose your entrypoint and set paths
 
-Set the station name and paths:
+Set the station name and paths in your shell:
 
 ```bash
 export STATION_NAME=Majadas_del_tietar
-export OSVAS=$HOME/OSVAS
+export OSVAS=$HOME/OSVASgh
 export HARP=$HOME/operharpverif
 ```
 
 ### 4️⃣ Run OSVAS
 
+For local Linux:
 ```bash
-./surfex_OSVAS_run_linux.sh
+python3 scripts/python_scripts/surfex_OSVAS_run_linux.py
 ```
+
+For ATOS:
+```bash
+python3 scripts/python_scripts/surfex_OSVAS_run_atos.py
+```
+
+These Python launcher scripts read the station YAML under `config_files/Stations/${STATION_NAME}/${STATION_NAME}.yml`, execute the selected workflow steps, and apply station-specific initialization and forcing configuration.
 
