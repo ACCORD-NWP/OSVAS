@@ -23,7 +23,8 @@ The YAML controls workflow steps, data sources, station metadata, and initializa
 
 - `Validation_data`: defines ICOS datasets for validation and output sqlite behaviour.
   - `validation_start`, `validation_end`
-  - `common_obstable`
+  - `common_obstable`: if `true`, write validation obstables to a shared directory for cross-station comparison
+  - `common_fctable`: if `true`, extract model FCTABLEs to a common directory structure (`sqlites/model_data/common_fctables/`) shared across stations running the same experiment, identified by SID. Defaults to `false`
   - dataset entries with `doi`, `timedelta`, `variables`, and `units`
 
 - `Initialization_data`: controls soil initialization derived from validation or station metadata.

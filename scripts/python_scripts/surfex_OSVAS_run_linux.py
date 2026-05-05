@@ -195,8 +195,9 @@ else:
 if extract_model_sqlites:
     print("▶ Running Step 4: Extract model SQLITEs")
     sid = config['Station_metadata']['SID']
+    common_fctable = config.get('Validation_data', {}).get('common_fctable', False)
     for expname in expnames:
-        subprocess.run([
+        cmd = [
             'python3', 'nc2sqlite.py',
             '-p', 'param_dict.json',
             '-s', '../../sqlites/station_list_SURFEX.csv',
@@ -204,7 +205,10 @@ if extract_model_sqlites:
             '-o', f"{os.environ['OSVAS']}/sqlites/model_data/{os.environ['STATION_NAME']}/",
             '-m', expname,
             f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/{expname}/output/"
-        ], cwd=f"{os.environ['OSVAS']}/scripts/nc2sqlite/", check=True)
+        ]
+        if common_fctable:
+            cmd.insert(-1, '--common_fctable')
+        subprocess.run(cmd, cwd=f"{os.environ['OSVAS']}/scripts/nc2sqlite/", check=True)
 else:
     print("⏩ Skipping Step 4: Extract model SQLITEs")
 

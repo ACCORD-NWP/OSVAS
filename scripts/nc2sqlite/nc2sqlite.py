@@ -18,6 +18,7 @@ def parse_args():
     parser.add_argument("-st", "--station", required=True, type=int, help="Station ID")
     parser.add_argument("-o", "--output", required=True, help="Output base directory")
     parser.add_argument("-m", "--experiment_name", required=True, help="Experiment name")
+    parser.add_argument("--common_fctable", action="store_true", default=False, help="Use common fctable directory (sqlites/model_data/common_fctables/) instead of station-specific")
     parser.add_argument("ncdir", help="Directory containing NetCDF files")
     return parser.parse_args()
 
@@ -61,7 +62,7 @@ def create_fc_table(conn, param_name, experiment_name):
 
 
 
-def process_netcdf_file(ncfile, param_dict, SID, z, lat, lon, experiment_name, output_base):
+def process_netcdf_file(ncfile, param_dict, SID, z, lat, lon, experiment_name, output_base, common_fctable=False):
     with netCDF4.Dataset(ncfile) as ds:
         if "time" not in ds.variables:
             print(f"⚠️ Skipping {ncfile}: no 'time' variable found")
@@ -124,7 +125,14 @@ def process_netcdf_file(ncfile, param_dict, SID, z, lat, lon, experiment_name, o
                         current_month = month_key
 
                         year, month = fcst_dt.year, fcst_dt.month
-                        out_dir = Path(output_base) / experiment_name / f"{year:04d}" / f"{month:02d}"
+                        # Determine output directory based on common_fctable flag
+                        if common_fctable:
+                            # Use common fctable directory structure
+                            osvas_root = Path(output_base).parent.parent.parent.parent  # Extract OSVAS root
+                            out_dir = osvas_root / "sqlites" / "model_data" / "common_fctables" / experiment_name / f"{year:04d}" / f"{month:02d}"
+                        else:
+                            # Use station-specific directory structure (current behavior)
+                            out_dir = Path(output_base) / experiment_name / f"{year:04d}" / f"{month:02d}"
                         out_dir.mkdir(parents=True, exist_ok=True)
                         out_path = out_dir / f"FCTABLE_{output_name}_{year:04d}{month:02d}_00.sqlite"
 
@@ -178,7 +186,7 @@ def main():
     for ncfile in nc_files:
         print(f"Processing {ncfile}")
         try:
-            process_netcdf_file(ncfile, param_dict, SID, z, lat, lon, args.experiment_name, args.output)
+            process_netcdf_file(ncfile, param_dict, SID, z, lat, lon, args.experiment_name, args.output, args.common_fctable)
         except Exception as e:
             print(f"⚠️ Failed to process {ncfile}: {e}")
             traceback.print_exc()

@@ -48,6 +48,7 @@ Validation_data:
   validation_start: '2020-05-01 00:00:00'
   validation_end: '2020-12-31 23:30:00'
   common_obstable: FALSE
+  common_fctable: FALSE
   dataset1: 
     doi: https://meta.icos-cp.eu/objects/VIoR-cJnMUUjbaEkuNHMKgSv
     timedelta: 30
