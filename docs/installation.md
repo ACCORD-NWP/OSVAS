@@ -38,6 +38,21 @@ OSVAS is launched through Python control scripts rather than a single shell wrap
 
 These Python scripts read station YAML and may convert notebooks into Python before execution when `jupyter=True`.
 
+#### Command Line Arguments
+
+Both launcher scripts accept the following command line arguments:
+
+- `--stations STATION1 STATION2 ...`: List of station names to process serially (overrides `STATION_NAME` env var)
+- `--condaenv CONDAENV`: Conda environment name (overrides `CONDAENV` env var)  
+- `--osvas OSVAS_PATH`: OSVAS root directory (overrides `OSVAS` env var)
+- `--harpscripts HARPSCRIPTS_PATH`: HARP scripts directory (overrides `HARPSCRIPTS` env var)
+
+Example:
+```bash
+# Process multiple stations
+python3 scripts/python_scripts/surfex_OSVAS_run_linux.py --stations Majadas_del_tietar Meteopole
+```
+
 ### Required dependencies
 The Conda environment script installs the Python packages used by the workflow launchers and notebook conversion. In addition, OSVAS relies on several R packages for HARP verification and visualization.
   ```

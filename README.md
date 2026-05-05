@@ -62,12 +62,12 @@ conda activate OSVASENV
 
 ### 3️⃣ Choose your entrypoint and set paths
 
-Set the station name and paths in your shell:
+Set the station name and paths in your shell (or override via command line arguments):
 
 ```bash
 export STATION_NAME=Majadas_del_tietar
 export OSVAS=$HOME/OSVASgh
-export HARP=$HOME/operharpverif
+export HARPSCRIPTS=$HOME/operharpverif
 ```
 
 ### 4️⃣ Run OSVAS
@@ -83,4 +83,22 @@ python3 scripts/python_scripts/surfex_OSVAS_run_atos.py
 ```
 
 These Python launcher scripts read the station YAML under `config_files/Stations/${STATION_NAME}/${STATION_NAME}.yml`, execute the selected workflow steps, and apply station-specific initialization and forcing configuration.
+
+#### Command Line Options
+
+Both launcher scripts support the following command line arguments:
+
+- `--stations STATION1 STATION2 ...`: List of station names to process serially (overrides `STATION_NAME` environment variable)
+- `--condaenv CONDAENV`: Conda environment name (overrides `CONDAENV` environment variable)
+- `--osvas OSVAS_PATH`: OSVAS root directory (overrides `OSVAS` environment variable)  
+- `--harpscripts HARPSCRIPTS_PATH`: HARP scripts directory (overrides `HARPSCRIPTS` environment variable)
+
+Example usage:
+```bash
+# Run multiple stations serially
+python3 scripts/python_scripts/surfex_OSVAS_run_linux.py --stations Majadas_del_tietar Meteopole Loobos
+
+# Override environment variables
+python3 scripts/python_scripts/surfex_OSVAS_run_linux.py --osvas /path/to/osvas --harpscripts /path/to/harp
+```
 

@@ -6,162 +6,198 @@ import yaml
 from datetime import datetime
 import shutil
 import re
+import argparse
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run OSVAS workflow for one or more stations on ATOS")
+    parser.add_argument('--stations', nargs='*', help='List of station names to process (overrides STATION_NAME env var)')
+    parser.add_argument('--condaenv', help='Conda environment name (overrides CONDAENV env var)')
+    parser.add_argument('--osvas', help='OSVAS root directory (overrides OSVAS env var)')
+    parser.add_argument('--harpscripts', help='HARP scripts directory (overrides HARPSCRIPTS env var)')
+    return parser.parse_args()
+
+args = parse_args()
 
 # Load conda environment (equivalent to module load conda and conda activate)
 subprocess.run(['module', 'load', 'conda/24.11.3-2'], check=True)
-os.environ['CONDAENV'] = 'OSVASENV'
+
+# Set environment variables with command line overrides or defaults
+if args.condaenv:
+    os.environ['CONDAENV'] = args.condaenv
+elif 'CONDAENV' not in os.environ:
+    os.environ['CONDAENV'] = 'OSVASENV'
+
+if args.osvas:
+    os.environ['OSVAS'] = args.osvas
+elif 'OSVAS' not in os.environ:
+    os.environ['OSVAS'] = '/perm/sp3c/OSVAS/'
+
+if args.harpscripts:
+    os.environ['HARPSCRIPTS'] = args.harpscripts
+elif 'HARPSCRIPTS' not in os.environ:
+    os.environ['HARPSCRIPTS'] = '/perm/sp3c/harmonie_release/oper-harp-verif_orig/'
+
 subprocess.run(['conda', 'activate', os.environ['CONDAENV']], shell=True, check=True)
 
-# Set environment variables
-os.environ['STATION_NAME'] = 'Majadas_del_tietar'
-os.environ['OSVAS'] = '/perm/sp3c/OSVAS/'
-os.environ['HARP'] = '/perm/sp3c/harmonie_release/oper-harp-verif_orig/'
+# Determine stations to process
+if args.stations:
+    stations_to_process = args.stations
+else:
+    stations_to_process = [os.environ.get('STATION_NAME', 'Majadas_del_tietar')]
 
-yaml_file = f"{os.environ['OSVAS']}/config_files/Stations/{os.environ['STATION_NAME']}/{os.environ['STATION_NAME']}.yml"
+# Process each station
+for station_name in stations_to_process:
+    print(f"\n{'='*60}")
+    print(f"Processing station: {station_name}")
+    print(f"{'='*60}")
 
-with open(yaml_file, 'r') as f:
-    config = yaml.safe_load(f)
+    os.environ['STATION_NAME'] = station_name
 
-# Read execution control
-create_forcing = config['OSVAS_steps'].get('Create_forcing', False)
-get_validation = config['OSVAS_steps'].get('Get_validation', False)
-run_surfex = config['OSVAS_steps'].get('Run_surfex', False)
-extract_model_sqlites = config['OSVAS_steps'].get('Extract_model_sqlites', False)
-run_harp = config['OSVAS_steps'].get('Run_HARP', False)
-display_harp = config['OSVAS_steps'].get('Display_HARP', False)
-expnames = config['OSVAS_steps'].get('Expnames', [])
+    yaml_file = f"{os.environ['OSVAS']}/config_files/Stations/{station_name}/{station_name}.yml"
 
-# Read initialization flags
-init_cfg = config.get('Initialization_data', {})
-init_to_namelist = init_cfg.get('Init_to_namelist', False)
-init_to_prep = init_cfg.get('Init_to_prep', False)
+    with open(yaml_file, 'r') as f:
+        config = yaml.safe_load(f)
 
-# Jupyter settings
-jupyter = True
-extension = '.ipynb' if jupyter else '.py'
+    # Read execution control
+    create_forcing = config['OSVAS_steps'].get('Create_forcing', False)
+    get_validation = config['OSVAS_steps'].get('Get_validation', False)
+    run_surfex = config['OSVAS_steps'].get('Run_surfex', False)
+    extract_model_sqlites = config['OSVAS_steps'].get('Extract_model_sqlites', False)
+    run_harp = config['OSVAS_steps'].get('Run_HARP', False)
+    display_harp = config['OSVAS_steps'].get('Display_HARP', False)
+    expnames = config['OSVAS_steps'].get('Expnames', [])
 
-def run_notebook(script_path,ldelete=False):
-    if jupyter:
-        py_path = script_path.replace('.ipynb', '.py')
-        try:
-            subprocess.run(
-                ['jupyter', 'nbconvert', '--to', 'script', script_path,
-                 '--output', py_path.replace('.py', '')],
-                check=True
-            )
-            subprocess.run(['python3', py_path], check=True)
-        finally:
-            if os.path.exists(py_path) and ldelete==True:
-                os.remove(py_path)
+    # Read initialization flags
+    init_cfg = config.get('Initialization_data', {})
+    init_to_namelist = init_cfg.get('Init_to_namelist', False)
+    init_to_prep = init_cfg.get('Init_to_prep', False)
+
+    # Jupyter settings
+    jupyter = True
+    extension = '.ipynb' if jupyter else '.py'
+
+    def run_notebook(script_path,ldelete=False):
+        if jupyter:
+            py_path = script_path.replace('.ipynb', '.py')
+            try:
+                subprocess.run(
+                    ['jupyter', 'nbconvert', '--to', 'script', script_path,
+                     '--output', py_path.replace('.py', '')],
+                    check=True
+                )
+                subprocess.run(['python3', py_path], check=True)
+            finally:
+                if os.path.exists(py_path) and ldelete==True:
+                    os.remove(py_path)
+        else:
+            subprocess.run(['python3', script_path], check=True)
+
+    print(f"Starting OSVAS workflow on ATOS for {station_name}...")
+
+    # Step 1: Create forcing data
+    if create_forcing:
+        print("▶ Running Step 1: Create forcing data")
+        forcing_script = f"{os.environ['OSVAS']}/scripts/notebooks/Write_ICOS_forcing{extension}"
+        run_notebook(forcing_script)
     else:
-        subprocess.run(['python3', script_path], check=True)
+        print("⏩ Skipping Step 1: Create forcing data")
 
-print("Starting OSVAS workflow on ATOS...")
+    # Step 2: Get validation data
+    if get_validation:
+        print("▶ Running Step 2: Get validation data")
+        validation_script = f"{os.environ['OSVAS']}/scripts/notebooks/ICOS_Flux_Downloader{extension}"
+        run_notebook(validation_script)
+    else:
+        print("⏩ Skipping Step 2: Get validation data")
 
-# Step 1: Create forcing data
-if create_forcing:
-    print("▶ Running Step 1: Create forcing data")
-    forcing_script = f"{os.environ['OSVAS']}/scripts/notebooks/Write_ICOS_forcing{extension}"
-    run_notebook(forcing_script)
-else:
-    print("⏩ Skipping Step 1: Create forcing data")
-
-# Step 2: Get validation data
-if get_validation:
-    print("▶ Running Step 2: Get validation data")
-    validation_script = f"{os.environ['OSVAS']}/scripts/notebooks/ICOS_Flux_Downloader{extension}"
-    run_notebook(validation_script)
-else:
-    print("⏩ Skipping Step 2: Get validation data")
-
-# Step 3: Configure and run SURFEX simulations
-if run_surfex:
-    print("▶ Running Step 3: Run SURFEX offline simulations")
-    
-    # SURFEX paths for ATOS
-    surfex_parent = os.environ.get('HPCPERM', '/ec/res4/hpcperm')
-    surfex_ver = 'SURFEX_NWP_NOMPI'
-    surfex_home = f"{surfex_parent}/{surfex_ver}"
-    surfex_profile = 'profile_surfex-atos-gnu-SFX-V8-1-1-NOMPI-OMP-O2-X0'
-    surfex_exe = f"{surfex_home}/src/dir_obj-atos-gnu-SFX-V8-1-1-NOMPI-OMP-O2-X0/MASTER/"
-    os.environ['PATH'] = f"{surfex_exe}:{os.environ['PATH']}"
-    
-    paramfiles = f"{surfex_home}/MY_RUN/ECOCLIMAP/"
-    hm_cldata = '/ec/res4/hpcperm/hlam/data/climate'
-    ecosg_data_path = f"{hm_cldata}/ECOCLIMAP-SG"
-    gmted2010_data_path = f"{hm_cldata}/GMTED2010"
-    soilgrid_data_path = f"{hm_cldata}/SOILGRID"
-    gmted_path = '/ec/res4/scratch/sp3c/hm_home/harmonie46h111/climate/DKCOEXP/'
-    soilgrids_path = '/ec/res4/scratch/sp3c/hm_home/harmonie46h111/climate/DKCOEXP/'
-    
-    # Source SURFEX profile and capture environment
-    result = subprocess.run(['bash', '-c', f'source {surfex_home}/conf/{surfex_profile} ; env'], capture_output=True, text=True, check=True)
-    for line in result.stdout.split('\n'):
-        if '=' in line:
-            key, value = line.split('=', 1)
-            os.environ[key] = value
-    
-    print(f"PATH after sourcing: {os.environ.get('PATH', '')}")
-    # Check OFFLINE
-    try:
-        subprocess.run(['which', 'OFFLINE'], check=True, capture_output=True)
-        print("OFFLINE found")
-    except subprocess.CalledProcessError:
-        print("OFFLINE not found")
-    
-    # Get dates
-    run_start = config['Forcing_data']['run_start']
-    run_end = config['Forcing_data']['run_end']
-    forcing_format = config['Forcing_data']['forcing_format'].upper()
-    
-    start_dt = datetime.strptime(run_start, '%Y-%m-%d %H:%M:%S')
-    year_start = start_dt.year
-    month_start = start_dt.month
-    day_start = start_dt.day
-    seconds_since_midnight = start_dt.hour * 3600 + start_dt.minute * 60 + start_dt.second
-    
-    for expname in expnames:
-        run_dir = f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/{expname}/run/"
-        out_dir = f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/{expname}/output/"
-        os.makedirs(run_dir, exist_ok=True)
-        os.makedirs(out_dir, exist_ok=True)
+    # Step 3: Configure and run SURFEX simulations
+    if run_surfex:
+        print("▶ Running Step 3: Run SURFEX offline simulations")
         
-        # Link forcings
-        forcing_nc = f"{os.environ['OSVAS']}/forcings/{os.environ['STATION_NAME']}/FORCING.nc"
-        if os.path.exists(forcing_nc):
-            dst = f"{run_dir}/FORCING.nc"
-            if os.path.lexists(dst):
-                os.unlink(dst)
-            os.symlink(forcing_nc, dst)
-        forcing_dir = f"{os.environ['OSVAS']}/forcings/{os.environ['STATION_NAME']}/"
-        for txt in os.listdir(forcing_dir):
-            if txt.endswith('.txt'):
-                dst = f"{run_dir}/{txt}"
+        # SURFEX paths for ATOS
+        surfex_parent = os.environ.get('HPCPERM', '/ec/res4/hpcperm')
+        surfex_ver = 'SURFEX_NWP_NOMPI'
+        surfex_home = f"{surfex_parent}/{surfex_ver}"
+        surfex_profile = 'profile_surfex-atos-gnu-SFX-V8-1-1-NOMPI-OMP-O2-X0'
+        surfex_exe = f"{surfex_home}/src/dir_obj-atos-gnu-SFX-V8-1-1-NOMPI-OMP-O2-X0/MASTER/"
+        os.environ['PATH'] = f"{surfex_exe}:{os.environ['PATH']}"
+        
+        paramfiles = f"{surfex_home}/MY_RUN/ECOCLIMAP/"
+        hm_cldata = '/ec/res4/hpcperm/hlam/data/climate'
+        ecosg_data_path = f"{hm_cldata}/ECOCLIMAP-SG"
+        gmted2010_data_path = f"{hm_cldata}/GMTED2010"
+        soilgrid_data_path = f"{hm_cldata}/SOILGRID"
+        gmted_path = '/ec/res4/scratch/sp3c/hm_home/harmonie46h111/climate/DKCOEXP/'
+        soilgrids_path = '/ec/res4/scratch/sp3c/hm_home/harmonie46h111/climate/DKCOEXP/'
+        
+        # Source SURFEX profile and capture environment
+        result = subprocess.run(['bash', '-c', f'source {surfex_home}/conf/{surfex_profile} ; env'], capture_output=True, text=True, check=True)
+        for line in result.stdout.split('\n'):
+            if '=' in line:
+                key, value = line.split('=', 1)
+                os.environ[key] = value
+        
+        print(f"PATH after sourcing: {os.environ.get('PATH', '')}")
+        # Check OFFLINE
+        try:
+            subprocess.run(['which', 'OFFLINE'], check=True, capture_output=True)
+            print("OFFLINE found")
+        except subprocess.CalledProcessError:
+            print("OFFLINE not found")
+        
+        # Get dates
+        run_start = config['Forcing_data']['run_start']
+        run_end = config['Forcing_data']['run_end']
+        forcing_format = config['Forcing_data']['forcing_format'].upper()
+        
+        start_dt = datetime.strptime(run_start, '%Y-%m-%d %H:%M:%S')
+        year_start = start_dt.year
+        month_start = start_dt.month
+        day_start = start_dt.day
+        seconds_since_midnight = start_dt.hour * 3600 + start_dt.minute * 60 + start_dt.second
+        
+        for expname in expnames:
+            run_dir = f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/{expname}/run/"
+            out_dir = f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/{expname}/output/"
+            os.makedirs(run_dir, exist_ok=True)
+            os.makedirs(out_dir, exist_ok=True)
+            
+            # Link forcings
+            forcing_nc = f"{os.environ['OSVAS']}/forcings/{os.environ['STATION_NAME']}/FORCING.nc"
+            if os.path.exists(forcing_nc):
+                dst = f"{run_dir}/FORCING.nc"
                 if os.path.lexists(dst):
                     os.unlink(dst)
-                os.symlink(f"{forcing_dir}/{txt}", dst)
-        
-        # Copy namelist
-        shutil.copy(f"{os.environ['OSVAS']}/namelists/{os.environ['STATION_NAME']}/OPTIONS.nam_{expname}", f"{run_dir}/OPTIONS.nam")
-        
-        # Link physiography (ATOS specific)
-        physio_paths = [
-            f"{hm_cldata}/PGD",
-            ecosg_data_path,
-            gmted2010_data_path,
-            soilgrid_data_path,
-            f"{ecosg_data_path}/LAI_SAT",
-            f"{ecosg_data_path}/ALB_SAT",
-            f"{ecosg_data_path}/COVER",
-            f"{ecosg_data_path}/HT",
-            gmted_path,
-            soilgrids_path,
-            paramfiles
-        ]
-        for p in physio_paths:
-            if os.path.exists(p):
-                for f in os.listdir(p):
-                    src = f"{p}/{f}"
+                os.symlink(forcing_nc, dst)
+            forcing_dir = f"{os.environ['OSVAS']}/forcings/{os.environ['STATION_NAME']}/"
+            for txt in os.listdir(forcing_dir):
+                if txt.endswith('.txt'):
+                    dst = f"{run_dir}/{txt}"
+                    if os.path.lexists(dst):
+                        os.unlink(dst)
+                    os.symlink(f"{forcing_dir}/{txt}", dst)
+            
+            # Copy namelist
+            shutil.copy(f"{os.environ['OSVAS']}/namelists/{os.environ['STATION_NAME']}/OPTIONS.nam_{expname}", f"{run_dir}/OPTIONS.nam")
+            
+            # Link physiography (ATOS specific)
+            physio_paths = [
+                f"{hm_cldata}/PGD",
+                ecosg_data_path,
+                gmted2010_data_path,
+                soilgrid_data_path,
+                f"{ecosg_data_path}/LAI_SAT",
+                f"{ecosg_data_path}/ALB_SAT",
+                f"{ecosg_data_path}/COVER",
+                f"{ecosg_data_path}/HT",
+                gmted_path,
+                soilgrids_path,
+                paramfiles
+            ]
+            for p in physio_paths:
+                if os.path.exists(p):
+                    for f in os.listdir(p):
+                        src = f"{p}/{f}"
                     dst = f"{run_dir}/{f}"
                     if not os.path.exists(dst):
                         os.symlink(src, dst)
@@ -205,89 +241,91 @@ if run_surfex:
         for f in os.listdir(run_dir):
             if f in ['PGD.nc', 'PREP.nc'] or f.startswith('SURFOUT') or f == 'OPTIONS.nam' or f.endswith('OUT.nc') or f.startswith('LISTI') or f.startswith('Param'):
                 shutil.move(f"{run_dir}/{f}", f"{out_dir}/{f}")
-else:
-    print("⏩ Skipping Step 3: Run SURFEX")
+    else:
+        print("⏩ Skipping Step 3: Run SURFEX")
 
-# Step 4: Extract model SQLites
-if extract_model_sqlites:
-    print("▶ Running Step 4: Extract model SQLITEs")
-    sid = config['Station_metadata']['SID']
-    common_fctable = config.get('Validation_data', {}).get('common_fctable', False)
-    for expname in expnames:
-        cmd = [
-            'python3', 'nc2sqlite.py',
-            '-p', 'param_dict.json',
-            '-s', '../../sqlites/station_list_SURFEX.csv',
-            '-st', str(sid),
-            '-o', f"{os.environ['OSVAS']}/sqlites/model_data/{os.environ['STATION_NAME']}/",
-            '-m', expname,
-            f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/{expname}/output/"
-        ]
-        if common_fctable:
-            cmd.insert(-1, '--common_fctable')
-        subprocess.run(cmd, cwd=f"{os.environ['OSVAS']}/scripts/nc2sqlite/", check=True)
-else:
-    print("⏩ Skipping Step 4: Extract model SQLITEs")
+    # Step 4: Extract model SQLites
+    if extract_model_sqlites:
+        print("▶ Running Step 4: Extract model SQLITEs")
+        sid = config['Station_metadata']['SID']
+        common_fctable = config.get('Validation_data', {}).get('common_fctable', False)
+        for expname in expnames:
+            cmd = [
+                'python3', 'nc2sqlite.py',
+                '-p', 'param_dict.json',
+                '-s', '../../sqlites/station_list_SURFEX.csv',
+                '-st', str(sid),
+                '-o', f"{os.environ['OSVAS']}/sqlites/model_data/{os.environ['STATION_NAME']}/",
+                '-m', expname,
+                f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/{expname}/output/"
+            ]
+            if common_fctable:
+                cmd.insert(-1, '--common_fctable')
+            subprocess.run(cmd, cwd=f"{os.environ['OSVAS']}/scripts/nc2sqlite/", check=True)
+    else:
+        print("⏩ Skipping Step 4: Extract model SQLITEs")
 
-# Step 5: HARP verification
-if run_harp:
-    print("▶ Running Step 5: HARP verification")
-    harp_config_template = f"{os.environ['OSVAS']}/config_files/HARP/yaml_files/OSVAS_HARP_verif_template.yml"
-    harp_config = f"{os.environ['OSVAS']}/config_files/HARP/yaml_files/OSVAS_HARP_verif_{os.environ['STATION_NAME']}.yml"
-    shutil.copy(harp_config_template, harp_config)
-    
-    with open(harp_config, 'r') as f:
-        harp_yaml = yaml.safe_load(f)
-    
-    harp_yaml['verif']['project_name'] = [f"OSVAS_{os.environ['STATION_NAME']}"]
-    harp_yaml['verif']['fcst_model'] = expnames
-    harp_yaml['verif']['fcst_path'] = [f"{os.environ['OSVAS']}/sqlites/model_data/{os.environ['STATION_NAME']}/"]
-    common_obstable = config['Validation_data'].get('common_obstable', False)
-    obstable_path = 'common_obstables' if common_obstable else os.environ['STATION_NAME']
-    harp_yaml['verif']['obs_path'] = [f"{os.environ['OSVAS']}/sqlites/validation_data/{obstable_path}/"]
-    harp_yaml['verif']['verif_path'] = [f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/HARPVERIF/"]
-    harp_yaml['post']['plot_output'] = [f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/HARPVERIF/"]
-    
-    with open(harp_config, 'w') as f:
-        yaml.dump(harp_yaml, f)
-    
-    os.makedirs(f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/HARPVERIF/", exist_ok=True)
-    
-    validation_start = config['Validation_data']['validation_start']
-    validation_end = config['Validation_data']['validation_end']
-    start_dt = datetime.strptime(validation_start, '%Y-%m-%d %H:%M:%S')
-    end_dt = datetime.strptime(validation_end, '%Y-%m-%d %H:%M:%S')
-    start_date = f"{start_dt.year}{start_dt.month:02d}{start_dt.day:02d}"
-    end_date = f"{end_dt.year}{end_dt.month:02d}{end_dt.day:02d}"
-    
-    vars_list = []
-    for key in config['Validation_data']:
-        if key.startswith('dataset'):
-            vars_list.extend(config['Validation_data'][key]['variables'].keys())
-    vars_str = ','.join(vars_list)
-    
-    subprocess.run([
-        'Rscript', f"{os.environ['HARP']}/verification/point_verif.R",
-        '-start_date', start_date,
-        '-end_date', end_date,
-        '-config_file', harp_config,
-        '-params_file', f"{os.environ['OSVAS']}/config_files/HARP/set_params.R",
-        '-params_list', vars_str
-    ], cwd=os.environ['HARP'], check=True)
-else:
-    print("⏩ Skipping Step 5: HARP verification")
+    # Step 5: HARP verification
+    if run_harp:
+        print("▶ Running Step 5: HARP verification")
+        harp_config_template = f"{os.environ['OSVAS']}/config_files/HARP/yaml_files/OSVAS_HARP_verif_template.yml"
+        harp_config = f"{os.environ['OSVAS']}/config_files/HARP/yaml_files/OSVAS_HARP_verif_{os.environ['STATION_NAME']}.yml"
+        shutil.copy(harp_config_template, harp_config)
+        
+        with open(harp_config, 'r') as f:
+            harp_yaml = yaml.safe_load(f)
+        
+        harp_yaml['verif']['project_name'] = [f"OSVAS_{os.environ['STATION_NAME']}"]
+        harp_yaml['verif']['fcst_model'] = expnames
+        harp_yaml['verif']['fcst_path'] = [f"{os.environ['OSVAS']}/sqlites/model_data/{os.environ['STATION_NAME']}/"]
+        common_obstable = config['Validation_data'].get('common_obstable', False)
+        obstable_path = 'common_obstables' if common_obstable else os.environ['STATION_NAME']
+        harp_yaml['verif']['obs_path'] = [f"{os.environ['OSVAS']}/sqlites/validation_data/{obstable_path}/"]
+        harp_yaml['verif']['verif_path'] = [f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/HARPVERIF/"]
+        harp_yaml['post']['plot_output'] = [f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/HARPVERIF/"]
+        
+        with open(harp_config, 'w') as f:
+            yaml.dump(harp_yaml, f)
+        
+        os.makedirs(f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/HARPVERIF/", exist_ok=True)
+        
+        validation_start = config['Validation_data']['validation_start']
+        validation_end = config['Validation_data']['validation_end']
+        start_dt = datetime.strptime(validation_start, '%Y-%m-%d %H:%M:%S')
+        end_dt = datetime.strptime(validation_end, '%Y-%m-%d %H:%M:%S')
+        start_date = f"{start_dt.year}{start_dt.month:02d}{start_dt.day:02d}"
+        end_date = f"{end_dt.year}{end_dt.month:02d}{end_dt.day:02d}"
+        
+        vars_list = []
+        for key in config['Validation_data']:
+            if key.startswith('dataset'):
+                vars_list.extend(config['Validation_data'][key]['variables'].keys())
+        vars_str = ','.join(vars_list)
+        
+        subprocess.run([
+            'Rscript', f"{os.environ['HARPSCRIPTS']}/verification/point_verif.R",
+            '-start_date', start_date,
+            '-end_date', end_date,
+            '-config_file', harp_config,
+            '-params_file', f"{os.environ['OSVAS']}/config_files/HARP/set_params.R",
+            '-params_list', vars_str
+        ], cwd=os.environ['HARPSCRIPTS'], check=True)
+    else:
+        print("⏩ Skipping Step 5: HARP verification")
 
-# Step 6: Display HARP results
-if display_harp:
-    print("▶ Running Step 6: Display HARP verification")
-    verif_path = harp_yaml['verif']['verif_path'][0]
-    subprocess.run([
-        'Rscript', 'launch_dynamicapp_atos.R', verif_path, '9999'
-    ], cwd=f"{os.environ['HARP']}/visualization/", stdout=open(f"{os.environ['OSVAS']}/dynamicapp.log", 'w'), stderr=subprocess.STDOUT)
-    subprocess.run([
-        'Rscript', 'launch_visapp_atos.R', '-img_dir', verif_path, '-port', '9998'
-    ], cwd=f"{os.environ['HARP']}/visualization/", stdout=open(f"{os.environ['OSVAS']}/visapp.log", 'w'), stderr=subprocess.STDOUT)
-else:
-    print("⏩ Skipping Step 6: Display HARP")
+    # Step 6: Display HARP results
+    if display_harp:
+        print("▶ Running Step 6: Display HARP verification")
+        verif_path = harp_yaml['verif']['verif_path'][0]
+        subprocess.run([
+            'Rscript', 'launch_dynamicapp_atos.R', verif_path, '9999'
+        ], cwd=f"{os.environ['HARPSCRIPTS']}/visualization/", stdout=open(f"{os.environ['OSVAS']}/dynamicapp.log", 'w'), stderr=subprocess.STDOUT)
+        subprocess.run([
+            'Rscript', 'launch_visapp_atos.R', '-img_dir', verif_path, '-port', '9998'
+        ], cwd=f"{os.environ['HARPSCRIPTS']}/visualization/", stdout=open(f"{os.environ['OSVAS']}/visapp.log", 'w'), stderr=subprocess.STDOUT)
+    else:
+        print("⏩ Skipping Step 6: Display HARP")
 
-print("OSVAS workflow on ATOS completed.")
+    print(f"OSVAS workflow on ATOS completed for {station_name}.")
+
+print("All stations processed on ATOS.")

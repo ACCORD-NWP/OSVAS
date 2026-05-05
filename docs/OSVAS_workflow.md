@@ -9,6 +9,17 @@ Both scripts read the station YAML under `config_files/Stations/${STATION_NAME}/
 
 The workflow may execute notebook steps by converting them to Python scripts with `jupyter nbconvert` when `jupyter = True` in the launcher.
 
+#### Command Line Arguments
+
+Both launcher scripts support command line arguments to override environment variables and specify multiple stations:
+
+- `--stations STATION1 STATION2 ...`: Process multiple stations serially
+- `--condaenv CONDAENV`: Override conda environment name
+- `--osvas OSVAS_PATH`: Override OSVAS root directory
+- `--harpscripts HARPSCRIPTS_PATH`: Override HARP scripts directory
+
+When multiple stations are specified, the workflow runs serially for each station.
+
 ### Key workflow behavior
 - `Step 1` creates forcing data from ICOS datasets.
 - `Step 2` downloads and processes validation data, writes sqlite obstables, and can also compute initialization profiles.
