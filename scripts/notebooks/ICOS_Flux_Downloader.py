@@ -1697,7 +1697,7 @@ else:
 #### Layer index mapping: TGn/WGn / XUNIF_*_SOIL(n) → profile[n-1]            #########
 
 
-
+'''
 # ── Step 2.8 execution ───────────────────────────────────────────────────────
 
 init_cfg         = config.get('Initialization_data', {}) if config else {}
@@ -1754,4 +1754,5 @@ else:
                     print(f"    ⚠️  No PREP.txt or PREP.nc found in {run_dir} – skipping.")
 
     print("\n✅ Step 2.8 complete.")
+'''
 

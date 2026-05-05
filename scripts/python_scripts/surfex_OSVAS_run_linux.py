@@ -7,6 +7,17 @@ from datetime import datetime
 import shutil
 import re
 import argparse
+import socket
+import time
+
+def is_port_available(port):
+    """Check if a port is available for binding."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        try:
+            sock.bind(('localhost', port))
+            return True
+        except OSError:
+            return False
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run OSVAS workflow for one or more stations")
@@ -38,7 +49,7 @@ elif 'HARPSCRIPTS' not in os.environ:
 if args.stations:
     stations_to_process = args.stations
 else:
-    stations_to_process = [os.environ.get('STATION_NAME', 'Meteopole')]
+    stations_to_process = [os.environ.get('STATION_NAME', 'Majadas_del_tietar')]
 
 # Process each station
 for station_name in stations_to_process:
@@ -260,7 +271,9 @@ for station_name in stations_to_process:
         
         harp_yaml['verif']['project_name'] = [f"OSVAS_{os.environ['STATION_NAME']}"]
         harp_yaml['verif']['fcst_model'] = expnames
-        harp_yaml['verif']['fcst_path'] = [f"{os.environ['OSVAS']}/sqlites/model_data/{os.environ['STATION_NAME']}/"]
+        common_fctable = config['Validation_data'].get('common_fctable', False)
+        fctable_path = 'common_model_data' if common_fctable else os.environ['STATION_NAME']
+        harp_yaml['verif']['fcst_path'] = [f"{os.environ['OSVAS']}/sqlites/model_data/{fctable_path}/"]
         common_obstable = config['Validation_data'].get('common_obstable', False)
         obstable_path = 'common_obstables' if common_obstable else os.environ['STATION_NAME']
         harp_yaml['verif']['obs_path'] = [f"{os.environ['OSVAS']}/sqlites/validation_data/{obstable_path}/"]
@@ -299,13 +312,58 @@ for station_name in stations_to_process:
     # Step 6: Display HARP results
     if display_harp:
         print("▶ Running Step 6: Display HARP verification")
-        verif_path = harp_yaml['verif']['verif_path'][0]
-        subprocess.run([
-            'Rscript', 'launch_dynamicapp_atos.R', verif_path, '9999'
-        ], cwd=f"{os.environ['HARPSCRIPTS']}/visualization/", stdout=open(f"{os.environ['OSVAS']}/dynamicapp.log", 'w'), stderr=subprocess.STDOUT)
-        subprocess.run([
-            'Rscript', 'launch_visapp_atos.R', '-img_dir', verif_path, '-port', '9998'
-        ], cwd=f"{os.environ['HARPSCRIPTS']}/visualization/", stdout=open(f"{os.environ['OSVAS']}/visapp.log", 'w'), stderr=subprocess.STDOUT)
+        verif_path = f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/HARPVERIF/"
+
+        print("🚀 Checking HARP visualization apps...")
+
+        # Check port availability
+        dynamic_port_available = is_port_available(9999)
+        vis_port_available = is_port_available(9998)
+
+        if not dynamic_port_available and not vis_port_available:
+            print("✅ Both apps are already running!")
+            print(f"   📊 Dynamic app: http://localhost:9999/")
+            print(f"   📈 Static visualization: http://localhost:9998/")
+            print("💡 If you can't access them, try refreshing your browser or check if they're responding.")
+        elif not dynamic_port_available:
+            print("⚠️  Dynamic app is already running on port 9999")
+            print(f"   📊 Access at: http://localhost:9999/")
+            if vis_port_available:
+                print("🚀 Launching static visualization app on port 9998...")
+                subprocess.Popen([
+                    'Rscript', 'launch_visapp_atos.R', '-img_dir', verif_path, '-port', '9998'
+                ], cwd=f"{os.environ['HARPSCRIPTS']}/visualization/", stdout=open(f"{os.environ['OSVAS']}/visapp.log", 'w'), stderr=subprocess.STDOUT)
+                print("✅ Static visualization app launched!")
+                print(f"   📈 Access at: http://localhost:9998/")
+        elif not vis_port_available:
+            print("⚠️  Static visualization app is already running on port 9998")
+            print(f"   📈 Access at: http://localhost:9998/")
+            if dynamic_port_available:
+                print("🚀 Launching dynamic app on port 9999...")
+                subprocess.Popen([
+                    'Rscript', 'launch_dynamicapp_atos.R', verif_path, '9999'
+                ], cwd=f"{os.environ['HARPSCRIPTS']}/visualization/", stdout=open(f"{os.environ['OSVAS']}/dynamicapp.log", 'w'), stderr=subprocess.STDOUT)
+                print("✅ Dynamic app launched!")
+                print(f"   📊 Access at: http://localhost:9999/")
+        else:
+            print("🚀 Launching HARP visualization apps...")
+            print(f"   📊 Dynamic app will be available at: http://localhost:9999/")
+            print(f"   📈 Static visualization will be available at: http://localhost:9998/")
+            print(f"   📝 Check logs at: {os.environ['OSVAS']}/dynamicapp.log and {os.environ['OSVAS']}/visapp.log")
+
+            # Launch apps in background
+            subprocess.Popen([
+                'Rscript', 'launch_dynamicapp_atos.R', verif_path, '9999'
+            ], cwd=f"{os.environ['HARPSCRIPTS']}/visualization/", stdout=open(f"{os.environ['OSVAS']}/dynamicapp.log", 'w'), stderr=subprocess.STDOUT)
+
+            subprocess.Popen([
+                'Rscript', 'launch_visapp_atos.R', '-img_dir', verif_path, '-port', '9998'
+            ], cwd=f"{os.environ['HARPSCRIPTS']}/visualization/", stdout=open(f"{os.environ['OSVAS']}/visapp.log", 'w'), stderr=subprocess.STDOUT)
+
+            print("✅ Apps launched! They may take a few seconds to start up.")
+            print("💡 If apps don't start, check the log files for errors.")
+
+        print(f"   📂 Verification files located at: {verif_path}")
     else:
         print("⏩ Skipping Step 6: Display HARP")
 

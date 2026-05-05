@@ -7,7 +7,7 @@ OSVAS_steps:
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
-  - MEBREFOL_v9
+  - DIFMEB_v9
  Extract_model_sqlites: false
  Run_HARP: false
  Display_HARP: true
@@ -43,9 +43,10 @@ Forcing_data:
       Forc_TA: TA, +273.15
       Forc_RH: RH
 Validation_data:
-  validation_start: '2021-5-01 00:00:00'
-  validation_end: '2021-7-31 23:30:00'
-  common_obstable: FALSE  # Write obs to a common obstable or to a single-station one
+  validation_start: '2021-05-01 00:00:00'
+  validation_end: '2021-12-31 23:30:00'
+  common_obstable: true
+  common_fctable: true
   dataset1: 
     doi: https://meta.icos-cp.eu/objects/fPAqntOb1uiTQ2KI1NS1CHlB
     timedelta: 30
@@ -54,16 +55,8 @@ Validation_data:
       LW_OUT: LW_OUT
       SW_IN: SW_IN
       LW_IN: LW_IN  
-      TS_1: TS_1
-      TS_2: TS_2
-      TS_3: TS_3
-      TS_4: TS_4
-      TS_5: TS_5
-      SWC_1: SWC_1
-      SWC_2: SWC_2
-      SWC_3: SWC_3
-      SWC_4: SWC_4
-      SWC_5: SWC_5
+      TS_*: TS_*
+      SWC_*: SWC_*
     units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
       SW_OUT: W/m2
       LW_OUT: W/m2
@@ -88,3 +81,10 @@ Validation_data:
     units:
       H: W/m2
       LE: W/m2
+Initialization_data:
+  initialization_start: '2020-01-01 00:00:00'
+  initialization_end: '2024-12-31 23:30:00'
+  metadata_filename: 'ICOSETC_ES-LMa_VARINFO_METEO_L2.csv'
+  reuse_soil_profile: false
+  Init_to_namelist: true   # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
+  Init_to_prep: false       # patch PREP.txt or PREP.nc for each expname

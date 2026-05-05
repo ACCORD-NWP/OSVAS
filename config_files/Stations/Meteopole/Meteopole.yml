@@ -29,7 +29,7 @@ Forcing_data:
   run_end: '2020-07-31 23:30:00'      # Timestamp for the forcing end
   forcing_format: 'netcdf'          # Choose between netcdf or ascii
   dataset1:
-    doi: https://meta.icos-cp.eu/objects/VIoR-cJnMUUjbaEkuNHMKgSv
+    doi: https://meta.icos-cp.eu/objects/VIoR-cJnMUUjbaEkuNHMKgSv:
     timedelta: 30  # in minutes
     variables:
       Forc_CO2: -, 0.00062
@@ -47,8 +47,8 @@ Forcing_data:
 Validation_data:
   validation_start: '2020-05-01 00:00:00'
   validation_end: '2020-12-31 23:30:00'
-  common_obstable: FALSE
-  common_fctable: FALSE
+  common_obstable: true
+  common_fctable: true
   dataset1: 
     doi: https://meta.icos-cp.eu/objects/VIoR-cJnMUUjbaEkuNHMKgSv
     timedelta: 30
