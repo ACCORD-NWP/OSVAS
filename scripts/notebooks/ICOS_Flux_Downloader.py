@@ -698,11 +698,11 @@ def plot_soil_temperature_diagnostics(temp_xr, Tz_full, tg_profile_K,
     plt.close(fig2)
     print(f"  📊 Profile figure saved to {prof_path}")
 
-def load_soil_humidity_from_obstable(obstable_dir, init_start, init_end,
-                                     swc_cols, obs_depths):
+def load_soil_humidity_from_obstable(obstable_dir, window_start, window_end,
+                                     target_date, swc_cols, obs_depths):
     """
     Read SWC_* columns from initialization OBSTABLEs at the single timestep
-    nearest to init_start and return observed volumetric water content as a
+    nearest to target_date and return observed volumetric water content as a
     plain 1-D numpy array (one value per obs depth).
 
     SWC values in ICOS are in % volumetric; SURFEX expects a dimensionless
@@ -711,9 +711,9 @@ def load_soil_humidity_from_obstable(obstable_dir, init_start, init_end,
     Parameters
     ----------
     obstable_dir : str
-    init_start   : pd.Timestamp (UTC)   target date/time
-    init_end     : pd.Timestamp (UTC)   upper bound for search window
-    swc_cols     : list of str
+    window_start : pd.Timestamp (UTC)   lower bound for search window
+    window_end   : pd.Timestamp (UTC)   upper bound for search window
+    target_date  : pd.Timestamp (UTC)   target date/time for nearest record
     obs_depths   : list of float [m]
 
     Returns
@@ -722,7 +722,7 @@ def load_soil_humidity_from_obstable(obstable_dir, init_start, init_end,
     nearest_time : pd.Timestamp  actual time of the selected record
     """
     dfs = []
-    for year in range(init_start.year, init_end.year + 1):
+    for year in range(window_start.year, window_end.year + 1):
         fpath = os.path.join(obstable_dir, f"OBSTABLE_{year}.sqlite")
         if not os.path.exists(fpath):
             continue
@@ -737,17 +737,16 @@ def load_soil_humidity_from_obstable(obstable_dir, init_start, init_end,
     df_all["valid_dttm"] = pd.to_datetime(df_all["valid_dttm"], unit="s", utc=True)
     df_all = df_all.sort_values("valid_dttm")
 
-    # Select the row nearest to init_start that has at least one non-NaN SWC value
-    mask = (df_all["valid_dttm"] >= init_start) & (df_all["valid_dttm"] <= init_end)
+    # Select the row nearest to target_date that has at least one non-NaN SWC value
+    mask = (df_all["valid_dttm"] >= window_start) & (df_all["valid_dttm"] <= window_end)
     df_window = df_all.loc[mask].reset_index(drop=True)
 
     if df_window.empty:
         raise RuntimeError(
-            f"No SWC data in window {init_start} – {init_end} in {obstable_dir}."
+            f"No SWC data in window {window_start} – {window_end} in {obstable_dir}."
         )
-
-    # Pick row closest to init_start
-    idx_nearest  = (df_window["valid_dttm"] - init_start).abs().argmin()
+    # Pick row closest to target_date
+    idx_nearest  = (df_window["valid_dttm"] - target_date).abs().argmin()
     nearest_time = df_window.loc[idx_nearest, "valid_dttm"]
     row          = df_window.loc[idx_nearest, swc_cols].values.astype(float)
 
@@ -1056,24 +1055,52 @@ def fetch_flux_data(doi):
     df = dobj.data
     return df
 
+def _filter_variables_with_data(df, variable_map):
+    """Return a cleaned variable_map with only those source vars that have data."""
+    filtered_map = {}
+    dropped = []
+
+    for dest, src in variable_map.items():
+        if src not in df.columns:
+            dropped.append(dest)
+        elif df[src].notna().any():
+            filtered_map[dest] = src
+        else:
+            dropped.append(dest)
+
+    return filtered_map, dropped
+
 def process_data(df, variable_map, station_info, start, end):
-    df['valid_dttm'] = pd.to_datetime(df['TIMESTAMP'], utc=True)
-    df = df[(df['valid_dttm'] >= start) & (df['valid_dttm'] <= end)].copy()
+    df["valid_dttm"] = pd.to_datetime(df["TIMESTAMP"], utc=True)
+    df = df[(df["valid_dttm"] >= start) & (df["valid_dttm"] <= end)].copy()
+
+    if df.empty:
+        return pd.DataFrame()
+
+    variable_map, dropped_vars = _filter_variables_with_data(df, variable_map)
+    if dropped_vars:
+        print(
+            f"  ⚠️  Dropping {len(dropped_vars)} variables with no data in the window: "
+            f"{', '.join(dropped_vars)}"
+        )
+
+    if not variable_map:
+        return pd.DataFrame()
 
     # Drop rows with missing required vars
     source_vars = list(variable_map.values())
-    df = df.dropna(subset=source_vars)
+    df = df.dropna(subset=source_vars, how="all")
 
     # Add station metadata
     df["SID"] = int(station_info["SID"])
     df["SID"] = df["SID"].astype("Int64")  # optional if you want pandas nullable integer type
-    df['lat'] = station_info['lat']
-    df['lon'] = station_info['lon']
-    df['elev'] = station_info['elev']
+    df["lat"] = station_info["lat"]
+    df["lon"] = station_info["lon"]
+    df["elev"] = station_info["elev"]
 
     # Rename variables
     df = df.rename(columns={v: k for k, v in variable_map.items()})
-    selected_columns = ['valid_dttm', 'SID', 'lat', 'lon', 'elev'] + list(variable_map.keys())
+    selected_columns = ["valid_dttm", "SID", "lat", "lon", "elev"] + list(variable_map.keys())
 
     return df[selected_columns]
 
@@ -1414,9 +1441,9 @@ df_merged = df_merged.sort_values("valid_dttm").reset_index(drop=True)
 #### STEP 2.5: Convert to Unix timestamp in seconds and save dataframe to SQLite#########
 
 output_dir = (
-    "sqlites/validation_data/common_obstables"
+    "sqlites/OBSTABLES/validation/common_obstables"
     if common_obstable
-    else f"sqlites/validation_data/{station_info['Station_name']}"
+    else f"sqlites/OBSTABLES/validation/{station_info['Station_name']}"
 )
 
 write_obstable(df_merged, output_dir, units_map)
@@ -1492,9 +1519,9 @@ if initialization_data:
 
         init_common_obstable = validation_data.get("common_obstable", False)
         init_output_dir = (
-            "sqlites/initialization_data/common_obstables"
+            "sqlites/OBSTABLES/initialization/common_obstables"
             if init_common_obstable
-            else f"sqlites/initialization_data/{station_info['Station_name']}"
+            else f"sqlites/OBSTABLES/initialization/{station_info['Station_name']}"
         )
         write_obstable(df_init_merged, init_output_dir, init_units)
         print("✅ Soil initialization OBSTABLEs written.")
@@ -1631,10 +1658,10 @@ if initialization_data and init_output_dir is not None and df_init_merged is not
             print(f"\n  Loading SWC data from {init_output_dir} …")
             try:
                 swc_obs, swc_nearest_time = load_soil_humidity_from_obstable(
-                    init_output_dir, init_start, init_end, swc_cols, depths_swc
+                    init_output_dir, init_start, init_end, profile_date,
+                    swc_cols, depths_swc
                 )
                 hug_profile = interp_to_model_grid(depths_swc, swc_obs, XSOILGRID)
-
                 hug_block = format_namelist_block(hug_profile, "XUNIF_HUG_SOIL")
                 print("\n  SURFEX namelist block for initial soil humidity:")
                 print(hug_block)

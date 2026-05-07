@@ -266,7 +266,7 @@ for station_name in stations_to_process:
                 '-p', 'param_dict.json',
                 '-s', '../../sqlites/station_list_SURFEX.csv',
                 '-st', str(sid),
-                '-o', f"{os.environ['OSVAS']}/sqlites/model_data/{os.environ['STATION_NAME']}/",
+                '-o', f"{os.environ['OSVAS']}/sqlites/FCTABLES/{os.environ['STATION_NAME']}/",
                 '-m', expname,
                 f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/{expname}/output/"
             ]
@@ -290,10 +290,10 @@ for station_name in stations_to_process:
         harp_yaml['verif']['fcst_model'] = expnames
         common_fctable = config['Validation_data'].get('common_fctable', False)
         fctable_path = 'common_model_data' if common_fctable else os.environ['STATION_NAME']
-        harp_yaml['verif']['fcst_path'] = [f"{os.environ['OSVAS']}/sqlites/model_data/{fctable_path}/"]
+        harp_yaml['verif']['fcst_path'] = [f"{os.environ['OSVAS']}/sqlites/FCTABLES/{fctable_path}/"]
         common_obstable = config['Validation_data'].get('common_obstable', False)
         obstable_path = 'common_obstables' if common_obstable else os.environ['STATION_NAME']
-        harp_yaml['verif']['obs_path'] = [f"{os.environ['OSVAS']}/sqlites/validation_data/{obstable_path}/"]
+        harp_yaml['verif']['obs_path'] = [f"{os.environ['OSVAS']}/sqlites/OBSTABLES/validation/{obstable_path}/"]
         harp_yaml['verif']['verif_path'] = [f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/HARPVERIF/"]
         harp_yaml['post']['plot_output'] = [f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/HARPVERIF/"]
         

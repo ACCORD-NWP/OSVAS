@@ -1,13 +1,13 @@
 OSVAS_steps:
  Create_forcing: false
- Get_validation: false
- Run_surfex: true
+ Get_validation: true
+ Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - pgd
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
-  - DIF_v9
+   #- DIF_v9
   - DIFMEB_v9
  Extract_model_sqlites: false
  Run_HARP: false
@@ -25,11 +25,11 @@ Station_metadata:
 Forcing_data:
   height_T: 2                       # Height of the temperature measurement
   height_V: 10                      # Height of the windspeed   measurement
-  run_start: '2020-05-01 00:00:00'    # Timestamp for the forcing start
-  run_end: '2020-07-31 23:30:00'      # Timestamp for the forcing end
+  run_start: '2022-05-01 00:00:00'    # Timestamp for the forcing start
+  run_end: '2022-07-31 23:30:00'      # Timestamp for the forcing end
   forcing_format: 'netcdf'          # Choose between netcdf or ascii
   dataset1:
-    doi: https://meta.icos-cp.eu/objects/VIoR-cJnMUUjbaEkuNHMKgSv:
+    doi: https://meta.icos-cp.eu/objects/ClxZ0M4-XC0WevhDm_cO2LeA
     timedelta: 30  # in minutes
     variables:
       Forc_CO2: -, 0.00062
@@ -45,12 +45,12 @@ Forcing_data:
       Forc_TA: TA, +273.15
       Forc_RH: RH
 Validation_data:
-  validation_start: '2020-05-01 00:00:00'
-  validation_end: '2020-12-31 23:30:00'
+  validation_start: '2022-05-01 00:00:00'
+  validation_end: '2022-07-31 23:30:00'
   common_obstable: true
   common_fctable: true
   dataset1: 
-    doi: https://meta.icos-cp.eu/objects/VIoR-cJnMUUjbaEkuNHMKgSv
+    doi: https://meta.icos-cp.eu/objects/ClxZ0M4-XC0WevhDm_cO2LeA
     timedelta: 30
     variables: # Map ICOS variables (right) to a name (left) in the OBSTABLE
       SW_OUT: SW_OUT
@@ -66,15 +66,8 @@ Validation_data:
       LW_IN: W/m2
       SW_IN: W/m2
       TS_1: degC
-      TS_2: degC
-      TS_3: degC
-      TS_4: degC
-      TS_5: degC        
-      SWC_1: percent
-      SWC_2: percent
-      SWC_3: percent
-      SWC_4: percent
-      SWC_5: percent
+      TS_*: degC
+      SWC_*: percent
       G: W/m2
   dataset2: 
     doi: https://meta.icos-cp.eu/objects/No7s1uuHhY2frqKUg6CSIRV-
@@ -91,11 +84,11 @@ Validation_data:
       NEE: W/m2
 
 Initialization_data:
-  initialization_start: '2018-03-02 00:00:00'
-  initialization_end: '2023-03-01 23:30:00'
+  initialization_start: '2020-01-01 00:00:00'
+  initialization_end: '2025-12-31 23:30:00'
   metadata_filename: 'ICOSETC_FR-Tou_VARINFO_METEO_L2.csv'
   reuse_soil_profile: false
   Init_to_namelist: true   # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
   Init_to_prep: false       # patch PREP.txt or PREP.nc for each expname
-  soil_depths_ts: [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 2.2] # These will be read first; if absent, they're extracted from metadata file
-  soil_depths_swc: [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2] #These will be read first; if absent, they're extracted from metadata file
+    #soil_depths_ts: [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 2.2] # These will be read first; if absent, they're extracted from metadata file
+    #soil_depths_swc: [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2] #These will be read first; if absent, they're extracted from metadata file
