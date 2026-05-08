@@ -13,6 +13,7 @@ OSVAS_steps:
  Display_HARP: true
 
 Station_metadata:
+  Station_type: ICOS
   Station_name: Loobos
   SID: 4300000007
   elev: 33

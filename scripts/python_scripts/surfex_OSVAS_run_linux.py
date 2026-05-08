@@ -103,7 +103,7 @@ for station_name in stations_to_process:
     # Step 1: Create forcing data
     if create_forcing:
         print("▶ Running Step 1: Create forcing data")
-        forcing_script = f"{os.environ['OSVAS']}/scripts/notebooks/Write_ICOS_forcing{extension}"
+        forcing_script = f"{os.environ['OSVAS']}/scripts/notebooks/WRITE_Station_forcing{extension}"
         run_notebook(forcing_script)
     else:
         print("⏩ Skipping Step 1: Create forcing data")

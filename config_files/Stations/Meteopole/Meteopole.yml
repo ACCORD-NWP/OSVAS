@@ -14,6 +14,7 @@ OSVAS_steps:
  Display_HARP: false
 
 Station_metadata:
+  Station_type: ICOS
   Station_name: Meteopole
   SID: 4300000006
   elev: 158

@@ -1,7 +1,7 @@
 ## Step 1. Preparation of forcing data 
-- A Python notebook (`Write_ICOS_forcing.ipynb`) is executed via the Python workflow launcher. The notebook may be converted on the fly to a `.py` script with `jupyter nbconvert` if `jupyter=True` in the launcher.
+- A Python notebook (`WRITE_Station_forcing.ipynb`) is executed via the Python workflow launcher. The notebook may be converted on the fly to a `.py` script with `jupyter nbconvert` if `jupyter=True` in the launcher.
 - It generates SURFEX forcing files in ASCII or NetCDF format based on the `Forcing_data` block in the station YAML.
-- `Forcing_data` specifies ICOS datasets, variables, unit conversions, and the simulation period.
+- `Forcing_data` specifies ICOS or KNMI datasets, variables, unit conversions, and the simulation period.
 ``` 
 Forcing_data:
   height_T: 2                       # Height of the temperature measurement

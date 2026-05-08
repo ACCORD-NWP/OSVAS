@@ -86,5 +86,5 @@ Validation_data:
       H: W/m2
       LE: W/m2
 ```
-- The configuration file above will be treated by `Write_ICOS_forcing.ipynb` to generate forcing files in ascii or netcdf format according to the defined datasets and transformations, and by `ICOS_Flux_downloader.ipynb` to generate a validation dataset from the different ICOS datasets specified in the Validation_data block. 
+- The configuration file above will be treated by `WRITE_Station_forcing.ipynb` to generate forcing files in ascii or netcdf format according to the defined datasets and transformations, and by `ICOS_Flux_downloader.ipynb` to generate a validation dataset from the different ICOS datasets specified in the Validation_data block. 
 - **Sampling rate**: If several datasets with different sampling rates are provided, the data will be upsampled to a common (smallest) timedelta.
