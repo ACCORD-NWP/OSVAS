@@ -1,7 +1,7 @@
 OSVAS_steps:
- Create_forcing: true
- Get_validation: false
- Run_surfex: true
+ Create_forcing: false
+ Get_validation: true
+ Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - pgd
   - PREP
@@ -87,5 +87,5 @@ Initialization_data:
   initialization_end: '2024-12-31 23:30:00'
   metadata_filename: 'ICOSETC_ES-LMa_VARINFO_METEO_L2.csv'
   reuse_soil_profile: false
-  Init_to_namelist: false   # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
+  Init_to_namelist: true   # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
   Init_to_prep: false       # patch PREP.txt or PREP.nc for each expname

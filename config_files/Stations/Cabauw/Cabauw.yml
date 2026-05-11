@@ -1,14 +1,14 @@
 OSVAS_steps:
- Create_forcing: true
- Get_validation: false
- Run_surfex: true
+ Create_forcing: false
+ Get_validation: true
+ Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - PGD
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
   - BASECABAUW
- Extract_model_sqlites: true
+ Extract_model_sqlites: false
  Run_HARP: false
  Display_HARP: false
 
@@ -80,24 +80,16 @@ Validation_data:
   dataset3:
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_soil_heat_lb1_t10/versions/v1.0/files
     timedelta: 10
-    type: profile #This type will interpolate the values of the observations to the levels of the model
     variables:
-      TS_1: 0.01 # Model Variable : depth (m)
-      TS_2: 0.04
-      TS_3: 0.10
-      TS_4: 0.20
-      TS_5: 0.40
-      TS_6: 0.60
-    observations: #observaion variables: depth(m)
-      TS00: 0.00
-      TS02: 0.02
-      TS04: 0.04
-      TS06: 0.06
-      TS08: 0.08
-      TS12: 0.12
-      TS20: 0.20
-      TS30: 0.30
-      TS50: 0.50
+      TS_1: TS00
+      TS_2: TS02
+      TS_3: TS04
+      TS_4: TS06
+      TS_5: TS08
+      TS_6: TS12
+      TS_7: TS20
+      TS_8: TS30
+      TS_9: TS50    
     units:
       TS_1: degC
       TS_2: degC
@@ -105,29 +97,28 @@ Validation_data:
       TS_4: degC
       TS_5: degC
       TS_6: degC
-  
-  dataset4:
-    doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_soil_water_lb1_t10/versions/v1.1/files
-    timedelta: 10
-    type: profile
-    variables:
-      SWC_2: 0.04
-      SWC_3: 0.10
-      SWC_4: 0.20
-      SWC_5: 0.40
-      SWC_6: 0.60
-    observations:
-      TH05: 0.05
-      TH19: 0.19
-      TH33: 0.33
-      TH40: 0.40
-      TH56: 0.56
-    units:
-      SWC_2: m3/m3
-      SWC_3: m3/m3
-      SWC_4: m3/m3
-      SWC_5: m3/m3
-      SWC_6: m3/m3
+      TS_7: degC
+      TS_8: degC
+      TS_9: degC
+          
+#  dataset4:
+#    doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_soil_water_lb1_t10/versions/v1.1/files
+#    timedelta: 10
+#    type: profile
+#    variables:
+#      TH05: SWC_1 #0.04
+#      TH05: SWC_2 #0.05
+#      TH19: SWC_3 #0.19
+#      TH33: SWC_4 #0.33
+#      TH40: SWC_5 #0.40
+#      TH56: SWC_6 #0.56
+#   units:
+#     SWC_1: m3/m3
+#     SWC_2: m3/m3
+#     SWC_3: m3/m3
+#     SWC_4: m3/m3
+#     SWC_5: m3/m3
+#     SWC_6: m3/m3
 
   dataset5:
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_meteo_lc1_t10/versions/v1.0/files/
@@ -143,9 +134,9 @@ Validation_data:
 
 Initialization_data:
   initialization_start: '2016-01-01 00:00:00'
-  initialization_end: '2020-12-31 23:30:00'
+  initialization_end: '2021-01-31 23:59:00'
   reuse_soil_profile: false
-  Init_to_namelist: false   # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
+  Init_to_namelist: true   # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
   Init_to_prep: false       # patch PREP.txt or PREP.nc for each expname
   soil_depths_ts: [0, 0.02, 0.04, 0.06, 0.08, 0.12, 0.2, 0.3, 0.5] # These will be read first; if absent, they're extracted from metadata file
-  soil_depths_swc: [0.04, 0.10, 0.20, 0.40, 0.60] #These will be read first; if absent, they're extracted from metadata file
+  soil_depths_swc: [0.04, 0.05, 0.19, 0.33, 0.40, 0.56] #These will be read first; if absent, they're extracted from metadata file

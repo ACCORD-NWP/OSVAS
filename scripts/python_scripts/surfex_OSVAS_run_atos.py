@@ -87,18 +87,21 @@ for station_name in stations_to_process:
     jupyter = True
     extension = '.ipynb' if jupyter else '.py'
 
-    def run_notebook(script_path,ldelete=False):
+    def run_notebook(script_path, ldelete=False):
         if jupyter:
             py_path = script_path.replace('.ipynb', '.py')
+            output_dir = os.path.dirname(py_path)
+            output_base = os.path.splitext(os.path.basename(py_path))[0]
             try:
                 subprocess.run(
-                    ['jupyter', 'nbconvert', '--to', 'script', script_path,
-                     '--output', py_path.replace('.py', '')],
+                    ['jupyter', 'nbconvert', '--to', 'python', script_path,
+                     '--output', output_base, '--output-dir', output_dir],
                     check=True
                 )
+                print(f"Converted notebook to {py_path}")
                 subprocess.run(['python3', py_path], check=True)
             finally:
-                if os.path.exists(py_path) and ldelete==True:
+                if os.path.exists(py_path) and ldelete:
                     os.remove(py_path)
         else:
             subprocess.run(['python3', script_path], check=True)
@@ -116,7 +119,7 @@ for station_name in stations_to_process:
     # Step 2: Get validation data
     if get_validation:
         print("▶ Running Step 2: Get validation data")
-        validation_script = f"{os.environ['OSVAS']}/scripts/notebooks/ICOS_Flux_Downloader{extension}"
+        validation_script = f"{os.environ['OSVAS']}/scripts/notebooks/Flux_downloader{extension}"
         run_notebook(validation_script)
     else:
         print("⏩ Skipping Step 2: Get validation data")
