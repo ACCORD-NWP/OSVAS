@@ -46,8 +46,8 @@ Forcing_data:
 Validation_data:
   validation_start: '2022-07-01 00:00:00'
   validation_end: '2022-07-31 23:30:00'
-  common_obstable: true
-  common_fctable: true
+  common_obstable: false
+  common_fctable: false
   dataset1: 
     doi: https://meta.icos-cp.eu/objects/ei48butWy0H0b12KOZy2njyw
     timedelta: 30

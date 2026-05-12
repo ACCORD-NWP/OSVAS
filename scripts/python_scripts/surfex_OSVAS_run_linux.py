@@ -275,7 +275,7 @@ for station_name in stations_to_process:
         harp_yaml['verif']['project_name'] = [f"OSVAS_{os.environ['STATION_NAME']}"]
         harp_yaml['verif']['fcst_model'] = expnames
         common_fctable = config['Validation_data'].get('common_fctable', False)
-        fctable_path = 'common_model_data' if common_fctable else os.environ['STATION_NAME']
+        fctable_path = 'common_fctables' if common_fctable else os.environ['STATION_NAME']
         harp_yaml['verif']['fcst_path'] = [f"{os.environ['OSVAS']}/sqlites/FCTABLES/{fctable_path}/"]
         common_obstable = config['Validation_data'].get('common_obstable', False)
         obstable_path = 'common_obstables' if common_obstable else os.environ['STATION_NAME']

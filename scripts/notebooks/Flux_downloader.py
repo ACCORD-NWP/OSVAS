@@ -772,6 +772,8 @@ def interp_to_model_grid(obs_depths, obs_values, model_depths):
     For model levels shallower than the shallowest observation, the
     shallowest observed value is used.
 
+    Missing observation values are ignored when possible.
+
     Parameters
     ----------
     obs_depths   : array-like of float [m], sorted shallow→deep
@@ -786,6 +788,18 @@ def interp_to_model_grid(obs_depths, obs_values, model_depths):
     obs_v = np.array(obs_values,   dtype=float)
     mod_z = np.array(model_depths, dtype=float)
 
+    valid = np.isfinite(obs_z) & np.isfinite(obs_v)
+    if valid.sum() == 0:
+        return np.full_like(mod_z, np.nan, dtype=float)
+    if valid.sum() == 1:
+        return np.full(mod_z.shape, float(obs_v[valid][0]), dtype=float)
+
+    obs_z = obs_z[valid]
+    obs_v = obs_v[valid]
+    order = np.argsort(obs_z)
+    obs_z = obs_z[order]
+    obs_v = obs_v[order]
+    
     return np.interp(mod_z, obs_z, obs_v,
                      left=obs_v[0], right=obs_v[-1])
 
@@ -1554,19 +1568,22 @@ import pandas as pd
 
 #--- 1️⃣ Preprocess dataframe ---
 df_merged["valid_dttm"] = pd.to_datetime(df_merged["valid_dttm"], utc=True)
-df_merged["year_obs"] =df_merged["valid_dttm"].dt.year  # extract year for splitting
-df_merged["valid_dttm"] = df_merged["valid_dttm"].apply(lambda x: int(x.timestamp()))
-df_merged["valid_dttm"] =_to_datetime_series(df_merged["valid_dttm"])
+df_merged["year_obs"] = df_merged["valid_dttm"].dt.year  # extract year for splitting
+
+# Keep datetime in memory for later operations (e.g. Step 2.8),
+# but write Unix seconds to SQLite.
+df_to_write = df_merged.copy()
+df_to_write["valid_dttm"] = df_to_write["valid_dttm"].apply(lambda x: int(x.timestamp()))
 
 output_dir = (
-    "sqlites/validation_data/common_obstables"
+    "sqlites/OBSTABLES/validation_data/common_obstables"
     if common_obstable
-    else f"sqlites/validation_data/{station_info['Station_name']}"
+    else f"sqlites/OBSTABLES/validation_data/{station_info['Station_name']}"
 )
 os.makedirs(output_dir, exist_ok=True)
 
 #--- 2️⃣ Loop over years ---
-for year, df_year in df_merged.groupby("year_obs"):
+for year, df_year in df_to_write.groupby("year_obs"):
     output_file = os.path.join(output_dir, f"OBSTABLE_{year}.sqlite")
 
     with sqlite3.connect(output_file) as conn:
@@ -1933,6 +1950,120 @@ if initialization_data and init_output_dir is not None and df_init_merged is not
             profile_path  = profile_path,
             station_name  = Station_name
         )
+
+        # ── Step 2.8: write profile variables for validation OBSTABLEs ─────────
+        use_Tprofile_coeffs = initialization_data.get("use_Tprofile_coeffs", True)
+        print("\n▶ Generating TSi_* and SWCi_* for validation OBSTABLEs (Step 2.8)...")
+        print(f"  use_Tprofile_coeffs = {use_Tprofile_coeffs}")
+
+        validation_obs_depths = []
+        if depths_ts:
+            validation_obs_depths.extend(depths_ts)
+        if depths_swc:
+            validation_obs_depths.extend(depths_swc)
+
+        if not validation_obs_depths:
+            print("  ⚠️  No observed soil depths available for Step 2.8; skipping.")
+        else:
+            min_depth = min(validation_obs_depths)
+            max_depth = max(validation_obs_depths)
+            model_indices = [i + 1 for i, d in enumerate(XSOILGRID)
+                             if min_depth <= d <= max_depth]
+            model_depths = [XSOILGRID[i - 1] for i in model_indices]
+
+            if not model_indices:
+                print(
+                    f"  ⚠️  No XSOILGRID levels fall within observed depth range "
+                    f"({min_depth:.3f}–{max_depth:.3f} m); skipping Step 2.8."
+                )
+            else:
+                print(f"  Selected XSOILGRID levels for validation profile: {model_indices}")
+                TSi_names  = [f"TSi_{i}"  for i in model_indices]
+                SWCi_names = [f"SWCi_{i}" for i in model_indices]
+
+                df_profile = df_merged.copy()
+                for col_name in TSi_names + SWCi_names:
+                    df_profile[col_name] = np.nan
+
+                ts_cols_val = [c for c in ts_cols if c in df_merged.columns]
+                depths_ts_val = [d for c, d in zip(ts_cols, depths_ts) if c in df_merged.columns]
+                if len(ts_cols_val) != len(ts_cols):
+                    missing = [c for c in ts_cols if c not in df_merged.columns]
+                    print(f"  ℹ️  Ignoring missing TS columns for validation profile: {missing}")
+
+                swc_cols_val = [c for c in swc_cols if c in df_merged.columns]
+                depths_swc_val = [d for c, d in zip(swc_cols, depths_swc) if c in df_merged.columns]
+                if len(swc_cols_val) != len(swc_cols):
+                    missing = [c for c in swc_cols if c not in df_merged.columns]
+                    print(f"  ℹ️  Ignoring missing SWC columns for validation profile: {missing}")
+                
+                # --- Compute TSi values for all validation times ---
+                if ts_cols_val:
+                    profile_times = df_merged["valid_dttm"].values
+                    ts_obs = df_merged[ts_cols_val].astype(float).to_numpy()
+                    if use_Tprofile_coeffs:
+                        coef_path = coeff_file
+                        if coef is None and os.path.exists(coef_path):
+                            coef = list(np.loadtxt(coef_path))
+                            print(f"  ✅ Loaded TG coefficients from {coef_path}.")
+                        elif coef is None:
+                            print("  ℹ️  No TG coefficient file found; fitting model from validation TS values.")
+
+                        temp_val_xr = xr.DataArray(
+                            ts_obs.T,
+                            dims=("depth", "time"),
+                            coords={"depth": depths_ts_val, "time": profile_times}
+                        )
+                        coef, Tz_model = compute_soil_temperature_profile(
+                            temp_val_xr,
+                            profile_times,
+                            model_depths,
+                            coef
+                        )
+                        Tsi_matrix = Tz_model.values
+                    else:
+                        Tsi_matrix = np.full((len(model_depths), len(df_merged)), np.nan)
+                        for row_idx, row_values in enumerate(ts_obs):
+                            if np.all(np.isnan(row_values)):
+                                continue
+                            Tsi_matrix[:, row_idx] = interp_to_model_grid(
+                                depths_ts_val, row_values, model_depths
+                            )
+
+                    for idx, var_name in enumerate(TSi_names):
+                        df_profile[var_name] = Tsi_matrix[idx, :]
+                else:
+                    print("  ℹ️  No TS_* columns available for TSi_* generation.")
+
+                # --- Compute SWCi values for all validation times ---
+                if swc_cols_val:
+                    swc_obs = df_merged[swc_cols_val].astype(float).to_numpy()
+                    SWCi_matrix = np.full((len(model_depths), len(df_merged)), np.nan)
+                    for row_idx, row_values in enumerate(swc_obs):
+                        if np.all(np.isnan(row_values)):
+                            continue
+                        SWCi_matrix[:, row_idx] = interp_to_model_grid(
+                            depths_swc_val, row_values, model_depths
+                        )
+                    for idx, var_name in enumerate(SWCi_names):
+                        df_profile[var_name] = SWCi_matrix[idx, :]
+                else:
+                    print("  ℹ️  No SWC_* columns available for SWCi_* generation.")
+
+                # --- Add units for new validation variables ---
+                ts_unit = next((units_map.get(c) for c in ts_cols if c in units_map), "°C")
+                swc_unit = next((units_map.get(c) for c in swc_cols if c in units_map), "")
+                units_map.update({name: ts_unit for name in TSi_names})
+                units_map.update({name: swc_unit for name in SWCi_names})
+
+                write_obstable(df_profile, output_dir, units_map)
+                print("  ✅ Validation OBSTABLEs updated with TSi_* and SWCi_* variables.")
 else:
     print("⏩ Skipping Step 2.7 (no initialization data available).")
+
+
+# In[ ]:
+
+
+
 

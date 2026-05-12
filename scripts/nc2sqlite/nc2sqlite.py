@@ -128,8 +128,8 @@ def process_netcdf_file(ncfile, param_dict, SID, z, lat, lon, experiment_name, o
                         # Determine output directory based on common_fctable flag
                         if common_fctable:
                             # Use common fctable directory structure
-                            osvas_root = Path(output_base).parent.parent.parent  # Extract OSVAS root (go up: Meteopole -> model_data -> sqlites -> OSVAS)
-                            out_dir = osvas_root / "sqlites" / "model_data" / "common_model_data" / experiment_name / f"{year:04d}" / f"{month:02d}"
+                            osvas_root = Path(output_base).parent.parent.parent  # Extract OSVAS root (go up: Meteopole -> FCTABLES -> sqlites -> OSVAS)
+                            out_dir = osvas_root / "sqlites" / "OBSTABLES" / "common_fctables" / experiment_name / f"{year:04d}" / f"{month:02d}"
                         else:
                             # Use station-specific directory structure (current behavior)
                             out_dir = Path(output_base) / experiment_name / f"{year:04d}" / f"{month:02d}"
