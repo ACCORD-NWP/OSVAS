@@ -233,19 +233,6 @@
      XUNIF_WFC(12)      =     0.29 , 
      XUNIF_WFC(13)      =     0.29 , 
      XUNIF_WFC(14)      =     0.29 , 
-     XUNIF_WFC(15)      =     0.29 , 
-     XUNIF_WFC(16)      =     0.29 , 
-     XUNIF_WFC(17)      =     0.29 , 
-     XUNIF_WFC(18)      =     0.29 , 
-     XUNIF_WFC(19)      =     0.29 , 
-     XUNIF_WFC(20)      =     0.29 , 
-     XUNIF_WFC(21)      =     0.29 , 
-     XUNIF_WFC(22)      =     0.29 ,
-     XUNIF_WFC(23)      =     0.29 ,
-     XUNIF_WFC(24)      =     0.29 ,
-
-
-   
       XUNIF_WWILT(1)      =     0.10 , 
       XUNIF_WWILT(2)      =     0.10 , 
       XUNIF_WWILT(3)      =     0.10 , 
@@ -260,17 +247,6 @@
      XUNIF_WWILT(12)      =     0.08 , 
      XUNIF_WWILT(13)      =     0.08 , 
      XUNIF_WWILT(14)      =     0.08 , 
-     XUNIF_WWILT(15)      =     0.08 , 
-     XUNIF_WWILT(16)      =     0.08 , 
-     XUNIF_WWILT(17)      =     0.08 ,
-     XUNIF_WWILT(18)      =     0.08 , 
-     XUNIF_WWILT(19)      =     0.08 , 
-     XUNIF_WWILT(20)      =     0.08 , 
-     XUNIF_WWILT(21)      =     0.08 , 
-     XUNIF_WWILT(22)      =     0.08 , 
-     XUNIF_WWILT(23)      =     0.08 , 
-     XUNIF_WWILT(24)      =     0.08 , 
-  
       XUNIF_WSAT(1)      =     0.48 , 
       XUNIF_WSAT(2)      =     0.48 , 
       XUNIF_WSAT(3)      =     0.48 , 
@@ -285,18 +261,6 @@
      XUNIF_WSAT(12)      =     0.40 ,
      XUNIF_WSAT(13)      =     0.40 , 
      XUNIF_WSAT(14)      =     0.40 , 
-     XUNIF_WSAT(15)      =     0.40 , 
-     XUNIF_WSAT(16)      =     0.40 , 
-     XUNIF_WSAT(17)      =     0.40 , 
-     XUNIF_WSAT(18)      =     0.40 , 
-     XUNIF_WSAT(19)      =     0.40 , 
-     XUNIF_WSAT(20)      =     0.40 , 
-     XUNIF_WSAT(21)      =     0.40 , 
-     XUNIF_WSAT(22)      =     0.40 , 
-     XUNIF_WSAT(23)      =     0.40 , 
-     XUNIF_WSAT(24)      =     0.40 , 
-
-
 /
 &NAM_DIAG_ISBAn        LPGD              = T , 
                        LSURF_EVAP_BUDGET = T , 
@@ -352,12 +316,12 @@
                        CSNOWRES   = 'RIL'      ,
                        CCPSURF    = 'DRY' 
 /
-&NAM_LONLAT_REG        XLONMIN = 1.35         , 
-                       XLONMAX = 1.38         , 
-                       XLATMIN = 43.55        , 
-                       XLATMAX = 43.58        , 
-                       NLON    = 1            , 
-                       NLAT    = 1 
+&NAM_LONLAT_REG        XLONMIN = -5.75       , 
+                       XLONMAX = 5.77        , 
+                       XLATMIN = 39.9       , 
+                       XLATMAX = 39.95       , 
+                       NLON    = 1          , 
+                       NLAT    = 1           ,
 /
 &NAM_MEB_ISBA          LMEB_PATCH    = .F., .F., .F., .F., .F., .F., .F., .F., .F., .T., .F., .F.,
                        LFORC_MEASURE = .T.,

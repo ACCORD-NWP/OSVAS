@@ -9,10 +9,11 @@ OSVAS_steps:
  Expnames: #Don't forget a space before each item
   - DIFMEB_PUREOFFLINE
  Extract_model_sqlites: false
- Run_HARP: true
+ Run_HARP: false
  Display_HARP: true
 
 Station_metadata:
+  Station_type: ICOS
   Station_name: Loobos
   SID: 4300000007
   elev: 33
@@ -25,11 +26,11 @@ Station_metadata:
 Forcing_data:
   height_T: 38.2  # Height of the temperature measurement https://maq-observations.nl/operational-data/
   height_V: 38.2  # Height of the windspeed   measurement https://maq-observations.nl/operational-data/
-  run_start: '2023-5-30 23:00:00'    # Timestamp for the forcing start
-  run_end: '2024-12-31 00:00:00'      # Timestamp for the forcing end
+  run_start: '2024-5-30 23:00:00'    # Timestamp for the forcing start
+  run_end: '2024-7-31 00:00:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
   dataset1:
-    doi: https://meta.icos-cp.eu/objects/7ugz7AWJtLDjK9s5nBjjnQog
+    doi: https://meta.icos-cp.eu/objects/QfstRcIlaOI5kNIgBhSCKinI
     timedelta: 30  # in minutes
     variables:
       Forc_CO2: -, 0.00062
@@ -45,51 +46,35 @@ Forcing_data:
       Forc_TA: TA_1, +273.15
       Forc_RH: RH
   dataset2:
-    doi: https://meta.icos-cp.eu/objects/7ugz7AWJtLDjK9s5nBjjnQog
+    doi: https://meta.icos-cp.eu/objects/QfstRcIlaOI5kNIgBhSCKinI
     timedelta: 30  # in minutes
     variables:
       Forc_VPD: VPD
 Validation_data:
-  validation_start: '2024-1-1 00:00:00'
-  validation_end: '2024-12-31 23:00:00'
+  validation_start: '2024-5-30 00:00:00'
+  validation_end: '2024-7-31 23:00:00'
   common_obstable: FALSE
   dataset1: 
-    doi: https://meta.icos-cp.eu/objects/7ugz7AWJtLDjK9s5nBjjnQog
+    doi: https://meta.icos-cp.eu/objects/QfstRcIlaOI5kNIgBhSCKinI
     timedelta: 30
     variables: # Map ICOS variables (right) to a name (left) in the OBSTABLE
       SW_OUT: SW_OUT
       LW_OUT: LW_OUT
       SW_IN: SW_IN
       LW_IN: LW_IN  
-      TS_1: TS_1
-      TS_2: TS_2
-      TS_3: TS_3
-      TS_4: TS_4
-      TS_5: TS_5
-      SWC_1: SWC_1
-      SWC_2: SWC_2
-      SWC_3: SWC_3
-      SWC_4: SWC_4
-      SWC_5: SWC_5
+      TS_*: TS_*
+      SWC_*: SWC_*
       G: G_2
     units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
       SW_OUT: W/m2
       LW_OUT: W/m2
       LW_IN: W/m2
       SW_IN: W/m2
-      TS_1: degC
-      TS_2: degC
-      TS_3: degC
-      TS_4: degC
-      TS_5: degC        
-      SWC_1: percent
-      SWC_2: percent
-      SWC_3: percent
-      SWC_4: percent
-      SWC_5: percent
+      TS_*: degC
+      SWC_*: percent
       G: W/m2
   dataset2: 
-    doi: https://meta.icos-cp.eu/objects/Hz_PRfzpkwrLsuZWhrwzCzDm
+    doi: https://meta.icos-cp.eu/objects/v7pbR5OY2J4fAvWuLvmxj0ac
     timedelta: 30
     variables:
       H: H_F_MDS
@@ -101,5 +86,11 @@ Validation_data:
       LE: W/m2
       VPD: hPa 
       NEE: W/m2
-
+Initialization_data: 
+  initialization_start: '2023-6-1 00:00:00'
+  initialization_end: '2025-12-31 23:00:00'
+  metadata_filename: 'ICOSETC_NL-Loo_VARINFO_METEO_L2.csv'
+  reuse_soil_profile: false
+  Init_to_namelist: false   # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
+  Init_to_prep: true   # patch PREP.txt or PREP.nc for each expname
 

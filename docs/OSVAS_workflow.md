@@ -1,37 +1,69 @@
-## The OSVAS Workfow
-### OSVAS's central control script
-- Currently, all the steps of the OSVAS system are run from a bash script, with versions available for general linux ( surfex_OSVAS_run_linux.sh ) or for the ATOS HPC (surfex_OSVAS_run_atos.sh). The script reads the file "$OSVAS/config_files/Stations/${STATION_NAME}/${STATION_NAME}.yml" created for every used ICOS station, where one can define what OSVAS steps to run for the station, what ICOS datasets read for forcing and validation, start and end periods for the run and for the validation, what SURFEX steps to run, names of the SURFEX OFFLINE experiments to run, etc.
-- This bash script needs to be edited only to specify the name of the ICOS station, locate the OSVAS and HARP paths, and make sure that SURFEX profile and binaries are correctly referenced:
+## The OSVAS Workflow
+### OSVAS's central control scripts
+OSVAS uses Python workflow launchers in `scripts/python_scripts/` for platform-specific execution:
+
+- **`scripts/python_scripts/surfex_OSVAS_run_linux.py`** — Runs the workflow on local Linux systems.
+- **`scripts/python_scripts/surfex_OSVAS_run_atos.py`** — Runs the workflow on ATOS HPC.
+
+Both scripts read the station configuration from `config_files/Stations/${STATION_NAME}/${STATION_NAME}.yml` and control which workflow steps execute via the `OSVAS_steps` block. The YAML also defines forcing data sources, validation datasets, and station metadata.
+
+#### Notebook execution
+The workflow includes data processing steps implemented as **Jupyter notebooks**:
+- `scripts/notebooks/WRITE_Station_forcing.ipynb` — Generates SURFEX forcing data
+- `scripts/notebooks/Flux_downloader.ipynb` — Downloads and processes validation data, including an SURFEX initialization module for soil temperature & moisture
+
+These notebooks are **automatically converted to Python scripts** using `jupyter nbconvert` when the launcher runs, enabling execution in environments without Jupyter. Pre-converted `.py` versions are also available and can be executed directly when setting jupyter = False in the central control scripts.
+
+#### Command Line Arguments
+
+Both launcher scripts accept command line arguments to override environment variables:
+
+- `--stations STATION1 STATION2 ...`: Process multiple stations serially (overrides `STATION_NAME` env var)
+- `--condaenv CONDAENV`: Override conda environment name (overrides `CONDAENV` env var)
+- `--osvas OSVAS_PATH`: Override OSVAS root directory (overrides `OSVAS` env var)
+- `--harpscripts HARPSCRIPTS_PATH`: Override HARP scripts directory (overrides `HARPSCRIPTS` env var)
+
+**Example:**
+```bash
+# Process the workflow for multiple stations in sequence
+python3 scripts/python_scripts/surfex_OSVAS_run_linux.py --stations Majadas_del_tietar Loobos Meteopole
+
+# Override default paths
+python3 scripts/python_scripts/surfex_OSVAS_run_linux.py --osvas /custom/path/to/osvas
 ```
-export STATION_NAME=Majadas_del_tietar
-export OSVAS=$HOME/OSVASgh/ #SET PATH TO YOUR OSVAS SETUP
-export HARP=$HOME/operharpverif/  #SET PATH TO HARP SCRIPTS
-(....)
-# Define path of SURFEX code and SURFEX executables, add to $PATH
-SURFEX_PARENT=$HOME
-SURFEX_VER=SURFEX_NWP
-SURFEX_HOME=$SURFEX_PARENT/$SURFEX_VER  #PATH TO THE SURFEX SETUP
-SURFEX_PROFILE=profile_surfex-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0
-SURFEXPATH=$SURFEX_HOME/src/SURFEX/   #PATH TO SURFEX CODE
-SURFEXEXE=$SURFEX_HOME/src/dir_obj-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0/MASTER/ #PATH TO THE SURFEX EXECUTABLES
-```
-- In order to run PGD, one needs to link into the execution path, the physiographic files referenced in the namelists. For runs in a local linux we assume that the namelists use ecoclimapI or ecoclimapII param files (taken from the SURFEX setup) and the global dir/hdr files :
-```
-#SET PATH TO YOUR PHYSIOGRAPHY FILES
-PARAMFILES=${SURFEX_HOME}/MY_RUN/ECOCLIMAP/
-DIRFILES=$HOME/PHYSIO/  # Edit this with the location of e.g. ECOCLIMAP_II_EUROP.{hdr,dir} files
-```
-For runs on ATOS, there's also the possibility to run more NWP-alike namelists which make use of e.g. ECOCLIMAP-SG files in hlam's user:
-```
-#SET PATH TO YOUR PHYSIOGRAPHY FILES
-HM_CLDATA=/ec/res4/hpcperm/hlam/data/climate
-E923_DATA_PATH=$HM_CLDATA/E923_DATA
-PGD_DATA_PATH=$HM_CLDATA/PGD
-ECOSG_DATA_PATH=$HM_CLDATA/ECOCLIMAP-SG
-GMTED2010_DATA_PATH=$HM_CLDATA/GMTED2010
-SOILGRID_DATA_PATH=$HM_CLDATA/SOILGRID
-ECOSG_COVERS=$ECOSG_DATA_PATH/COVER
-#The following 2 physiography sources must come from a harmonie setup:
-GMTED_PATH=/ec/res4/scratch/sp3c/hm_home/harmonie46h111/climate/DKCOEXP/
-SOILGRIDS_PATH=/ec/res4/scratch/sp3c/hm_home/harmonie46h111/climate/DKCOEXP/
-```
+
+### Key workflow behavior
+- **Step 1** generates SURFEX forcing data from ICOS atmospheric datasets, following the configuration in `Forcing_data`.
+- **Step 2** downloads and processes ICOS flux data, creates OBSTABLES (sqlite validation data), and optionally computes soil initialization profiles.
+- **Step 3** prepares run directories for each experiment, links forcing and physiography files, updates the namelist with simulation dates, optionally applies initialization profiles, and executes the selected SURFEX steps (PGD, PREP, OFFLINE).
+- **Step 4** converts SURFEX NetCDF outputs to SQLite FCTABLES (monthly files by variable) for use with HARP or other validation tools.
+- **Step 5** generates and runs HARP point verification, producing validation statistics and plots.
+- **Step 6** displays verification results via interactive Shiny apps with intelligent port detection.
+
+### SURFEX and physiography setup
+The Python launchers expect SURFEX binaries and environment files to be available on the host system.
+
+**For local Linux:**
+- Uses a SURFEX profile like `profile_surfex-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0`.
+- Links physiography files from the SURFEX installation and `$HOME/PHYSIO/`.
+
+**For ATOS:**
+- Uses ATOS-specific SURFEX profile and compilation environment.
+- May link climate data from the HPC filesystem (e.g., `ECOCLIMAP-SG`, `GMTED2010`, `SOILGRID`).
+
+### Initialization workflow
+Soil initialization can derive from validation data or station metadata via the `Initialization_data` block in the station YAML:
+
+- `Init_to_namelist: true` — Patches `OPTIONS.nam` with soil temperature/humidity profiles before the SURFEX run.
+- `Init_to_prep: true` — Patches `PREP` files with profiles after the PREP step completes.
+
+Profiles are stored as NumPy arrays (`tg_profile.npy`, `hug_profile.npy`) in `profiles/{station}/` and applied by `scripts/python_scripts/apply_soil_initialization.py`.
+
+### Paths
+- **Station config:** `config_files/Stations/${STATION_NAME}/${STATION_NAME}.yml`
+- **Forcing data:** `forcings/${STATION_NAME}/`
+- **Run directories:** `RUNS/${STATION_NAME}/${EXPNAME}/run/`
+- **Output files:** `RUNS/${STATION_NAME}/${EXPNAME}/output/`
+- **HARP verification:** `RUNS/${STATION_NAME}/HARPVERIF/`
+- **Model SQLites (FCTABLES):** `sqlites/FCTABLES/{STATION_NAME}/` or `sqlites/FCTABLES/common_fctables/` (if `common_fctable: true`)
+- **Validation SQLites (OBSTABLES):** `sqlites/OBSTABLES/validation_data/{STATION_NAME}/` or `sqlites/OBSTABLES/validation_data/common_obstables/` (if `common_obstable: true`)

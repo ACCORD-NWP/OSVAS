@@ -318,8 +318,8 @@
 
 /
 &NAM_IO_OFFLINE        LPRINT  = T                       ,
-                       CFORCING_FILETYPE =    'ASCII '   ,
-                       CSURF_FILETYPE =       'ASCII '   ,
+                       CFORCING_FILETYPE =    'NETCDF '   ,
+                       CSURF_FILETYPE =       'NC '   ,
                        CTIMESERIES_FILETYPE = 'NETCDF'    ,
                        XTSTEP_SURF = 300.                ,
                        XTSTEP_OUTPUT = 1800.             ,
@@ -390,6 +390,7 @@
                        XUNIF_TG_SOIL(11)     = 277.00,
                        XUNIF_TG_SOIL(12)     = 277.00,
                        XUNIF_TG_SOIL(13)     = 277.00,
+                       XUNIF_TG_SOIL(14)     = 277.00,
 /
 &NAM_PREP_ISBA_SNOW    CSNOW = '3-L' 
 /

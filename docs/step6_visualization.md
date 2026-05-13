@@ -1,18 +1,52 @@
 ## Step 6: Display HARP verification results
-In this step, the script launches the visualization scripts available in oper-harp-verif to be able to visualize the HARP output:
-- launch_dynamicapp_atos.R : For dynamic inspection of HARP's output .rds data files
-- launch_visapp.R : For inspection of HARP's collection of png files with extra scores & visualizations.
-  
-These scripts launch the corresponding shiny apps using ports 9999 and 9998. To keep the terminal free, the output is redirected to $OSVAS/dynamicapp.log and $OSVAS/visapp.log.
 
-- In a linux machine, the shiny apps will be available at http://127.0.0.1:9999 and http://127.0.0.1:9998 by default
-- Often these ports are used by other instances of shiny apps (e.g. if they were not properly freed) or by other local services. If that's the case, the logs will inform about this. 
-- In order to free a port in this situation, use this command:  ``kill -9 $(lsof -t -i :9999)``
-- Alternativelly, change the ports in the corresponding step of the bash script.
+### Visualization apps
+OSVAS uses Shiny apps from the `oper-harp-verif` project to visualize HARP verification results. Two complementary visualization approaches are available:
 
-- When accessing ATOS with the VMWare Desktop tool, the shiny app runs in the hpc platform while the browser tipically runs in the virtual desktop login node (e.g. sp3c@lfcm-078). To visualize the shiny apps in the browser, an extra step is required. It is available in the dynamicapp.log and visapp.log files , and for completeness also here:
+1. **Dynamic App** (port 9999): Interactive Shiny app for exploring verification statistics by variable, location, and metric
+2. **Static Visualization** (port 9998): Generates and displays pre-rendered plots from verification outputs
+
+### Intelligent port detection and app management
+When Step 6 is enabled, the launcher performs intelligent port detection before launching visualization apps:
+
+- **Both ports available:** Launches both dynamic and static apps in background processes
+- **Port 9999 in use:** Dynamic app is already running; only launches static app if port 9998 is free
+- **Port 9998 in use:** Static visualization already running; only launches dynamic app if port 9999 is free
+- **Both ports in use:** Both apps are already running; no action taken
+
+This allows you to run the workflow multiple times without port conflicts or errors.
+
+### Accessing the apps
+
+**Local system:**
+- Dynamic app: http://localhost:9999/
+- Static visualization: http://localhost:9998/
+
+**Remote system (ATOS via SSH):**
+Use SSH port forwarding to expose remote apps locally:
+```bash
+ssh -L 9999:localhost:9999 -L 9998:localhost:9998 user@atos-host
 ```
-[1] "To display the Shiny app in a Firefox window at ATOS:"
-[1] "1: Open a new terminal."
-[1] "2: Execute this command: ssh -L 9999:localhost:9999 "
-[1] "3: Open a Firefox window and go to http://127.0.0.1:9999/"
+
+Then access apps at:
+- http://localhost:9999/ (dynamic)
+- http://localhost:9998/ (static)
+
+### Troubleshooting visualization apps
+
+**Apps not loading or crashing:**
+- Check log files: `$OSVAS/dynamicapp.log` and `$OSVAS/visapp.log`
+- Restart the apps by killing them and re-running the workflow
+
+**Port still in use after stopping apps:**
+```bash
+# Find and kill process on port 9999
+lsof -ti:9999 | xargs kill -9
+
+# Find and kill process on port 9998
+lsof -ti:9998 | xargs kill -9
+```
+
+**Verification output locations:**
+- HARP verification outputs: `RUNS/${STATION_NAME}/HARPVERIF/`
+- Verification statistics figures and tables are stored in this directory and displayed by the apps

@@ -6,7 +6,7 @@
 
 ###### OSVAS ########################################################
 ###### ( OFFLINE SURFEX VALIDATION SYSTEM)###########################
-###### STEP 1: Downloading forcing data from ICOS #############
+###### STEP 1: Downloading forcing data from ICOS or KNMI #############
 #### STEP 1.0: DEFINING STATION and OSVAS PATH ###############
 import os
 # Default values defined in the notebook for Station and OSVAS install:
@@ -38,6 +38,8 @@ import numpy as np
 from datetime import date, datetime, timedelta, timezone
 import os
 import time
+import requests
+import tempfile
 import metpy
 #import meteo
 #import meteo.humidity
@@ -120,6 +122,83 @@ def compute_esat(T_C_array):
     esat = saturation_vapor_pressure(T_kelvin).to('Pa').magnitude  # Return float array
     return esat
 
+def download_file(endpoint, headers, filename):
+    result = requests.get("/".join((endpoint.rstrip("/"), filename, "url")), headers=headers)
+    result.raise_for_status()
+    download_url = result.json()["temporaryDownloadUrl"]
+    r = requests.get(download_url)
+    r.raise_for_status()
+    with tempfile.NamedTemporaryFile(suffix=".nc") as f:
+        f.write(r.content)
+        f.flush()
+        ds = xr.open_dataset(f.name)
+    return ds
+
+def fetch_file_list(endpoint, headers, payload):
+    file_list = []
+    truncated = True
+    while truncated:
+        result = requests.get(endpoint, headers=headers, params=payload)
+        result.raise_for_status()
+        result_json = result.json()
+        file_list += [i["filename"] for i in result_json["files"]]
+        truncated = result_json.get("isTruncated", False)
+        if truncated:
+            payload["nextPageToken"] = result_json["nextPageToken"]
+    print(f"{len(file_list)} files will be processed")
+    return file_list
+
+def retrieve_data(endpoint, start_date, end_date, api_key, target_height=None):
+    dataset_name = endpoint.split("/datasets/")[1].split("/")[0]
+    dataset_version = endpoint.split("/versions/")[1].split("/")[0]
+    months = pd.date_range(start=start_date, end=end_date, freq="MS")
+    filenames = [f"{dataset_name}_{dataset_version}_{date:%Y%m}.nc" for date in months]
+    headers = {"Authorization": api_key}
+    payload = {
+        "maxKeys": "1000",
+        "sorting": "asc",
+        "orderBy": "filename",
+        "begin": filenames[0],
+        "end": filenames[-1],
+    }
+    file_list = fetch_file_list(endpoint, headers, payload)
+    files = []
+    for filename in filenames:
+        if filename in file_list:
+            files.append(download_file(endpoint, headers, filename).drop_vars("valid_dates", errors="ignore"))
+        else:
+            print(f"⚠️ {filename} not found in KNMI service; data for this month will be omitted.")
+    if not files:
+        raise RuntimeError("No KNMI data files were available for the requested date range.")
+    ds_values = xr.concat(files, dim="time", data_vars="minimal").sortby("time")
+
+    # Drop nv dimension (used by time_bnds, 2 vertices per timestep)
+    if "nv" in ds_values.dims:
+        ds_values = ds_values.drop_vars([v for v in ds_values.data_vars if "nv" in ds_values[v].dims])
+
+    # Handle any remaining non-time dimensions (e.g. height levels in tower datasets)
+    extra_dims = [d for d in ds_values.dims if d != "time"]
+    for dim in extra_dims:
+        coords = ds_values[dim].values
+        print(f"  Dimension '{dim}' has values: {coords}")
+        if target_height is not None and len(coords) > 1:
+            idx = int(np.argmin(np.abs(coords - target_height)))
+            print(f"  Selecting {dim}={coords[idx]} (nearest to target height {target_height}m)")
+            ds_values = ds_values.isel({dim: idx})
+        else:
+            ds_values = ds_values.isel({dim: 0})
+
+    if hasattr(start_date, "tz") and start_date.tz is not None:
+        start_slice = start_date.tz_convert(None)
+    else:
+        start_slice = start_date
+    if hasattr(end_date, "tz") and end_date.tz is not None:
+        end_slice = end_date.tz_convert(None)
+    else:
+        end_slice = end_date
+    return ds_values.sel(time=slice(start_slice, end_slice))
+
+    
 #def rh2ah(RH,p,T):
 #   '''conversion relative humidity to absolute humidity (kg Water per m^3 Air)'''
 #   mixr=meteo.humidity.rh2mixr(RH, p,T)
@@ -167,9 +246,15 @@ def write_forcing_ascii(Forcing_vars, Forcing_path, Station_forcing, run_start, 
         create_lockfile(Forcing_path)
     
     try:
+        run_start_cmp = pd.Timestamp(run_start).tz_localize(None) if pd.Timestamp(run_start).tzinfo is not None else pd.Timestamp(run_start)
+        run_end_cmp   = pd.Timestamp(run_end).tz_localize(None)   if pd.Timestamp(run_end).tzinfo is not None   else pd.Timestamp(run_end)
+        # And then strip tz from the column before filtering:
+        dttm = Station_forcing["valid_dttm"]
+        if hasattr(dttm.dtype, "tz") and dttm.dtype.tz is not None:
+              dttm = dttm.dt.tz_localize(None)
         Station_forcing_run = Station_forcing[
-          (Station_forcing["valid_dttm"] >= run_start) &
-          (Station_forcing["valid_dttm"] <= run_end)
+             (dttm >= run_start_cmp) &
+             (dttm <= run_end_cmp)
         ]
         for var in Forcing_vars:
             print(f"{var} with {Station_forcing_run[var].isna().sum()} NaNs")
@@ -229,9 +314,16 @@ def write_forcing_netcdf(Forcing_vars, Forcing_path, Station_forcing, run_start,
 
     try:
         # Extract time subset
+        dttm_col = Station_forcing["valid_dttm"]
+        if dttm_col.dt.tz is not None:
+            run_start_cmp = pd.Timestamp(run_start).tz_localize("UTC") if pd.Timestamp(run_start).tzinfo is None else pd.Timestamp(run_start).tz_convert("UTC")
+            run_end_cmp   = pd.Timestamp(run_end).tz_localize("UTC")   if pd.Timestamp(run_end).tzinfo is None   else pd.Timestamp(run_end).tz_convert("UTC")
+        else:
+            run_start_cmp = pd.Timestamp(run_start).tz_localize(None) if pd.Timestamp(run_start).tzinfo is not None else pd.Timestamp(run_start)
+            run_end_cmp   = pd.Timestamp(run_end).tz_localize(None)   if pd.Timestamp(run_end).tzinfo is not None   else pd.Timestamp(run_end)
         Station_forcing_run = Station_forcing[
-            (Station_forcing["valid_dttm"] >= run_start) &
-            (Station_forcing["valid_dttm"] <= run_end)
+            (Station_forcing["valid_dttm"] >= run_start_cmp) &
+            (Station_forcing["valid_dttm"] <= run_end_cmp)
         ].copy()
 
         # Fill missing values globally
@@ -269,8 +361,8 @@ def write_forcing_netcdf(Forcing_vars, Forcing_path, Station_forcing, run_start,
                 continue
 
             nsteps = daily_data.shape[0]
-            first_ts = pd.Timestamp(daily_data["valid_dttm"].iloc[0]).tz_convert("UTC")
-
+            first_ts = pd.Timestamp(daily_data["valid_dttm"].iloc[0])
+            first_ts = first_ts.tz_localize("UTC") if first_ts.tzinfo is None else first_ts.tz_convert("UTC")
             # Compute elapsed seconds since origin
             base_seconds = (first_ts - origin_utc).total_seconds()
             time_seconds = base_seconds + np.arange(nsteps) * delta_t
@@ -631,6 +723,8 @@ with open(CONFIG_PATH, "r") as f:
 
 station_info = config["Station_metadata"]
 forcing_data = config["Forcing_data"]
+station_type = station_info.get("Station_type", "ICOS").upper()
+print(f"Station_type: {station_type}")
 lon=config["Station_metadata"]["lon"]
 lat=config["Station_metadata"]["lat"]
 elev=config["Station_metadata"]["elev"]
@@ -653,26 +747,25 @@ end_date = pd.to_datetime(forcing_data["run_end"], utc=True)
 
 ###### OSVAS ###################################
 ###### ( OFFLINE SURFEX VALIDATION SYSTEM)######
-#### STEP 1.3: ICOS AUTHENTICATION ###############
+#### STEP 1.3: AUTHENTICATION ###############
 
-# More info : https://icos-carbon-portal.github.io/pylib//icoscp/authentication/
+if station_type == "ICOS":
+    cookie_path = os.path.join(OSVAS, "icos_cookie.txt")  # Or point to config
+    cookie_token = open(cookie_path, "r").readline().strip()
+    meta, data = bootstrap.fromCookieToken(cookie_token)
+    cpauth.init_by(data.auth)
 
-# There are several ways to authenticate yourself into ICOS
-# In the example below, the temporal API token is used, which is available 
-# at the bottom of https://cpauth.icos-cp.eu/home/ after you authenticate
-# into the portal. The token lasts for 100.000 seconds, ~28 hours.
-
-# Authenticate using cookie (adjust if needed)
-cookie_path = os.path.join(OSVAS,"icos_cookie.txt")  # Or point to config
-cookie_token = open(cookie_path, "r").readline().strip()
-meta, data = bootstrap.fromCookieToken(cookie_token)
-cpauth.init_by(data.auth)
-
-#Test: If the authentication went well, these lines of code will not fail:
-import icoscp
-from icoscp.dobj import Dobj
-obj_flux='https://meta.icos-cp.eu/objects/dDlpnhS3XKyZjB22MUzP_nAm'
-dobj_flux=Dobj(obj_flux).data
+    # Test: If authentication works, this should succeed
+    import icoscp
+    from icoscp.dobj import Dobj
+    obj_flux='https://meta.icos-cp.eu/objects/dDlpnhS3XKyZjB22MUzP_nAm'
+    dobj_flux=Dobj(obj_flux).data
+elif station_type == "KNMI":
+    key_path = os.path.join(OSVAS, "knmi_apikey.txt")
+    api_key = open(key_path, "r").readline().strip()
+    print("KNMI API key loaded.")
+else:
+    raise ValueError(f"Unsupported Station_type: {station_type}. Supported types: ICOS, KNMI")
 
 
 # In[ ]:
@@ -698,9 +791,23 @@ for ds_name, ds_info in datasets.items():
 
     variable_map_raw = ds_info["variables"]
 
-    df_raw = fetch_flux_data(doi)
-    df_raw['valid_dttm'] = pd.to_datetime(df_raw['TIMESTAMP'], utc=True)
-    df_raw = df_raw[(df_raw['valid_dttm'] >= start_date) & (df_raw['valid_dttm'] <= end_date)].copy()
+    if station_type == "ICOS":
+        df_raw = fetch_flux_data(doi)
+        df_raw['valid_dttm'] = pd.to_datetime(df_raw['TIMESTAMP'], utc=True)
+        df_raw = df_raw[(df_raw['valid_dttm'] >= start_date) & (df_raw['valid_dttm'] <= end_date)].copy()
+    elif station_type == "KNMI":
+        df_raw = retrieve_data(doi, start_date, end_date, api_key)
+        df_raw = df_raw.to_dataframe().reset_index()
+        print(f"{ds_name}: df_raw shape = {df_raw.shape}")
+        print(f"{ds_name}: columns = {df_raw.columns.tolist()}")
+        print(f"{ds_name}: valid_dttm unique = {df_raw['time'].nunique()}, total rows = {len(df_raw)}")
+        df_raw['valid_dttm'] = df_raw['time']
+        # Ensure timezone compatibility for filtering (KNMI data is tz-naive)
+        start_date_cmp = pd.Timestamp(start_date).tz_localize(None) if start_date.tz is not None else start_date
+        end_date_cmp = pd.Timestamp(end_date).tz_localize(None) if end_date.tz is not None else end_date
+        df_raw = df_raw[(df_raw['valid_dttm'] >= start_date_cmp) & (df_raw['valid_dttm'] <= end_date_cmp)].copy()
+    else:
+        raise ValueError(f"Unsupported Station_type: {station_type}")
 
     if df_raw.empty:
         raise RuntimeError(

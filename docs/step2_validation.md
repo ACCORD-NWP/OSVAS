@@ -1,40 +1,93 @@
-## Step 2. Download validation data from ICOS specialized stations.
-The jupyter notebook `ICOS_Flux_downloader.ipynb`, also  run from inside the bash script, retrieves the validation data and saves it as OBSTABLE sqlite files, which can be used by HARP, custom-made verification scripts or other validation tools. Info about the ICOS dataset(s) from where to extract the validation variables must be included in the "Validation_data" section of the yaml files. The sampling frequency, how to rename the ICOS variables in the sqlite file and the validation period must also be specified. Stations are identified with a Station ID (SID), making possible to write the validation data to a common obstable for all stations. This is controlled by common_obstable key in the yaml file (see example below)
-```
+## Step 2. Download validation data from ICOS specialized stations
+
+### Notebook execution
+The Python workflow launcher executes the notebook `Flux_downloader.ipynb` to retrieve and process validation data. Like Step 1, this notebook can be executed via:
+
+1. **Automatic conversion** (default): The launcher uses `jupyter nbconvert` to convert the notebook to Python and execute it without requiring a Jupyter server.
+2. **Direct Python execution**: A pre-converted `Flux_downloader.py` script is available for standalone execution.
+3. **Interactive Jupyter**: The notebook can be run manually with `jupyter notebook` or `jupyter lab`.
+
+### Validation data processing
+The notebook downloads ICOS flux data and creates OBSTABLE SQLite files for use with HARP or custom verification tools. The process is configured via the `Validation_data` YAML section, which defines:
+- ICOS datasets to download using their DOI
+- Variable mapping from ICOS to observation variable names
+- Unit conversions
+- Validation period
+
+**Configuration example:**
+```yaml
 Validation_data:
-  validation_start: '2021-5-01 00:00:00'
-  validation_end: '2021-7-1 23:30:00'
-  common_obstable: FALSE  # Write obs to a common obstable or to a single-station one
+  validation_start: '2021-05-01 00:00:00'  # Validation period start
+  validation_end: '2021-07-01 23:30:00'    # Validation period end
+  common_obstable: false                   # Write to station-specific directory
+  common_fctable: false
   dataset1:
-    doi: https://meta.icos-cp.eu/objects/fPAqntOb1uiTQ2KI1NS1CHlB
-    timedelta: 30
+    doi: https://meta.icos-cp.eu/objects/fPAqntOb1uiTQ2KI1NS1CHlB  # ICOS dataset DOI
+    timedelta: 30                          # Time step (minutes)
     variables:
-      SW_OUT: SW_OUT
+      SW_OUT: SW_OUT                       # Map ICOS to observation variable names
       LW_OUT: LW_OUT
       SW_IN: SW_IN
       LW_IN: LW_IN
-      TS_1: TS_1
-      TS_2: TS_2
-      SWC_1: SWC_1
-      SWC_2: SWC_2
-    units:  # These should be similar to units attribute in output netcdf files
-      SW_OUT: W/m2
+      TS_*: TS_*                           # Wildcard: include all TS_* variables
+      SWC_*: SWC_*                         # Wildcard: include all SWC_* variables
+    units:
+      SW_OUT: W/m2                         # Specify observation units (for conversion)
       LW_OUT: W/m2
       LW_IN: W/m2
       SW_IN: W/m2
-      TS_1: K
-      TS_2: K
-      SWC_1: m3/m3
-      SWC_2: m3/m3
+      TS_1: degC
+      TS_2: degC
+      SWC_1: percent
+      SWC_2: percent
   dataset2:
-    doi: https://meta.icos-cp.eu/objects/tONKGY9pOYqVInayCYac-4LI
+    doi: https://meta.icos-cp.eu/objects/V8Wjs15Fj0aDX1xmiNx2zPA-
     timedelta: 30
     variables:
-      H: H
-      LE: LE
+      H: H                                 # Sensible heat
+      LE: LE                               # Latent heat flux
     units:
       H: W/m2
       LE: W/m2
 ```
-- The configuration file above will be treated by `Write_ICOS_forcing.ipynb` to generate forcing files in ascci or netcdf format according to the defined datasets and transformations, and by `ICOS_Flux_downloader.ipynb` to generate a validation dataset from the different ICOS datasets specified in the Validation_data block. 
-- **Sampling rate**: If several datasets with different sampling rates are provided, the data will be upsampled to a common (smallest) timedelta.
+
+### OBSTABLE output
+The notebook creates SQLite files with validation observations in HARP-compatible format:
+
+**Directory structure:**
+- Station-specific: `sqlites/OBSTABLES/validation/{STATION_NAME}/`
+- Cross-site (if `common_obstable: true`): `sqlites/OBSTABLES/validation/common_obstables/`
+
+**File structure:**
+Monthly OBSTABLE files are created, containing observations from all configured datasets for that month.
+
+### Soil initialization profiles
+If `Initialization_data` is configured in the station YAML, the notebook can compute soil temperature and humidity profiles from validation data for use in SURFEX initialization:
+
+```yaml
+Initialization_data:
+  metadata_filename: 'ICOSETC_ES-LMa_VARINFO_METEO_L2.csv'  # ICOS metadata file
+  reuse_soil_profile: false        # Reuse previously computed profiles
+  Init_to_namelist: true           # Apply profiles to OPTIONS.nam
+  Init_to_prep: false              # Apply profiles to PREP files
+  soil_depths_ts: [0.05, 0.1, 0.2, 0.3, 0.4]  # Soil temperature depths (m)
+  soil_depths_swc: [0.05, 0.1, 0.2, 0.3, 0.4] # Soil moisture depths (m)
+```
+
+When this block is present, the notebook:
+1. Reads the ICOS metadata file to locate soil observations at the specified depths
+2. Extracts soil temperature (TS_*) and moisture (SWC_*) profiles from validation data
+3. Saves profiles as NumPy arrays: `profiles/{STATION_NAME}/tg_profile.npy` and `hug_profile.npy`
+
+These profiles are then applied by Step 3 when `Init_to_namelist` or `Init_to_prep` is enabled.
+
+Soil depths are derived with the following priority:
+    1. Explicit lists in YAML:
+           Initialization_data.soil_depths_ts   (for TS)
+           Initialization_data.soil_depths_swc  (for SWC)
+       If only one generic ``soil_depths`` key is found it is used for both.
+    2. ICOS Metadata file defined by Initialization_data.metadata_filename,
+       looked up in config_files/{station_name}/. Check [here](docs/ICOS_data.md) to learn how to reach these files for every ICOS station.
+
+### Variable sampling rate
+If multiple validation datasets with different sampling rates are provided, all data are upsampled to the finest (smallest) timedelta before creating the OBSTABLE.
