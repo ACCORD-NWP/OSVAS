@@ -1766,11 +1766,12 @@ if initialization_data:
             init_dfs_resampled
         ).sort_values("valid_dttm").reset_index(drop=True)
 
-        init_common_obstable = validation_data.get("common_obstable", False)
+        #init_common_obstable = validation_data.get("common_obstable", False)
+        init_common_obstable = False # Initialization data always saved separately
         init_output_dir = (
-            "sqlites/OBSTABLES/initialization/common_obstables"
+            "sqlites/OBSTABLES/initialization_data/common_obstables"
             if init_common_obstable
-            else f"sqlites/OBSTABLES/initialization/{station_info['Station_name']}"
+            else f"sqlites/OBSTABLES/initialization_data/{station_info['Station_name']}"
         )
         write_obstable(df_init_merged, init_output_dir, init_units)
         print("✅ Soil initialization OBSTABLEs written.")
