@@ -1,15 +1,15 @@
 OSVAS_steps:
- Create_forcing: false
- Get_validation: false
- Run_surfex: false
+ Create_forcing: true
+ Get_validation: true
+ Run_surfex: true
  Surfex_steps: #Don't forget a space before each item
   - pgd
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
   - DIFMEB_v9
-  #- DIFMEB_v9DSL
- Extract_model_sqlites: false
+  - DIFMEB_v9DSL
+ Extract_model_sqlites: true
  Run_HARP: true
  Display_HARP: true
 
@@ -47,7 +47,7 @@ Forcing_data:
       Forc_RH: RH
 Validation_data:
   validation_start: '2024-6-1 00:00:00'
-  validation_end: '2024-6-2 23:00:00'
+  validation_end: '2024-9-30 23:00:00'
   common_obstable: false
   common_fctable: false
   dataset1: 
