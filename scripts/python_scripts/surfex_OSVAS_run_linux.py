@@ -125,7 +125,7 @@ for station_name in stations_to_process:
         
         # SURFEX paths
         surfex_parent = os.path.expanduser('~')
-        surfex_ver = 'SURFEX_NWP'
+        surfex_ver = 'SURFEX_ACCORD'
         surfex_home = f"{surfex_parent}/{surfex_ver}"
         surfex_profile = 'profile_surfex-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0'
         surfex_exe = f"{surfex_home}/src/dir_obj-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0/MASTER/"
@@ -279,7 +279,7 @@ for station_name in stations_to_process:
         harp_yaml['verif']['fcst_path'] = [f"{os.environ['OSVAS']}/sqlites/FCTABLES/{fctable_path}/"]
         common_obstable = config['Validation_data'].get('common_obstable', False)
         obstable_path = 'common_obstables' if common_obstable else os.environ['STATION_NAME']
-        harp_yaml['verif']['obs_path'] = [f"{os.environ['OSVAS']}/sqlites/OBSTABLES/validation/{obstable_path}/"]
+        harp_yaml['verif']['obs_path'] = [f"{os.environ['OSVAS']}/sqlites/OBSTABLES/validation_data/{obstable_path}/"]
         harp_yaml['verif']['verif_path'] = [f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/HARPVERIF/"]
         harp_yaml['post']['plot_output'] = [f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/HARPVERIF/"]
         
@@ -294,13 +294,28 @@ for station_name in stations_to_process:
         end_dt = datetime.strptime(validation_end, '%Y-%m-%d %H:%M:%S')
         start_date = f"{start_dt.year}{start_dt.month:02d}{start_dt.day:02d}"
         end_date = f"{end_dt.year}{end_dt.month:02d}{end_dt.day:02d}"
-        
+
         vars_list = []
         for key in config['Validation_data']:
             if key.startswith('dataset'):
                 vars_list.extend(config['Validation_data'][key]['variables'].keys())
-        vars_str = ','.join(vars_list)
-        
+        # Expand SWC_* and TS_* patterns to SWCi_1..14 and TSi_1..14
+        expanded = []
+        swc_added = False
+        ts_added = False
+        for var in vars_list:
+            if re.fullmatch(r'SWC_[\d*]+', var) or var == 'SWC_*':
+                if not swc_added:
+                    expanded.extend([f'SWCi_{n}' for n in range(1, 15)])
+                    swc_added = True
+            elif re.fullmatch(r'TS_[\d*]+', var) or var == 'TS_*':
+                if not ts_added:
+                    expanded.extend([f'TSi_{n}' for n in range(1, 15)])
+                    ts_added = True
+            else:
+                expanded.append(var)
+
+        vars_str = ','.join(expanded)        
         subprocess.run([
             'Rscript', f"{os.environ['HARPSCRIPTS']}/verification/point_verif.R",
             '-start_date', start_date,

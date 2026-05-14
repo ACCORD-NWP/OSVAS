@@ -336,7 +336,7 @@
                        LTR_ML        = .true.        ,
                        NPATCH        = 12            ,
                        LMEB=.TRUE.,
-                       CGNDRES       = 'NON'         ,
+                       CGNDRES       = 'DSL'         ,
                        NGROUND_LAYER = 14            ,
 /
 &NAM_ISBAn             CSCOND     = "PL98"     ,
@@ -357,8 +357,8 @@
 /
 &NAM_MEB_ISBA          LMEB_PATCH    = .F., .F., .F., .F., .F., .F., .F., .F., .F.,.T., .F., .F.,
                        LFORC_MEASURE = .T.,
-                       LMEB_LITTER   = .F.,
-                       CMEB_GNDRES   = 'NON',
+                       LMEB_LITTER   = .T.,
+                       CMEB_GNDRES   = 'DSL',
                        LMEB_TALL_VEG = .F.,
                        LMEB_INT_PLUN = .F.,
                        LMEB_INT_ULUN = .F.,

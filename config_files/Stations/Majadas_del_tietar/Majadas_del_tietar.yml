@@ -1,14 +1,15 @@
 OSVAS_steps:
  Create_forcing: false
  Get_validation: true
- Run_surfex: false
+ Run_surfex: true
  Surfex_steps: #Don't forget a space before each item
   - pgd
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
-  - DIFMEB
- Extract_model_sqlites: false
+  - DIFMEB_v9
+  - DIFMEB_v9DSL
+ Extract_model_sqlites: true
  Run_HARP: false
  Display_HARP: false
 
@@ -24,8 +25,8 @@ Station_metadata:
 Forcing_data:
   height_T: 2                       # Height of the temperature measurement
   height_V: 10                      # Height of the windspeed   measurement
-  run_start: '2022-7-01 00:00:00'    # Timestamp for the forcing start
-  run_end: '2022-7-31 23:30:00'      # Timestamp for the forcing end
+  run_start: '2024-5-01 00:00:00'    # Timestamp for the forcing start
+  run_end: '2024-9-30 23:30:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
   dataset1:
     doi: https://meta.icos-cp.eu/objects/ei48butWy0H0b12KOZy2njyw
@@ -44,10 +45,10 @@ Forcing_data:
       Forc_TA: TA, +273.15
       Forc_RH: RH
 Validation_data:
-  validation_start: '2022-07-01 00:00:00'
-  validation_end: '2022-07-31 23:30:00'
-  common_obstable: false
-  common_fctable: false
+  validation_start: '2024-6-1 00:00:00'
+  validation_end: '2024-9-30 23:00:00'
+  common_obstable: true
+  common_fctable: true
   dataset1: 
     doi: https://meta.icos-cp.eu/objects/ei48butWy0H0b12KOZy2njyw
     timedelta: 30
@@ -63,16 +64,8 @@ Validation_data:
       LW_OUT: W/m2
       LW_IN: W/m2
       SW_IN: W/m2
-      TS_1: degC
-      TS_2: degC
-      TS_3: degC
-      TS_4: degC
-      TS_5: degC        
-      SWC_1: percent
-      SWC_2: percent
-      SWC_3: percent
-      SWC_4: percent
-      SWC_5: percent
+      TS_*: degC
+      SWC_*: percent
   dataset2:
     doi: https://meta.icos-cp.eu/objects/V8Wjs15Fj0aDX1xmiNx2zPA-
     timedelta: 30
@@ -84,7 +77,7 @@ Validation_data:
       LE: W/m2
 Initialization_data: 
   initialization_start: '2020-01-01 00:00:00'
-  initialization_end: '2024-12-31 23:30:00'
+  initialization_end: '2025-12-31 23:00:00'
   metadata_filename: 'ICOSETC_ES-LMa_VARINFO_METEO_L2.csv'
   reuse_soil_profile: false
   Init_to_namelist: true   # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists

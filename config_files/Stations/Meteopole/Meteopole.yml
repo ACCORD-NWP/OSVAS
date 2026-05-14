@@ -1,17 +1,17 @@
 OSVAS_steps:
  Create_forcing: false
- Get_validation: true
+ Get_validation: false
  Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - pgd
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
-   #- DIF_v9
   - DIFMEB_v9
+  #- DIFMEB_v9DSL
  Extract_model_sqlites: false
- Run_HARP: false
- Display_HARP: false
+ Run_HARP: true
+ Display_HARP: true
 
 Station_metadata:
   Station_type: ICOS
@@ -26,8 +26,8 @@ Station_metadata:
 Forcing_data:
   height_T: 2                       # Height of the temperature measurement
   height_V: 10                      # Height of the windspeed   measurement
-  run_start: '2022-05-01 00:00:00'    # Timestamp for the forcing start
-  run_end: '2022-07-31 23:30:00'      # Timestamp for the forcing end
+  run_start: '2024-5-01 00:00:00'    # Timestamp for the forcing start
+  run_end: '2024-9-30 23:30:00'      # Timestamp for the forcing end
   forcing_format: 'netcdf'          # Choose between netcdf or ascii
   dataset1:
     doi: https://meta.icos-cp.eu/objects/ClxZ0M4-XC0WevhDm_cO2LeA
@@ -46,10 +46,10 @@ Forcing_data:
       Forc_TA: TA, +273.15
       Forc_RH: RH
 Validation_data:
-  validation_start: '2022-05-01 00:00:00'
-  validation_end: '2022-07-31 23:30:00'
-  common_obstable: true
-  common_fctable: true
+  validation_start: '2024-6-1 00:00:00'
+  validation_end: '2024-6-2 23:00:00'
+  common_obstable: false
+  common_fctable: false
   dataset1: 
     doi: https://meta.icos-cp.eu/objects/ClxZ0M4-XC0WevhDm_cO2LeA
     timedelta: 30
@@ -66,7 +66,6 @@ Validation_data:
       LW_OUT: W/m2
       LW_IN: W/m2
       SW_IN: W/m2
-      TS_1: degC
       TS_*: degC
       SWC_*: percent
       G: W/m2

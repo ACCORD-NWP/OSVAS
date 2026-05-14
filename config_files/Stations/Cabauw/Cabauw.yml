@@ -7,7 +7,8 @@ OSVAS_steps:
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
-  - BASECABAUW
+  - DIFMEB_v9
+  - DIFMEB_v9DSL
  Extract_model_sqlites: false
  Run_HARP: false
  Display_HARP: false
@@ -24,8 +25,8 @@ Station_metadata:
 Forcing_data:
   height_T: 20                       # Height of the temperature measurement
   height_V: 20                      # Height of the windspeed   measurement
-  run_start: '2017-12-01 00:00:00'    # Timestamp for the forcing start
-  run_end: '2017-12-31 23:59:00'      # Timestamp for the forcing end
+  run_start: '2024-5-01 00:00:00'    # Timestamp for the forcing start
+  run_end: '2024-9-30 23:30:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
   dataset1:
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_meteo_lc1_t10/versions/v1.0/files/
@@ -52,9 +53,10 @@ Forcing_data:
       Forc_TA: TA
     
 Validation_data:
-  validation_start: '2017-11-01 00:00:00'
-  validation_end: '2018-01-31 23:59:00'
-  common_obstable: FALSE  # Write obs to a common obstable or to a single-station one
+  validation_start: '2024-6-1 00:00:00'
+  validation_end: '2024-9-30 23:00:00'
+  common_obstable: true
+  common_fctable: true
   dataset1: 
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_radiation_lc1_t10/versions/v1.0/files
     timedelta: 10
