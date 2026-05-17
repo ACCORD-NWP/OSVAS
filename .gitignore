@@ -9,3 +9,4 @@ dynamicapp.log
 visapp.log
 profiles/*
 !profiles/Meteopole/
+HARPVERIF/*

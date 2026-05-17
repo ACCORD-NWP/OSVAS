@@ -353,10 +353,10 @@
                        CZ0HEAT    = 'Z95'      ,
                        XZ0HEAT    = 1.0
 /
-&NAM_LONLAT_REG        XLONMIN = 4.91         , 
-                       XLONMAX = 4.93         , 
-                       XLATMIN = 51.97        , 
-                       XLATMAX = 51.96        , 
+&NAM_LONLAT_REG        XLONMIN = 4.90         , 
+                       XLONMAX = 4.95         , 
+                       XLATMIN = 51.95        , 
+                       XLATMAX = 52.0         , 
                        NLON    = 1            , 
                        NLAT    = 1 
 /

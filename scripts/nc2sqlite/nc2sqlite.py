@@ -43,22 +43,25 @@ def load_station_info(station_list_path):
 
 def create_fc_table(conn, param_name, experiment_name):
     cursor = conn.cursor()
-    cursor.execute("DROP TABLE IF EXISTS FC")
-    cursor.execute(f"""
-        CREATE TABLE FC (
-            fcst_dttm INT,
-            lead_time INT,
-            z DOUBLE,
-            SID DOUBLE,
-            lat DOUBLE,
-            lon DOUBLE,
-            valid_dttm INT,
-            parameter TEXT,
-            units TEXT,
-            {experiment_name}_det DOUBLE
-        )
-    """)
-    conn.commit()
+    #cursor.execute("DROP TABLE IF EXISTS FC")
+    try:
+       cursor.execute(f"""
+           CREATE TABLE FC (
+               fcst_dttm INT,
+               lead_time INT,
+               z DOUBLE,
+               SID DOUBLE,
+               lat DOUBLE,
+               lon DOUBLE,
+               valid_dttm INT,
+               parameter TEXT,
+               units TEXT,
+               {experiment_name}_det DOUBLE
+           )
+       """)
+       conn.commit()
+    except:
+        print("table FC apparently exists already")
 
 
 
