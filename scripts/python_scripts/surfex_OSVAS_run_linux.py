@@ -280,13 +280,13 @@ for station_name in stations_to_process:
         common_obstable = config['Validation_data'].get('common_obstable', False)
         obstable_path = 'common_obstables' if common_obstable else os.environ['STATION_NAME']
         harp_yaml['verif']['obs_path'] = [f"{os.environ['OSVAS']}/sqlites/OBSTABLES/validation_data/{obstable_path}/"]
-        harp_yaml['verif']['verif_path'] = [f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/HARPVERIF/"]
-        harp_yaml['post']['plot_output'] = [f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/HARPVERIF/"]
+        harp_yaml['verif']['verif_path'] = [f"{os.environ['OSVAS']}/HARPVERIF/{os.environ['STATION_NAME']}"]
+        harp_yaml['post']['plot_output'] = [f"{os.environ['OSVAS']}/HARPVERIF/{os.environ['STATION_NAME']}"]
         
         with open(harp_config, 'w') as f:
             yaml.dump(harp_yaml, f)
         
-        os.makedirs(f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/HARPVERIF/", exist_ok=True)
+        os.makedirs(f"{os.environ['OSVAS']}/HARPVERIF/{os.environ['STATION_NAME']}", exist_ok=True)
         
         validation_start = config['Validation_data']['validation_start']
         validation_end = config['Validation_data']['validation_end']
@@ -330,7 +330,7 @@ for station_name in stations_to_process:
     # Step 6: Display HARP results
     if display_harp:
         print("▶ Running Step 6: Display HARP verification")
-        verif_path = f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/HARPVERIF/"
+        verif_path = f"{os.environ['OSVAS']}/HARPVERIF/"
 
         print("🚀 Checking HARP visualization apps...")
 
