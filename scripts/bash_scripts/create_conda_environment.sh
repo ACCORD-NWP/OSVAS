@@ -6,8 +6,12 @@ set -euo pipefail
 # -----------------------------
 
 # 0. Name your Conda environment
-CONDAENV=OSVASENV
+CONDAENV=OSVHARP
 PYTHON_VERSION=3.11
+
+# Path to the renv setup dirs, relative to this script's location
+RENV_ATOS_DIR="../../renv_atos"
+RENV_UBUNTU_DIR="../../renv_ubuntu"   # should contain ubuntu_harp_setup.sh + renv_setup.R
 
 echo "🚀 Setting up Conda environment: $CONDAENV with Python $PYTHON_VERSION"
 
@@ -27,26 +31,21 @@ fi
 
 # 3. Activate the environment
 echo "Activating environment '$CONDAENV'..."
-# Use `conda run` if script is non-interactive, otherwise activate normally
 eval "$(conda shell.bash hook)"
 conda activate "$CONDAENV"
 
 # 4. Install yq (Go version) from conda-forge
-echo "Installing yq (Go version)..."
 echo "🔍 Checking system type for yq installation..."
 
 if [[ -d "/ec/res4/scratch" ]]; then
     echo "➡ ECMWF HPC detected — installing MikeFarah yq v4 via direct download..."
-
     YQ_VERSION=v4.48.1
     BINARY=yq_linux_amd64
     INSTALL_DIR="$HOME/.local/bin"
-
     mkdir -p "$INSTALL_DIR"
     curl -L "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/${BINARY}" \
         -o "${INSTALL_DIR}/yq"
     chmod +x "${INSTALL_DIR}/yq"
-
     echo "✅ yq v4 installed at: $INSTALL_DIR/yq"
 else
     echo "➡ Not ECMWF — installing yq from conda-forge"
@@ -66,34 +65,72 @@ else
     echo "⚠️ Requirements file not found at $REQ_FILE. Skipping pip install."
 fi
 
-# 6. If on ATOS system, install HARP libraries & dependencies in an isolated Renv
+# 6. Install HARP libraries in an isolated renv
 if [[ -d "/ec/res4/scratch" ]]; then
-   module reset
-   cd ../../renv_atos/
-   ./atos_renv_setup.sh
-   CURRENT_WDIR="$(pwd)"
-   SETENV_FILE="$(pwd)/Setenv"
-   # Update R_PROFILE_USER line
-   sed -i "s|^export R_PROFILE_USER=.*|export R_PROFILE_USER=$CURRENT_WDIR/.Rprofile|" "$SETENV_FILE"
+    # --- ATOS branch ---
+    echo "➡ ECMWF HPC detected — installing HARP via ATOS renv setup..."
+    module reset
+    cd "$RENV_ATOS_DIR"
+    ./atos_renv_setup.sh
+    CURRENT_WDIR="$(pwd)"
+    SETENV_FILE="$(pwd)/Setenv"
+    sed -i "s|^export R_PROFILE_USER=.*|export R_PROFILE_USER=$CURRENT_WDIR/.Rprofile|" "$SETENV_FILE"
+    sed -i "s|^export RENV_PROJECT=.*|export RENV_PROJECT=$CURRENT_WDIR/|" "$SETENV_FILE"
+    RPROFILE_FILE="$(pwd)/.Rprofile"
+    if [[ -f "$RPROFILE_FILE" ]]; then
+        sed -i "s|^source.*|source(\"$CURRENT_WDIR/renv/activate.R\")|" "$RPROFILE_FILE"
+    else
+        echo "WARNING: $RPROFILE_FILE not found, creating it"
+        echo "source(\"$CURRENT_WDIR/renv/activate.R\")" > "$RPROFILE_FILE"
+    fi
+    echo "Finished HARP installation in renv; to test it in this terminal, do:"
+    echo "  module reset"
+    echo "  source $CURRENT_WDIR/Setenv"
+    echo "  Rscript -e \"library(harp)\""
 
-   # Update RENV_PROJECT line
-   sed -i "s|^export RENV_PROJECT=.*|export RENV_PROJECT=$CURRENT_WDIR/|" "$SETENV_FILE"
-   #Update .Rprofile
-   RPROFILE_FILE="$(pwd)/.Rprofile"
-   # If .Rprofile exists: replace "source(...)" line
-   if [[ -f "$RPROFILE_FILE" ]]; then
-       sed -i "s|^source.*|source(\"$CURRENT_WDIR/renv/activate.R\")|" "$RPROFILE_FILE"
-   else
-       echo "WARNING: $RPROFILE_FILE not found, creating it"
-       echo "source(\"$CURRENT_WDIR/renv/activate.R\")" > "$RPROFILE_FILE"
-   fi
-   echo "Finished HARP installation in Renv; to test it in this terminal, do: "
-   echo " module reset "
-   echo " source $CURRENT_WDIR/Setenv "
-   echo " Rscript -e \"library(harp)\" "
+else
+    # --- Ubuntu / generic Linux branch ---
+    echo "➡ Non-ECMWF system — installing HARP via Ubuntu renv setup..."
+
+    # Check R is available
+    if ! command -v Rscript &>/dev/null; then
+        echo "❌ R is not installed or not on PATH. Please install R before running this script."
+        exit 1
+    fi
+
+    RENV_UBUNTU_DIR="$(cd "$(dirname "$0")/$RENV_UBUNTU_DIR" && pwd)"
+
+    if [[ ! -f "$RENV_UBUNTU_DIR/ubuntu_harp_setup.sh" ]]; then
+        echo "❌ ubuntu_harp_setup.sh not found in $RENV_UBUNTU_DIR"
+        exit 1
+    fi
+
+    cd "$RENV_UBUNTU_DIR"
+    bash ubuntu_harp_setup.sh   # pass --develop here if desired
+
+    CURRENT_WDIR="$(pwd)"
+    RPROFILE_FILE="$(pwd)/.Rprofile"
+
+    # Create/update .Rprofile to auto-activate the renv
+    if [[ -f "$RPROFILE_FILE" ]]; then
+        sed -i "s|^source.*|source(\"$CURRENT_WDIR/renv/activate.R\")|" "$RPROFILE_FILE"
+    else
+        echo "source(\"$CURRENT_WDIR/renv/activate.R\")" > "$RPROFILE_FILE"
+    fi
+
+    # Create a Setenv file analogous to the ATOS one, for easy manual activation
+    SETENV_FILE="$(pwd)/Setenv"
+    cat > "$SETENV_FILE" <<EOF
+# Source this file to activate the HARP renv in a new terminal:
+#   source $SETENV_FILE
+export R_PROFILE_USER=$CURRENT_WDIR/.Rprofile
+export RENV_PROJECT=$CURRENT_WDIR/
+EOF
+
+    echo "Finished HARP installation in renv; to test it in this terminal, do:"
+    echo "  source $CURRENT_WDIR/Setenv"
+    echo "  Rscript -e \"library(harp)\""
 fi
 
 # 7. Final activation message
-echo "✅ Conda environment '$CONDAENV' is ready. Activate it with conda activate $CONDAENV"
-
-
+echo "✅ Conda environment '$CONDAENV' is ready. Activate it with: conda activate $CONDAENV"
