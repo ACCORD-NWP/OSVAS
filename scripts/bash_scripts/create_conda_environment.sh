@@ -31,26 +31,21 @@ fi
 
 # 3. Activate the environment
 echo "Activating environment '$CONDAENV'..."
-# Use `conda run` if script is non-interactive, otherwise activate normally
 eval "$(conda shell.bash hook)"
 conda activate "$CONDAENV"
 
 # 4. Install yq (Go version) from conda-forge
-echo "Installing yq (Go version)..."
 echo "🔍 Checking system type for yq installation..."
 
 if [[ -d "/ec/res4/scratch" ]]; then
     echo "➡ ECMWF HPC detected — installing MikeFarah yq v4 via direct download..."
-
     YQ_VERSION=v4.48.1
     BINARY=yq_linux_amd64
     INSTALL_DIR="$HOME/.local/bin"
-
     mkdir -p "$INSTALL_DIR"
     curl -L "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/${BINARY}" \
         -o "${INSTALL_DIR}/yq"
     chmod +x "${INSTALL_DIR}/yq"
-
     echo "✅ yq v4 installed at: $INSTALL_DIR/yq"
 else
     echo "➡ Not ECMWF — installing yq from conda-forge"
