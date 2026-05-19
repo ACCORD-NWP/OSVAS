@@ -36,7 +36,7 @@ subprocess.run(['module', 'load', 'conda/24.11.3-2'], check=True)
 if args.condaenv:
     os.environ['CONDAENV'] = args.condaenv
 elif 'CONDAENV' not in os.environ:
-    os.environ['CONDAENV'] = 'OSVASENV'
+    os.environ['CONDAENV'] = 'OSVHARP'
 
 if args.osvas:
     os.environ['OSVAS'] = args.osvas
@@ -297,8 +297,8 @@ for station_name in stations_to_process:
         common_obstable = config['Validation_data'].get('common_obstable', False)
         obstable_path = 'common_obstables' if common_obstable else os.environ['STATION_NAME']
         harp_yaml['verif']['obs_path'] = [f"{os.environ['OSVAS']}/sqlites/OBSTABLES/validation_data/{obstable_path}/"]
-        harp_yaml['verif']['verif_path'] = [f"{os.environ['OSVAS']}/HARPVERIF/{os.environ['STATION_NAME']}"]
-        harp_yaml['post']['plot_output'] = [f"{os.environ['OSVAS']}/HARPVERIF/{os.environ['STATION_NAME']}"]
+        harp_yaml['verif']['verif_path'] = [f"{os.environ['OSVAS']}/HARPVERIF/"]
+        harp_yaml['post']['plot_output'] = [f"{os.environ['OSVAS']}/HARPVERIF/"]
         
         with open(harp_config, 'w') as f:
             yaml.dump(harp_yaml, f)
