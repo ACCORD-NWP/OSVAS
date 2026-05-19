@@ -25,8 +25,8 @@ Station_metadata:
 Forcing_data:
   height_T: 20                       # Height of the temperature measurement
   height_V: 20                      # Height of the windspeed   measurement
-  run_start: '2024-5-01 00:00:00'    # Timestamp for the forcing start
-  run_end: '2024-9-30 23:30:00'      # Timestamp for the forcing end
+  run_start: '2017-11-01 00:00:00'    # Timestamp for the forcing start
+  run_end: '2018-12-31 23:59:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
   dataset1:
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_meteo_lc1_t10/versions/v1.0/files/
@@ -53,10 +53,9 @@ Forcing_data:
       Forc_TA: TA
     
 Validation_data:
-  validation_start: '2024-6-1 00:00:00'
-  validation_end: '2024-9-30 23:00:00'
-  common_obstable: true
-  common_fctable: true
+  validation_start: '2017-11-01 00:00:00'
+  validation_end: '2018-01-31 23:59:00'
+  common_obstable: FALSE  # Write obs to a common obstable or to a single-station one
   dataset1: 
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_radiation_lc1_t10/versions/v1.0/files
     timedelta: 10
@@ -136,7 +135,7 @@ Validation_data:
 
 Initialization_data:
   initialization_start: '2016-01-01 00:00:00'
-  initialization_end: '2021-01-31 23:59:00'
+  initialization_end: '2020-12-31 23:59:00'
   reuse_soil_profile: false
   Init_to_namelist: true   # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
   Init_to_prep: false       # patch PREP.txt or PREP.nc for each expname
