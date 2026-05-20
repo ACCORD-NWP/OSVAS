@@ -18,25 +18,25 @@ OSVAS automates the entire cycle:
 
 All documentation is available inside the `docs/` folder and in https://accord-nwp.github.io/OSVAS/ , organized as follows:
 
-### 🔧 <u>[**Setup & Configuration: Install requirements in a conda environment**](https://accord-nwp.github.io/OSVAS/installation.html)</u>
+### 🔧 <u>[**Setup & Configuration: Install requirements conda & R environments **](docs/installation.md)</u>
 
-### 🧪 <u>[**OSVAS central control script**](https://accord-nwp.github.io/OSVAS/OSVAS_workflow.html)</u>
+### 🧪 <u>[**OSVAS central control script**](docs/OSVAS_workflow.md)</u>
 
 ### 🧪 <u>**Detailed description of steps in the OSVAS Workflow:**</u>
 
-**Step 0:** [Paths & Global Configuration](https://accord-nwp.github.io/OSVAS/step0_paths_and_config.html)
+**Step 0:** [Paths & Global Configuration](docs/step0_paths_and_config.md)
    
-**Step 1:** [Forcing Data Generation](https://accord-nwp.github.io/OSVAS/step1_forcing.html)
+**Step 1:** [Forcing Data Generation](docs/step1_forcing.md)
  
-**Step 2:** [Validation Data Download](https://accord-nwp.github.io/OSVAS/step2_validation.html)
+**Step 2:** [Validation Data Download](docs/step2_validation.md)
  
-**Step 3:** [SURFEX Simulation Runs](https://accord-nwp.github.io/OSVAS/step3_surfex_runs.html)
+**Step 3:** [SURFEX Simulation Runs](docs/step3_surfex_runs.md)
 
-**Step 4:** [Extraction of Model Outputs (`nc2sqlite`)](https://accord-nwp.github.io/OSVAS/step4_nc2sqlite.html)
+**Step 4:** [Extraction of Model Outputs (`nc2sqlite`)](docs/step4_nc2sqlite.md)
 
-**Step 5:** [HARP Verification](https://accord-nwp.github.io/OSVAS/step5_harp_verification.html)
+**Step 5:** [HARP Verification](docs/step5_harp_verification.md)
 
-**Step 6:** [Visualization Apps](https://accord-nwp.github.io/OSVAS/step6_visualization.html)
+**Step 6:** [Visualization Apps](docs/step6_visualization.md)
 
 In addition, [a pdf presentation is available](docs/OSVAS_Workflow.pdf)
 
