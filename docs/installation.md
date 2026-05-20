@@ -51,10 +51,20 @@ You will be prompted to initialize conda for your shell. We recommend accepting 
 conda config --set auto_activate_base false
 ```
 
-After conda is available, create the OSVAS environment:
+After conda is available, next step is to create the OSVAS conda environment OSVASENV,
+including the installation of HARP's R libraries inside an Renv. This is done by renv_{atos,ubuntu}/renv_setup.R
+Since there is a strict rate limit on "anonymous" installs of libraries from CRAN mirrors, renv_setup.R must be edited to add your
+personal github pat:
+```# Optional: set your GitHub PAT to avoid rate-limiting on installs
+# (more info here https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/
+# /managing-your-personal-access-tokens
+# ---------------------------------------------------------------------------
+ Sys.setenv(GITHUB_PAT = "Put_your_github_personal_access_token_here")
+```
+Next, simply run the script to complete the installation with conda & R environments:
 ```bash
 cd scripts/bash_scripts
-./create_conda_environment.sh
+./create_conda_and_R_envs.sh
 ```
 
 This will:

@@ -56,7 +56,7 @@ cd OSVAS
 
 ```bash
 cd scripts/bash_scripts
-./create_conda_environment.sh
+./create_conda_and_R_envs.sh
 conda activate OSVASENV
 ```
 

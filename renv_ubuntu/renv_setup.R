@@ -19,8 +19,10 @@ if (!dir.exists(userlib)) dir.create(userlib, recursive = TRUE)
 
 # ---------------------------------------------------------------------------
 # Optional: set your GitHub PAT to avoid rate-limiting on installs
+# (more info here https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/
+# /managing-your-personal-access-tokens
 # ---------------------------------------------------------------------------
- Sys.setenv(GITHUB_PAT = "blablabla")
+ Sys.setenv(GITHUB_PAT = "Put_your_github_personal_access_token_here")
 
 # ---------------------------------------------------------------------------
 # CRAN mirror
