@@ -9,6 +9,7 @@ import re
 import argparse
 import socket
 import time
+from pathlib import Path
 
 def is_port_available(port):
     """Check if a port is available for binding."""
@@ -18,6 +19,16 @@ def is_port_available(port):
             return True
         except OSError:
             return False
+
+def detect_osvas_root():
+    """Detect OSVAS root directory from script location.
+    
+    The script is located at $OSVAS/scripts/python_scripts/surfex_OSVAS_run_linux.py
+    So we go up 2 levels from the script directory to find the OSVAS root.
+    """
+    script_dir = Path(__file__).resolve().parent
+    osvas_root = script_dir.parent.parent
+    return str(osvas_root)
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run OSVAS workflow for one or more stations")
@@ -35,15 +46,18 @@ if args.condaenv:
 elif 'CONDAENV' not in os.environ:
     os.environ['CONDAENV'] = 'OSVHARP'
 
+# Set OSVAS with detection from script location
 if args.osvas:
     os.environ['OSVAS'] = args.osvas
 elif 'OSVAS' not in os.environ:
-    os.environ['OSVAS'] = '/home/pn56/OSVASgh/'
+    os.environ['OSVAS'] = detect_osvas_root()
 
+# Set HARPSCRIPTS with intelligent defaults
 if args.harpscripts:
     os.environ['HARPSCRIPTS'] = args.harpscripts
 elif 'HARPSCRIPTS' not in os.environ:
-    os.environ['HARPSCRIPTS'] = '/home/pn56/operharpverif/'
+    # Default to $OSVAS/HARPSCRIPTS
+    os.environ['HARPSCRIPTS'] = os.path.join(os.environ['OSVAS'], 'HARPSCRIPTS')
 
 # Determine stations to process
 if args.stations:
