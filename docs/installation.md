@@ -4,7 +4,33 @@
 mkdir OSVAS
 cd OSVAS
 git clone https://github.com/ACCORD-NWP/OSVAS.git .
-``` 
+```
+
+### Setup OSVAS installation (clone HARPSCRIPTS)
+After cloning the OSVAS repository, run the installation setup script to automatically clone the HARP verification scripts:
+```bash
+cd OSVAS
+./scripts/bash_scripts/setup_osvas_installation.sh
+```
+
+This script will:
+1. **Clone the HARPSCRIPTS repository** from `git@github.com:harphub/oper-harp-verif.git` into `$OSVAS/HARPSCRIPTS/`
+2. **Apply OSVAS compatibility patches** to the cloned HARPSCRIPTS files
+3. **Display environment variable configuration** for your shell (`.bashrc` or `.bash_profile`)
+4. **Verify the setup** by checking that all directories and expected files are present
+
+**Typical usage:**
+```bash
+# Basic usage (auto-detects OSVAS from script location)
+./scripts/bash_scripts/setup_osvas_installation.sh
+
+# Or specify OSVAS directory explicitly
+./scripts/bash_scripts/setup_osvas_installation.sh --osvas /path/to/OSVAS
+```
+
+After running the script, you can set the environment variables in your shell by copying the suggested export commands, or by adding them to your `~/.bashrc` file.
+
+**Note:** The launcher scripts automatically detect the OSVAS root directory from their script location, so you typically only need to set the environment variables if you plan to call the scripts from a different directory.
 
 ### Conda Environment
 It is recommended to install the required Python packages in a conda environment.
@@ -62,12 +88,19 @@ These scripts execute Jupyter notebooks for data processing steps:
 - On ATOS: HARP and R dependencies are automatically installed by the setup script in `renv_atos/`.
 - On other systems: Follow the HARP installation guide: https://harphub.github.io/harp_training_2024/get-started.html#installation
 
-**HARP verification scripts:**
-The `oper-harp-verif` repository (https://github.com/harphub/oper-harp-verif.git) must be cloned separately and available for the verification steps. It includes:
+**HARP verification scripts (oper-harp-verif):**
+The `oper-harp-verif` repository (https://github.com/harphub/oper-harp-verif.git) is automatically cloned during installation into `$OSVAS/HARPSCRIPTS/` by the `setup_osvas_installation.sh` script. It includes:
 - Point verification scripts (`point_verif.R`)
 - Visualization apps (Shiny apps for dynamic and static displays)
 
-Set the path to `oper-harp-verif` via the `HARPSCRIPTS` environment variable or the `--harpscripts` command line argument.
+**Automatic path detection:**
+The launcher scripts (`surfex_OSVAS_run_linux.py` and `surfex_OSVAS_run_atos.py`) automatically:
+1. Detect the OSVAS root directory from their script location (no need for manual configuration in most cases)
+2. Default `HARPSCRIPTS` to `$OSVAS/HARPSCRIPTS`
+
+You can override these defaults by:
+- Setting environment variables: `export OSVAS=/path/to/osvas` and `export HARPSCRIPTS=/path/to/harpscripts`
+- Using command line arguments when running the launcher scripts: `--osvas` and `--harpscripts`
 
 **Required R packages** (on non-ATOS systems):
 ```r
@@ -113,10 +146,23 @@ To download ICOS data via the Python API, you must:
  a special request must be addressed to opendata@knmi.nl
 
 ### Environment variables and paths
-Set these environment variables before running the workflow (or use command line arguments to override):
+The launcher scripts automatically detect paths based on their script location. However, you can optionally set these environment variables to override the defaults:
+
 ```bash
-export STATION_NAME=Majadas_del_tietar       # Station to process
-export OSVAS=$HOME/OSVASgh                    # OSVAS root directory
-export CONDAENV=OSVASENV                      # Conda environment name
-export HARPSCRIPTS=$HOME/operharpverif        # Path to oper-harp-verif clone
+export STATION_NAME=Majadas_del_tietar       # Station to process (required)
+export OSVAS=$HOME/OSVASgh                    # OSVAS root (auto-detected if not set)
+export CONDAENV=OSVASENV                      # Conda environment name (default: OSVHARP)
+export HARPSCRIPTS=$OSVAS/HARPSCRIPTS         # HARP scripts path (auto-detected if not set)
+```
+
+**Typical usage:**
+In most cases, you only need to set `STATION_NAME`. The launcher scripts will automatically:
+- Detect `OSVAS` from their location in `scripts/python_scripts/`
+- Set `HARPSCRIPTS` to `$OSVAS/HARPSCRIPTS`
+- Use `OSVHARP` as the default conda environment
+
+**Command line override:**
+You can also pass these as command line arguments:
+```bash
+python surfex_OSVAS_run_linux.py --stations Cabauw Loobos --osvas /path/to/osvas --harpscripts /path/to/harpscripts
 ```
