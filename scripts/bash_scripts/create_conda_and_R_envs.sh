@@ -9,9 +9,11 @@ set -euo pipefail
 CONDAENV=OSVHARP
 PYTHON_VERSION=3.11
 
-# Path to the renv setup dirs, relative to this script's location
-RENV_ATOS_DIR="../../renv_atos"
-RENV_UBUNTU_DIR="../../renv_ubuntu"   # should contain ubuntu_harp_setup.sh + renv_setup.R
+# Resolve this script location and use absolute renv paths from there
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RENV_ATOS_DIR="$SCRIPT_DIR/../../renv_atos"
+RENV_UBUNTU_DIR="$SCRIPT_DIR/../../renv_ubuntu"   # should contain ubuntu_harp_setup.sh + renv_setup.R
+REQ_FILE="$SCRIPT_DIR/../../requirements.txt"
 
 echo "🚀 Setting up Conda environment: $CONDAENV with Python $PYTHON_VERSION"
 
@@ -56,7 +58,6 @@ fi
 export PATH="$HOME/.local/bin:$PATH"
 
 # 5. Install Python packages from requirements.txt
-REQ_FILE="../../requirements.txt"
 if [[ -f "$REQ_FILE" ]]; then
     echo "Installing Python packages from $REQ_FILE..."
     pip install --upgrade pip
@@ -69,14 +70,24 @@ fi
 if [[ -d "/ec/res4/scratch" ]]; then
     # --- ATOS branch ---
     echo "➡ ECMWF HPC detected — installing HARP via ATOS renv setup..."
+    conda deactivate
     module reset
     cd "$RENV_ATOS_DIR"
     ./atos_renv_setup.sh
     CURRENT_WDIR="$(pwd)"
-    SETENV_FILE="$(pwd)/Setenv"
+    SETENV_FILE="$CURRENT_WDIR/Setenv"
+    if [[ ! -f "$SETENV_FILE" ]]; then
+        echo "WARNING: $SETENV_FILE not found; creating a default Setenv file"
+        cat > "$SETENV_FILE" <<EOF
+# Source this file to activate the ATOS HARP renv in a new terminal:
+#   source $SETENV_FILE
+export R_PROFILE_USER=$CURRENT_WDIR/.Rprofile
+export RENV_PROJECT=$CURRENT_WDIR/
+EOF
+    fi
     sed -i "s|^export R_PROFILE_USER=.*|export R_PROFILE_USER=$CURRENT_WDIR/.Rprofile|" "$SETENV_FILE"
     sed -i "s|^export RENV_PROJECT=.*|export RENV_PROJECT=$CURRENT_WDIR/|" "$SETENV_FILE"
-    RPROFILE_FILE="$(pwd)/.Rprofile"
+    RPROFILE_FILE="$CURRENT_WDIR/.Rprofile"
     if [[ -f "$RPROFILE_FILE" ]]; then
         sed -i "s|^source.*|source(\"$CURRENT_WDIR/renv/activate.R\")|" "$RPROFILE_FILE"
     else
@@ -98,7 +109,10 @@ else
         exit 1
     fi
 
-    RENV_UBUNTU_DIR="$(cd "$(dirname "$0")/$RENV_UBUNTU_DIR" && pwd)"
+    if [[ ! -d "$RENV_UBUNTU_DIR" ]]; then
+        echo "❌ Ubuntu renv directory not found at $RENV_UBUNTU_DIR"
+        exit 1
+    fi
 
     if [[ ! -f "$RENV_UBUNTU_DIR/ubuntu_harp_setup.sh" ]]; then
         echo "❌ ubuntu_harp_setup.sh not found in $RENV_UBUNTU_DIR"

@@ -687,7 +687,7 @@ def plot_soil_temperature_diagnostics(temp_xr, Tz_full, tg_profile_K,
              color="steelblue", linewidth=2, marker=".", markersize=6,
              label="Model (XSOILGRID)")
     ax2.scatter(obs_profile_C, obs_depths,
-                color="tomato", zorder=5, s=60, marker="D",
+                color="tomato", zorder=5, s=10, marker="D",
                 label=f"Observed ({obs_times[nearest_i].strftime('%Y-%m-%d %H:%M')} UTC)")
 
     ax2.set_xlabel("Temperature (°C)", fontsize=11)
@@ -699,7 +699,7 @@ def plot_soil_temperature_diagnostics(temp_xr, Tz_full, tg_profile_K,
     ax2.grid(True, linestyle=":", linewidth=0.5, alpha=0.7)
 
     fig2.tight_layout()
-    prof_path = os.path.join(profile_path, f"profile_{date_str}.png")
+    prof_path = os.path.join(profile_path, f"temperature_profile_{date_str}.png")
     fig2.savefig(prof_path, dpi=150, bbox_inches="tight")
     plt.close(fig2)
     print(f"  📊 Profile figure saved to {prof_path}")
@@ -1879,6 +1879,34 @@ if initialization_data and init_output_dir is not None and df_init_merged is not
         # ── Evaluate model at target XSOILGRID for the namelist ──────────────
         _, Tz_target = compute_soil_temperature_profile(
             temp_xr, profile_times, XSOILGRID, coef
+        )
+
+        
+        # ── Blend observations for shallow XSOILGRID levels with fitted curve for deeper levels
+        obs_times = pd.to_datetime(temp_xr.time.values)
+        if obs_times.tz is None:
+            obs_times = obs_times.tz_localize("UTC")
+        else:
+            obs_times = obs_times.tz_convert("UTC")
+        profile_date_utc = pd.to_datetime(profile_date, utc=True)
+        nearest_i = np.argmin(np.abs(obs_times - profile_date_utc))
+
+        obs_profile_C = temp_xr.isel(time=nearest_i).values
+        obs_profile_interp = interp_to_model_grid(depths_ts, obs_profile_C, XSOILGRID)
+
+        max_obs_depth = float(np.nanmax(depths_ts))
+        use_obs = np.array(XSOILGRID, dtype=float) <= max_obs_depth
+
+        combined_profile_C = np.where(use_obs,
+                                      obs_profile_interp,
+                                      Tz_target.sel(time=profile_times[0]).values)
+        Tz_target = xr.DataArray(combined_profile_C.reshape((len(XSOILGRID), 1)),
+                                 coords={"depth": XSOILGRID, "time": profile_times},
+                                 dims=("depth", "time"))
+
+        print(
+            f"  Blended initial temperature profile: observed values for XSOILGRID <= {max_obs_depth:.3f} m, "
+            "fitted curve for deeper levels."
         )
 
 
