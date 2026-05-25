@@ -5,7 +5,10 @@ set -euo pipefail
 # OSVAS Conda Environment Setup
 # -----------------------------
 
-# 0. Name your Conda environment
+# 0. Load conda module (ATOS) and name your Conda environment
+if [[ -d "/ec/res4/scratch" ]]; then
+    module load conda
+fi
 CONDAENV=OSVHARP
 PYTHON_VERSION=3.11
 
@@ -83,6 +86,10 @@ if [[ -d "/ec/res4/scratch" ]]; then
 #   source $SETENV_FILE
 export R_PROFILE_USER=$CURRENT_WDIR/.Rprofile
 export RENV_PROJECT=$CURRENT_WDIR/
+export PATH="/usr/local/apps/gcc/13.1.0/bin:$PATH"
+export LD_LIBRARY_PATH="/usr/local/apps/gcc/13.1.0/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+module load R/4.4.3
+
 EOF
     fi
     sed -i "s|^export R_PROFILE_USER=.*|export R_PROFILE_USER=$CURRENT_WDIR/.Rprofile|" "$SETENV_FILE"
