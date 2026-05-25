@@ -101,7 +101,7 @@ if command -v python3 &> /dev/null; then
     echo ""
     echo "Step 1b: Applying OSVAS HARPSCRIPTS compatibility patches"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    python3 "$OSVAS_DIR/scripts/bash_scripts/harpscripts_osvas_patch.py" "$HARPSCRIPTS_DIR"
+    python3 "$OSVAS_DIR/scripts/python_scripts/harpscripts_osvas_patch.py" "$HARPSCRIPTS_DIR"
 else
     echo "⚠️  python3 not found: cannot apply HARPSCRIPTS patches automatically"
 fi

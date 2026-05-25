@@ -11,26 +11,38 @@ if (!dir.exists(userlib)) dir.create(userlib, recursive = TRUE)
 # Github token here if desired
 #Sys.setenv(GITHUB_PAT="ADD_YOUR_TOKEN_HERE")
 
+# Non-interactive batch mode settings
+options(download.file.method = "libcurl")
+Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = "true")
+
+# Skip arrow installation - not needed for GRIB/SQLite workflows and
+# causes C++20 compiler crash on RHEL 8 / ATOS HPC
+Sys.setenv(NOT_CRAN = "false")
+options(arrow.skip_nonfatal_install = TRUE)
+
 if (!("renv" %in% rownames(installed.packages()))) {
-  install.packages("renv",repos="https://cloud.r-project.org")
+  install.packages("renv", repos = "https://cloud.r-project.org")
 }
 
 library(renv)
-renv::init(bare = T)
+renv::init(bare = TRUE)
 renv::snapshot()
 
-install.packages("remotes",repos="https://cloud.r-project.org")
+install.packages("remotes", repos = "https://cloud.r-project.org")
 
+github_pat <- Sys.getenv("GITHUB_PAT")
 harp_dev_version <- Sys.getenv("HARP_DEV_VERSION")
 if (harp_dev_version == "yes") {
   cat("Installing the develop version of harp\n")
-  remotes::install_github("harphub/harp", ref = "develop")
+  remotes::install_github("harphub/harp", ref = "develop",
+                           auth_token = github_pat, upgrade = "never")
 } else {
   cat("Installing the main version of harp\n")
-  remotes::install_github("harphub/harp")
+  remotes::install_github("harphub/harp",
+                           auth_token = github_pat, upgrade = "never")
 }
-#remotes::install_github("harphub/Rgrib2")
-#remotes::install_github("harphub/Rfa")
+#remotes::install_github("harphub/Rgrib2", auth_token = github_pat, upgrade = "never")
+#remotes::install_github("harphub/Rfa",    auth_token = github_pat, upgrade = "never")
 
 pkg_list <- c(
   "argparse", "cowplot", "dplyr", "forcats", "ggnewscale", "grid",
@@ -40,5 +52,9 @@ pkg_list <- c(
 )
 
 for (pkg in pkg_list) {
-  install.packages(pkg)
+  install.packages(pkg, repos = "https://cloud.r-project.org", upgrade = "never")
 }
+
+# Sync lockfile with what is actually installed
+renv::snapshot()
+

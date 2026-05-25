@@ -41,7 +41,7 @@ def patch_point_verif(path: Path) -> bool:
         )
         replacement = (
             r"\1\n  fcst <- harpPoint::mutate_list(fcst,\n"
-            r"                                 month = sprintf(\"%02d\",valid_month))"
+            r'                                 month = sprintf("%02d",valid_month))'
         )
         text, count = pattern.subn(replacement, text, count=1)
         if count > 0:
