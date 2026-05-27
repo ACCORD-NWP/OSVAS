@@ -8,9 +8,10 @@ OSVAS_steps:
   - OFFLINE
  Expnames: #Don't forget a space before each item
   - DIFMEB_v9
-  - DIFMEB_v9DSL
+  #- DIFMEB_v9DSL
+  #- DIFMEB_v9DSLIT
  Extract_model_sqlites: true
- Run_HARP: false
+ Run_HARP: true
  Display_HARP: false
 
 Station_metadata:
@@ -20,9 +21,10 @@ Station_metadata:
   elev: 33
   lat: 52.166447
   lon: 5.74355
-  vegtype: 15
+  vegtype: 10
   lai: 1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9
   closure_type: 1
+  estimate_albedo: true  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
 
 Forcing_data:
   height_T: 38.2  # Height of the temperature measurement https://maq-observations.nl/operational-data/
@@ -54,8 +56,8 @@ Forcing_data:
 Validation_data:
   validation_start: '2024-6-1 00:00:00'
   validation_end: '2024-9-30 23:00:00'
-  common_obstable: true
-  common_fctable: true
+  common_obstable: false
+  common_fctable: false
   dataset1: 
     doi: https://meta.icos-cp.eu/objects/QfstRcIlaOI5kNIgBhSCKinI
     timedelta: 30

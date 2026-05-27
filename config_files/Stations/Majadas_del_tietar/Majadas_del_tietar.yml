@@ -1,7 +1,7 @@
 OSVAS_steps:
  Create_forcing: false
- Get_validation: true
- Run_surfex: true
+ Get_validation: false
+ Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - pgd
   - PREP
@@ -9,8 +9,9 @@ OSVAS_steps:
  Expnames: #Don't forget a space before each item
   - DIFMEB_v9
   - DIFMEB_v9DSL
+  - DIFMEB_v9DSLIT
  Extract_model_sqlites: true
- Run_HARP: false
+ Run_HARP: true
  Display_HARP: false
 
 Station_metadata:
@@ -20,13 +21,14 @@ Station_metadata:
   elev: 265.0
   lat: 39.94033
   lon: -5.77465
-  vegtype: 19
+  vegtype: 10
+  estimate_albedo: false  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
 
 Forcing_data:
   height_T: 2                       # Height of the temperature measurement
   height_V: 10                      # Height of the windspeed   measurement
-  run_start: '2024-5-01 00:00:00'    # Timestamp for the forcing start
-  run_end: '2024-9-30 23:30:00'      # Timestamp for the forcing end
+  run_start: '2023-11-01 00:00:00'    # Timestamp for the forcing start
+  run_end: '2024-12-31 23:30:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
   dataset1:
     doi: https://meta.icos-cp.eu/objects/ei48butWy0H0b12KOZy2njyw
@@ -45,10 +47,10 @@ Forcing_data:
       Forc_TA: TA, +273.15
       Forc_RH: RH
 Validation_data:
-  validation_start: '2024-6-1 00:00:00'
-  validation_end: '2024-9-30 23:00:00'
-  common_obstable: true
-  common_fctable: true
+  validation_start: '2024-1-1 00:00:00'
+  validation_end: '2024-12-31 23:00:00'
+  common_obstable: false
+  common_fctable: false
   dataset1: 
     doi: https://meta.icos-cp.eu/objects/ei48butWy0H0b12KOZy2njyw
     timedelta: 30

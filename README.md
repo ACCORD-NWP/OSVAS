@@ -29,6 +29,8 @@ All documentation is available inside the `docs/` folder and in https://accord-n
 **Step 1:** [Forcing Data Generation](docs/step1_forcing.md)
  
 **Step 2:** [Validation Data Download](docs/step2_validation.md)
+
+**Step 2b:** [Albedo_estimation from site data](docs/step2_albedo_estimation.md)
  
 **Step 3:** [SURFEX Simulation Runs](docs/step3_surfex_runs.md)
 
