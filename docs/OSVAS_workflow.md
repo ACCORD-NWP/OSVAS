@@ -34,7 +34,7 @@ python3 scripts/python_scripts/surfex_OSVAS_run_linux.py --osvas /custom/path/to
 
 ### Key workflow behavior
 - **Step 1** generates SURFEX forcing data from ICOS atmospheric datasets, following the configuration in `Forcing_data`.
-- **Step 2** downloads and processes ICOS flux data, creates OBSTABLES (sqlite validation data), and optionally computes soil initialization profiles.
+- **Step 2** downloads and processes ICOS flux data, creates OBSTABLES (sqlite validation data), and optionally computes soil initialization profiles, albedos from radiation data and LAIs from Copernicus data, and updates the experiment's namelists accordingly.
 - **Step 3** prepares run directories for each experiment, links forcing and physiography files, updates the namelist with simulation dates, optionally applies initialization profiles, and executes the selected SURFEX steps (PGD, PREP, OFFLINE).
 - **Step 4** converts SURFEX NetCDF outputs to SQLite FCTABLES (monthly files by variable) for use with HARP or other validation tools.
 - **Step 5** generates and runs HARP point verification, producing validation statistics and plots.
