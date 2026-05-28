@@ -38,6 +38,20 @@ def parse_args():
     parser.add_argument('--harpscripts', help='HARP scripts directory (overrides HARPSCRIPTS env var)')
     return parser.parse_args()
 
+
+def resolve_harpscripts_root(args, osvas_root):
+    candidates = []
+    if args.harpscripts:
+        candidates.append(args.harpscripts)
+    if 'HARPSCRIPTS' in os.environ and os.environ['HARPSCRIPTS'].strip():
+        candidates.append(os.path.expanduser(os.environ['HARPSCRIPTS']))
+    candidates.append(os.path.join(osvas_root, 'HARPSCRIPTS'))
+
+    for candidate in candidates:
+        if Path(candidate).expanduser().exists():
+            return str(Path(candidate).expanduser().resolve())
+    return str(Path(os.path.join(osvas_root, 'HARPSCRIPTS')).resolve())
+
 args = parse_args()
 
 # Load conda environment (equivalent to module load conda and conda activate)
@@ -56,11 +70,8 @@ elif 'OSVAS' not in os.environ:
     os.environ['OSVAS'] = detect_osvas_root()
 
 # Set HARPSCRIPTS with intelligent defaults
-if args.harpscripts:
-    os.environ['HARPSCRIPTS'] = args.harpscripts
-elif 'HARPSCRIPTS' not in os.environ:
-    # Default to $OSVAS/HARPSCRIPTS
-    os.environ['HARPSCRIPTS'] = os.path.join(os.environ['OSVAS'], 'HARPSCRIPTS')
+os.environ['HARPSCRIPTS'] = resolve_harpscripts_root(args, os.environ['OSVAS'])
+print(f"Using HARPSCRIPTS directory: {os.environ['HARPSCRIPTS']}")
 
 subprocess.run(['conda', 'activate', os.environ['CONDAENV']], shell=True, check=True)
 
@@ -137,6 +148,43 @@ for station_name in stations_to_process:
         run_notebook(validation_script)
     else:
         print("⏩ Skipping Step 2: Get validation data")
+
+    # Step 2b: Estimate albedos from validation data (if enabled)
+    estimate_albedo = config.get('Station_metadata', {}).get('estimate_albedo', False)
+    if estimate_albedo and get_validation:
+        print("▶ Running Step 2b: Estimate surface albedos from validation data")
+        try:
+            # Get validation period from config
+            val_start = config['Validation_data'].get('validation_start', '').split()[0]
+            val_end = config['Validation_data'].get('validation_end', '').split()[0]
+            
+            # Run albedo estimation
+            subprocess.run([
+                'python3', 
+                f"{os.environ['OSVAS']}/scripts/python_scripts/estimate_albedo.py",
+                os.environ['STATION_NAME'],
+                os.environ['OSVAS'],
+                '--validation-period', val_start, val_end
+            ], check=True)
+            
+            # Update namelists with estimated albedos
+            print("▶ Updating experiment namelists with estimated albedos")
+            subprocess.run([
+                'python3',
+                f"{os.environ['OSVAS']}/scripts/python_scripts/update_namelist_albedos.py",
+                os.environ['STATION_NAME'],
+                os.environ['OSVAS'],
+                '--expnames'] + expnames,
+                check=True
+            )
+            print("✅ Albedo estimation and namelist update completed")
+        except subprocess.CalledProcessError as e:
+            print(f"⚠️  Warning: Albedo estimation failed: {e}")
+            print("   Continuing with original namelists...")
+    elif estimate_albedo and not get_validation:
+        print("⏩ Skipping Step 2b: estimate_albedo=true but Get_validation=false")
+    else:
+        print("⏩ Skipping Step 2b: Estimate albedos (estimate_albedo=false)")
 
     # Step 3: Configure and run SURFEX simulations
     if run_surfex:
@@ -332,14 +380,27 @@ for station_name in stations_to_process:
                 vars_list.extend(config['Validation_data'][key]['variables'].keys())
         vars_str = ','.join(vars_list)
         
-        subprocess.run([
-            'Rscript', f"{os.environ['HARPSCRIPTS']}/verification/point_verif.R",
-            '-start_date', start_date,
-            '-end_date', end_date,
-            '-config_file', harp_config,
-            '-params_file', f"{os.environ['OSVAS']}/config_files/HARP/set_params.R",
-            '-params_list', vars_str
-        ], cwd=os.environ['HARPSCRIPTS'], check=True)
+        # Create a temporary .here marker in HARPSCRIPTS to ensure R's here package
+        # resolves paths relative to HARPSCRIPTS, not to a parent OSVAS directory
+        harpscripts_here_marker = os.path.join(os.environ['HARPSCRIPTS'], '.here')
+        here_marker_created = False
+        if not os.path.exists(harpscripts_here_marker):
+            Path(harpscripts_here_marker).touch()
+            here_marker_created = True
+        
+        try:
+            subprocess.run([
+                'Rscript', f"{os.environ['HARPSCRIPTS']}/verification/point_verif.R",
+                '-start_date', start_date,
+                '-end_date', end_date,
+                '-config_file', harp_config,
+                '-params_file', f"{os.environ['OSVAS']}/config_files/HARP/set_params.R",
+                '-params_list', vars_str
+            ], cwd=os.environ['HARPSCRIPTS'], check=True)
+        finally:
+            # Clean up the temporary .here marker if we created it
+            if here_marker_created and os.path.exists(harpscripts_here_marker):
+                os.remove(harpscripts_here_marker)
     else:
         print("⏩ Skipping Step 5: HARP verification")
 

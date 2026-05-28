@@ -1438,11 +1438,16 @@ with open(CONFIG_PATH, "r") as f:
     config = yaml.safe_load(f)
  
 station_info = config["Station_metadata"]
-validation_data = config["Validation_data"]
+validation_data = config["Validation_data"] 
+forcing_data = config["Forcing_data"] 
+
 common_obstable = validation_data.get("common_obstable", False)
  
-start_date = pd.to_datetime(validation_data["validation_start"], utc=True)
-end_date = pd.to_datetime(validation_data["validation_end"], utc=True)
+start_date = pd.to_datetime(forcing_data["run_start"], utc=True)
+end_date = pd.to_datetime(forcing_data["run_end"], utc=True)
+# Use this instead of validation period
+# To be able to evaluate albedos for 
+# spin-up period too.
 
 closure_type = config.get("Station_metadata", {}).get("closure_type", 1) #Default value is 1.
 

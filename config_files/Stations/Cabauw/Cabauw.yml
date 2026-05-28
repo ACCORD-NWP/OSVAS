@@ -1,16 +1,19 @@
 OSVAS_steps:
  Create_forcing: false
  Get_validation: true
- Run_surfex: false
+ Run_surfex: true
  Surfex_steps: #Don't forget a space before each item
   - PGD
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
   - DIFMEB_v9
-  - DIFMEB_v9DSL
- Extract_model_sqlites: false
- Run_HARP: false
+  - DIFMEB_v9_lin02
+  #- DIFMEB_v9_lin04
+  #- DIFMEB_v9_lin06
+  #- DIFMEB_v9_lin08
+ Extract_model_sqlites: true
+ Run_HARP: true
  Display_HARP: false
 
 Station_metadata:
@@ -21,13 +24,15 @@ Station_metadata:
   lat: 51.9703
   lon: 4.9264
   vegtype: 10
-
+  estimate_albedo: true  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
+  estimate_lai: true    # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
+  
 Forcing_data:
   height_T: 20                       # Height of the temperature measurement
   height_V: 20                      # Height of the windspeed   measurement
-  run_start: '2017-11-01 00:00:00'    # Timestamp for the forcing start
-  run_end: '2018-12-31 23:59:00'      # Timestamp for the forcing end
-  forcing_format: 'ascii'          # Choose between netcdf or ascii
+  run_start: '2022-12-01 00:00:00'    # Timestamp for the forcing start
+  run_end: '2023-12-31 23:30:00'      # Timestamp for the forcing end
+  forcing_format: 'netcdf'          # Choose between netcdf or ascii
   dataset1:
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_meteo_lc1_t10/versions/v1.0/files/
     timedelta: 10  # in minutes
@@ -53,9 +58,10 @@ Forcing_data:
       Forc_TA: TA
     
 Validation_data:
-  validation_start: '2017-11-01 00:00:00'
-  validation_end: '2018-01-31 23:59:00'
-  common_obstable: FALSE  # Write obs to a common obstable or to a single-station one
+  validation_start: '2023-1-1 00:00:00'
+  validation_end: '2023-12-31 23:00:00'
+  common_obstable: false  # Write obs to a common obstable or to a single-station one
+  common_fctable: false
   dataset1: 
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_radiation_lc1_t10/versions/v1.0/files
     timedelta: 10
@@ -141,3 +147,4 @@ Initialization_data:
   Init_to_prep: false       # patch PREP.txt or PREP.nc for each expname
   soil_depths_ts: [0, 0.02, 0.04, 0.06, 0.08, 0.12, 0.2, 0.3, 0.5] # These will be read first; if absent, they're extracted from metadata file
   soil_depths_swc: [0.04, 0.05, 0.19, 0.33, 0.40, 0.56] #These will be read first; if absent, they're extracted from metadata file
+

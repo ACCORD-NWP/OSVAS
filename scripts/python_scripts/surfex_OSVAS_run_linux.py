@@ -38,6 +38,23 @@ def parse_args():
     parser.add_argument('--harpscripts', help='HARP scripts directory (overrides HARPSCRIPTS env var)')
     return parser.parse_args()
 
+
+def resolve_harpscripts_root(args, osvas_root):
+    """Resolve a valid HARPSCRIPTS directory without modifying the HARPSCRIPTS repository."""
+    candidates = []
+    if args.harpscripts:
+        candidates.append(args.harpscripts)
+    if 'HARPSCRIPTS' in os.environ and os.environ['HARPSCRIPTS'].strip():
+        candidates.append(os.path.expanduser(os.environ['HARPSCRIPTS']))
+    candidates.append(os.path.expanduser('~/operharpverif'))
+    candidates.append(os.path.join(osvas_root, 'HARPSCRIPTS'))
+
+    for candidate in candidates:
+        if Path(candidate).expanduser().exists():
+            return str(Path(candidate).expanduser().resolve())
+    # Last resort: use the default path under OSVAS if nothing else exists
+    return str(Path(os.path.join(osvas_root, 'HARPSCRIPTS')).resolve())
+
 args = parse_args()
 
 # Set environment variables with command line overrides or defaults
@@ -53,12 +70,8 @@ elif 'OSVAS' not in os.environ:
     os.environ['OSVAS'] = detect_osvas_root()
 
 # Set HARPSCRIPTS with intelligent defaults
-if args.harpscripts:
-    os.environ['HARPSCRIPTS'] = args.harpscripts
-elif 'HARPSCRIPTS' not in os.environ:
-    # Default to $OSVAS/HARPSCRIPTS
-    os.environ['HARPSCRIPTS'] = os.path.join(os.environ['OSVAS'], 'HARPSCRIPTS')
-
+os.environ['HARPSCRIPTS'] = resolve_harpscripts_root(args, os.environ['OSVAS'])
+print(f"Using HARPSCRIPTS directory: {os.environ['HARPSCRIPTS']}")
 # Determine stations to process
 if args.stations:
     stations_to_process = args.stations
@@ -132,6 +145,86 @@ for station_name in stations_to_process:
         run_notebook(validation_script)
     else:
         print("⏩ Skipping Step 2: Get validation data")
+
+    # Step 2b: Estimate albedos from validation data (if enabled)
+    estimate_albedo = config.get('Station_metadata', {}).get('estimate_albedo', False)
+    if estimate_albedo and get_validation:
+        print("▶ Running Step 2b: Estimate surface albedos from validation data")
+        try:
+            # Get validation period from config
+            run_start = config['Forcing_data'].get('run_start', '').split()[0]
+            run_end = config['Forcing_data'].get('run_end', '').split()[0]
+            
+            # Run albedo estimation
+            subprocess.run([
+                'python3', 
+                f"{os.environ['OSVAS']}/scripts/python_scripts/estimate_albedo.py",
+                os.environ['STATION_NAME'],
+                os.environ['OSVAS'],
+                '--run-period', run_start, run_end
+            ], check=True)
+            
+            # Update namelists with estimated albedos
+            print("▶ Updating experiment namelists with estimated albedos")
+            subprocess.run([
+                'python3',
+                f"{os.environ['OSVAS']}/scripts/python_scripts/update_namelist_albedos.py",
+                os.environ['STATION_NAME'],
+                os.environ['OSVAS'],
+                '--expnames'] + expnames,
+                check=True
+            )
+            print("✅ Albedo estimation and namelist update completed")
+        except subprocess.CalledProcessError as e:
+            print(f"⚠️  Warning: Albedo estimation failed: {e}")
+            print("   Continuing with original namelists...")
+    elif estimate_albedo and not get_validation:
+        print("⏩ Skipping Step 2b: estimate_albedo=true but Get_validation=false")
+    else:
+        print("⏩ Skipping Step 2b: Estimate albedos (estimate_albedo=false)")
+
+
+    # Step 2c: Estimate monthly LAIs from Sentinel LAI a Copernicus global land service (CGLS) product
+    # if enabled
+    estimate_lai = config.get('Station_metadata', {}).get('estimate_lai', False)
+    if estimate_lai and get_validation:
+        print("▶ Running Step 2c: Estimate monthly LAIs from Copernicus data")
+        try:
+            # Get forcing period from config
+            run_start = config['Forcing_data'].get('run_start', '').split()[0]
+            run_end = config['Forcing_data'].get('run_end', '').split()[0]
+            
+            # Run albedo estimation
+            subprocess.run([
+                'python3', 
+                f"{os.environ['OSVAS']}/scripts/python_scripts/estimate_lai.py",
+                os.environ['STATION_NAME'],
+                os.environ['OSVAS'],
+                '--run-period', run_start, run_end
+            ], check=True)
+            
+            # Update namelists with estimated albedos
+            print("▶ Updating experiment namelists with estimated albedos")
+            subprocess.run([
+                'python3',
+                f"{os.environ['OSVAS']}/scripts/python_scripts/update_namelist_lais.py",
+                os.environ['STATION_NAME'],
+                os.environ['OSVAS'],
+                '--expnames'] + expnames,
+                check=True
+            )
+            print("✅ Albedo estimation and namelist update completed")
+        except subprocess.CalledProcessError as e:
+            print(f"⚠️  Warning: LAI estimation failed: {e}")
+            print("   Continuing with original namelists...")
+    elif estimate_lai and not get_validation:
+        print("⏩ Skipping Step 2c: estimate_lai=true but Get_validation=false")
+    else:
+        print("⏩ Skipping Step 2c: Estimate lai (estimate_lai=false)")
+
+
+
+
 
     # Step 3: Configure and run SURFEX simulations
     if run_surfex:
@@ -329,15 +422,29 @@ for station_name in stations_to_process:
             else:
                 expanded.append(var)
 
-        vars_str = ','.join(expanded)        
-        subprocess.run([
-            'Rscript', f"{os.environ['HARPSCRIPTS']}/verification/point_verif.R",
-            '-start_date', start_date,
-            '-end_date', end_date,
-            '-config_file', harp_config,
-            '-params_file', f"{os.environ['OSVAS']}/config_files/HARP/set_params.R",
-            '-params_list', vars_str
-        ], cwd=os.environ['HARPSCRIPTS'], check=True)
+        vars_str = ','.join(expanded)
+        
+        # Create a temporary .here marker in HARPSCRIPTS to ensure R's here package
+        # resolves paths relative to HARPSCRIPTS, not to a parent OSVAS directory
+        harpscripts_here_marker = os.path.join(os.environ['HARPSCRIPTS'], '.here')
+        here_marker_created = False
+        if not os.path.exists(harpscripts_here_marker):
+            Path(harpscripts_here_marker).touch()
+            here_marker_created = True
+        
+        try:
+            subprocess.run([
+                'Rscript', f"{os.environ['HARPSCRIPTS']}/verification/point_verif.R",
+                '-start_date', start_date,
+                '-end_date', end_date,
+                '-config_file', harp_config,
+                '-params_file', f"{os.environ['OSVAS']}/config_files/HARP/set_params.R",
+                '-params_list', vars_str
+            ], cwd=os.environ['HARPSCRIPTS'], check=True)
+        finally:
+            # Clean up the temporary .here marker if we created it
+            if here_marker_created and os.path.exists(harpscripts_here_marker):
+                os.remove(harpscripts_here_marker)
     else:
         print("⏩ Skipping Step 5: HARP verification")
 
