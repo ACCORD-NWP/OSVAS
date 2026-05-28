@@ -1,12 +1,12 @@
 ## Installation
-### Get the OSVAS code
+### 1. Get the OSVAS code
 ```bash
 mkdir OSVAS
 cd OSVAS
 git clone https://github.com/ACCORD-NWP/OSVAS.git .
 ```
 
-### Setup OSVAS installation (clone HARPSCRIPTS)
+### 2. Setup OSVAS installation (clone HARPSCRIPTS)
 After cloning the OSVAS repository, run the installation setup script to automatically clone the HARP verification scripts:
 ```bash
 cd OSVAS
@@ -32,45 +32,45 @@ After running the script, you can set the environment variables in your shell by
 
 **Note:** The launcher scripts automatically detect the OSVAS root directory from their script location, so you typically only need to set the environment variables if you plan to call the scripts from a different directory.
 
-### Conda Environment
-It is recommended to install the required Python packages in a conda environment.
+### 2. Install OSVAS dependencies within a conda Environment, and HARP packages within an isolated Renv setup.
 
-On ATOS (ECMWF HPC), conda is available via a module:
+#### On ATOS (ECMWF HPC), conda is available via a module:
 ```bash
 module load conda/24.11.3-2
 ``` 
 
-If not installed on your system, install Miniconda:
+#### If conda is not installed on your system, install Miniconda:
 ```bash
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 bash Miniconda3-latest-Linux-x86_64.sh
 ```
 
-You will be prompted to initialize conda for your shell. We recommend accepting this. To avoid auto-activating the base environment, you can disable it:
+After installing Miniconda, you will be prompted to initialize conda for your shell. We recommend accepting this. To avoid auto-activating the base environment when opening a new terminal, you can disable it:
 ```bash
 conda config --set auto_activate_base false
 ```
 
 After conda is available, next step is to create the OSVAS conda environment OSVASENV,
-including the installation of HARP's R libraries inside an Renv. This is done by renv_{atos,ubuntu}/renv_setup.R
-Since there is a strict rate limit on "anonymous" installs of libraries from CRAN mirrors, renv_setup.R must be edited to add your
-personal github pat:
+including the installation of HARP's R libraries inside an Renv. This is done by the bash script  create_conda_and_R_envs.sh which, after installing the condas environment (called OSVHARP), runs the script ( renv_{atos,ubuntu}/renv_setup.R) for generating the Renv and installing all the harp packages.
+This installation can take about 30-60 minutes ( it actually compiles HARP packages; in the future this will be avoided by installing pre-compiled packages). Since there is a strict rate limit on "anonymous" installs of R libraries from CRAN mirrors, renv_setup.R must be edited to add your personal github PAT:
 ```# Optional: set your GitHub PAT to avoid rate-limiting on installs
 # (more info here https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/
 # /managing-your-personal-access-tokens
 # ---------------------------------------------------------------------------
  Sys.setenv(GITHUB_PAT = "Put_your_github_personal_access_token_here")
 ```
-Next, simply run the script to complete the installation with conda & R environments:
+If you don't have a Personal Access Token, you can either create one in your github (settings-developer_settings-personal_access_tokens, borrow one from a colleague or repeat the next step a few times after it fails due to this rate limit (waiting for some time between tries to complete the compilation of R libraries). 
+
+Now simply run the script to complete the installation with conda & R environments:
 ```bash
 cd scripts/bash_scripts
 ./create_conda_and_R_envs.sh
 ```
 
 This will:
-1. Create an `OSVASENV` conda environment with Python 3.11 and required packages
+1. Create an `OSVASHARP` conda environment with Python 3.11 and required packages
 2. Install Python dependencies from `requirements.txt`
-3. On ATOS: Set up an isolated R environment (renv) for HARP libraries
+3. Set up an isolated R environment (renv) for HARP libraries (tested on ATOS and UBUNTU)
 
 The conda environment includes:
 - **Python data packages:** pandas, numpy, scipy, matplotlib, xarray, netCDF4, cftime
@@ -89,17 +89,17 @@ These scripts execute Jupyter notebooks for data processing steps:
 
 **Notebook execution modes:**
 - **Via nbconvert (default):** The launcher converts notebooks to Python scripts using `jupyter nbconvert` and executes them. This supports headless environments and doesn't require a Jupyter server.
-- **Direct Python execution:** Pre-converted `.py` versions are available (`WRITE_Station_forcing.py`, `Flux_downloader.py`) and can be executed standalone.
+- **Direct Python execution:** Pre-converted `.py` versions are available (`WRITE_Station_forcing.py`, `Flux_downloader.py`) and can be executed standalone. This is activated by setting jupyter = True in the relevant line of the Python launcher scripts.
 - **Interactive Jupyter:** Notebooks can also be run manually with `jupyter notebook` or `jupyter lab` for development and debugging.
 
 ### HARP and verification setup
 
 **HARP installation:**
-- On ATOS: HARP and R dependencies are automatically installed by the setup script in `renv_atos/`.
-- On other systems: Follow the HARP installation guide: https://harphub.github.io/harp_training_2024/get-started.html#installation
+- ATOS, UBUNTU: HARP and R dependencies are automatically installed by the setup script in `renv_atos/` or `renv_ubuntu/`.
+- On other systems: The ubuntu Renv installation might work for your linux system. If not, follow the HARP installation guide: https://harphub.github.io/harp_training_2024/get-started.html#installation and make sure that R packages can be loaded from the R terminal after the installation.
 
 **HARP verification scripts (oper-harp-verif):**
-The `oper-harp-verif` repository (https://github.com/harphub/oper-harp-verif.git) is automatically cloned during installation into `$OSVAS/HARPSCRIPTS/` by the `setup_osvas_installation.sh` script. It includes:
+The `oper-harp-verif` repository (https://github.com/harphub/oper-harp-verif.git) is automatically cloned during installation into `$OSVAS/HARPSCRIPTS/` by the `setup_osvas_installation.sh` script, and "patched" to include a few modifications that will make possible to visualize verification results month by month. These scripts include:
 - Point verification scripts (`point_verif.R`)
 - Visualization apps (Shiny apps for dynamic and static displays)
 
@@ -112,7 +112,7 @@ You can override these defaults by:
 - Setting environment variables: `export OSVAS=/path/to/osvas` and `export HARPSCRIPTS=/path/to/harpscripts`
 - Using command line arguments when running the launcher scripts: `--osvas` and `--harpscripts`
 
-**Required R packages** (on non-ATOS systems):
+**Extra required R packages for HARP** (for manual installation if the Renv way is not used):
 ```r
 pkg_list <- c("here","argparse","yaml","dplyr","tidyr",
               "purrr","forcats","stringr","RColorBrewer","grid",
@@ -126,10 +126,10 @@ for (pkg in pkg_list) {
 ### Activate the conda environment
 Once setup is complete, activate the environment:
 ```bash
-conda activate OSVASENV
+conda activate OSVHARP
 ```
 
-### SURFEX installation
+### How to make your SURFEX installation known to OSVAS:
 A functional SURFEX installation is required. The workflow expects:
 - SURFEX binaries compiled and available in the system PATH or via environment modules
 - A profile script (e.g., `profile_surfex-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0`) that sets up the compilation environment
@@ -140,20 +140,38 @@ Recommended SURFEX versions:
 - **ACCORD-NWP:** , v9 branch at https://github.com/ACCORD-NWP/SURFEX/tree/SURFEX_V9_DEV_NWP 
 On ATOS, the compilation environment is typically set up via modules. On local systems, ensure the SURFEX home directory is configured (usually via the launcher script's `surfex_home` variable).
 
-### ICOS login & token
+Currently, the PATH to your SURFEX setup, executables, profile names, etc, need to be hardcoded in step3 block of the Python launcher script, like this:
+```
+        # SURFEX paths
+        surfex_parent = os.path.expanduser('~')
+        surfex_ver = 'SURFEX_ACCORD'
+        surfex_home = f"{surfex_parent}/{surfex_ver}"
+        surfex_profile = 'profile_surfex-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0'
+        surfex_exe = f"{surfex_home}/src/dir_obj-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0/MASTER/"
+        os.environ['PATH'] = f"{surfex_exe}:{os.environ['PATH']}"
+        
+        paramfiles = f"{surfex_home}/MY_RUN/ECOCLIMAP/"
+        dirfiles = f"{os.path.expanduser('~')}/PHYSIO/"
+```
+If you plan to use ECOCLIMAP files for any paremeter not resolved by namelist, make sure to have the corresponding version available in $dirfiles
+### How to set up access to forcing/validation data & Copernicus Global Land Service LAI data
+#### ICOS login & token
 To download ICOS data via the Python API, you must:
 1. Create an account at https://cpauth.icos-cp.eu/login/
 2. Log in and retrieve your access token from your user profile
 3. Store the token in `$OSVAS/icos_cookie.txt`
 **Important:** ICOS tokens expire after 27.8 hours (100,000 seconds) and must be renewed regularly.
 
-### KNMI login & API_key
+#### KNMI login & API_key
 1. Register at https://developer.dataplatform.knmi.nl/register/
 2. Login at https://developer.dataplatform.knmi.nl/login
 3. Get API key at https://developer.dataplatform.knmi.nl/member/ and store at $OSVAS/knmi_apikey.txt
 
-**Important:** To access the soil moisture datasets for Cabauw https://dataplatform.knmi.nl/dataset/cesar-soil-water-lb1-t10-v1-1,
- a special request must be addressed to opendata@knmi.nl
+**Important:** To access the soil moisture datasets for Cabauw https://dataplatform.knmi.nl/dataset/cesar-soil-water-lb1-t10-v1-1, a special request must be addressed to opendata@knmi.nl
+
+#### Copernicus Global Land Service LAI data
+1. Create an account in https://dataspace.copernicus.eu/
+2. When running Step 2c for generating monthly LAI estimates, you will be prompted to open a link in the browser and log-in; after doing so, the script in the terminal will continue with the data retrieval.
 
 ### Environment variables and paths
 The launcher scripts automatically detect paths based on their script location. However, you can optionally set these environment variables to override the defaults:
