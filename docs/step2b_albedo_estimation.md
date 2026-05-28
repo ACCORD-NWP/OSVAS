@@ -4,7 +4,7 @@
 
 This document describes the **albedo estimation workflow** in OSVAS, which automatically estimates monthly-averaged surface albedo values (NIR and VIS spectra) from validation radiation data for SURFEX simulations.
 
-## TL;DR: Check this short guide [Albedo_estimation_quickref](docs/albedo_estimation_quickref.md) and the [implementation summary](docs/IMPLEMENTATION_SUMMARY.md)
+## TL;DR: Check this short guide [Albedo_estimation_quickref](albedo_estimation_quickref.md) and the [implementation summary](IMPLEMENTATION_SUMMARY.md)
 
 ## Motivation
 
