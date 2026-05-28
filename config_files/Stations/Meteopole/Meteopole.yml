@@ -26,7 +26,8 @@ Station_metadata:
   vegtype: 10
   lai: 1.85,1.50,1.72,2.35,2.15,1.37,1.3,1.25,1.37,1.45,1.3,1.25
   estimate_albedo: true  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
-
+  estimate_lai: true    # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
+  
 Forcing_data:
   height_T: 2                       # Height of the temperature measurement
   height_V: 10                      # Height of the windspeed   measurement

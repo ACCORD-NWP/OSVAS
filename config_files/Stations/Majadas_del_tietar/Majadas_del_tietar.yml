@@ -1,6 +1,6 @@
 OSVAS_steps:
  Create_forcing: false
- Get_validation: false
+ Get_validation: true
  Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - pgd
@@ -10,8 +10,8 @@ OSVAS_steps:
   - DIFMEB_v9
   - DIFMEB_v9DSL
   - DIFMEB_v9DSLIT
- Extract_model_sqlites: true
- Run_HARP: true
+ Extract_model_sqlites: false
+ Run_HARP: false
  Display_HARP: false
 
 Station_metadata:
@@ -22,7 +22,7 @@ Station_metadata:
   lat: 39.94033
   lon: -5.77465
   vegtype: 10
-  estimate_albedo: false  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
+  estimate_albedo: true  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
 
 Forcing_data:
   height_T: 2                       # Height of the temperature measurement

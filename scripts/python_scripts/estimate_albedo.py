@@ -11,10 +11,10 @@ This script:
 6. Saves output to station namelist directory
 
 Useage:
-    python3 estimate_albedo.py <station_name> <osvas_root> [--validation-period start_date end_date]
+    python3 estimate_albedo.py <station_name> <osvas_root> [--run-period start_date end_date]
 
 Example:
-    python3 estimate_albedo.py Cabauw /home/user/OSVAS --validation-period "2017-11-01" "2018-01-31"
+    python3 estimate_albedo.py Cabauw /home/user/OSVAS --run-period "2017-11-01" "2018-01-31"
 """
 
 import os
@@ -28,8 +28,8 @@ import pandas as pd
 from collections import defaultdict
 
 
-def get_obstable_files(station_name, osvas_root, val_start=None, val_end=None):
-    """Find SQLite OBSTABLE files for a station within validation period."""
+def get_obstable_files(station_name, osvas_root, run_start=None, run_end=None):
+    """Find SQLite OBSTABLE files for a station within run period."""
     obstable_dir = Path(osvas_root) / 'sqlites' / 'OBSTABLES' / 'validation_data' / station_name
     
     if not obstable_dir.exists():
@@ -38,17 +38,17 @@ def get_obstable_files(station_name, osvas_root, val_start=None, val_end=None):
     
     obstable_files = sorted(obstable_dir.glob('OBSTABLE_*.sqlite'))
     
-    if val_start and val_end:
-        start_year = int(val_start.split('-')[0])
-        end_year = int(val_end.split('-')[0])
+    if run_start and run_end:
+        start_year = int(run_start.split('-')[0])
+        end_year = int(run_end.split('-')[0])
         obstable_files = [f for f in obstable_files 
                          if start_year <= int(f.stem.split('_')[1]) <= end_year]
     
     return obstable_files
 
 
-def read_validation_data(obstable_files, val_start=None, val_end=None):
-    """Read SW_OUT and SW_IN from SQLite OBSTABLEs, filtering by validation period."""
+def read_validation_data(obstable_files, run_start=None, run_end=None):
+    """Read SW_OUT and SW_IN from SQLite OBSTABLEs, filtering by run period."""
     data_list = []
     
     for obstable_file in obstable_files:
@@ -73,12 +73,12 @@ def read_validation_data(obstable_files, val_start=None, val_end=None):
     
     df_all = pd.concat(data_list, ignore_index=True)
     
-    # Filter by validation period if specified
-    if val_start and val_end:
-        val_start_dt = pd.to_datetime(val_start, utc=True)
-        val_end_dt = pd.to_datetime(val_end, utc=True)
-        df_all = df_all[(df_all['valid_dttm'] >= val_start_dt) & 
-                        (df_all['valid_dttm'] <= val_end_dt)]
+    # Filter by run period if specified
+    if run_start and run_end:
+        run_start_dt = pd.to_datetime(run_start, utc=True)
+        run_end_dt = pd.to_datetime(run_end, utc=True)
+        df_all = df_all[(df_all['valid_dttm'] >= run_start_dt) & 
+                        (df_all['valid_dttm'] <= run_end_dt)]
     
     print(f"  Loaded {len(df_all)} records with valid SW_OUT/SW_IN")
     return df_all
@@ -120,22 +120,43 @@ def calculate_daily_albedos(df_midday):
 
 
 def compute_monthly_averages(daily_albedos):
-    """Compute monthly average albedos from daily data."""
+    """Compute monthly average albedos from daily data.
+    
+    If the data spans more than 12 months, only the last complete calendar
+    year is used (e.g. Nov 2022 – Jan 2024 → uses Jan–Dec 2023).
+    """
     daily_albedos = daily_albedos.copy()
     daily_albedos['date'] = pd.to_datetime(daily_albedos['date'])
+
+    # Determine the year to use
+    min_date = daily_albedos['date'].min()
+    max_date = daily_albedos['date'].max()
+    span_months = (max_date.year - min_date.year) * 12 + (max_date.month - min_date.month)
+
+    if span_months > 12:
+        # Find the last calendar year that is fully contained in the data
+        last_year = max_date.year
+        if max_date.month < 12 or max_date.day < 31:
+            last_year -= 1  # current year is incomplete, step back one
+
+        print(f"  Data spans {span_months} months — using calendar year {last_year}")
+        mask = daily_albedos['date'].dt.year == last_year
+        daily_albedos = daily_albedos[mask]
+
+        if daily_albedos.empty:
+            raise ValueError(f"No data found for selected year {last_year}.")
+
     daily_albedos['month'] = daily_albedos['date'].dt.month
-    
     monthly_avg = daily_albedos.groupby('month')['albedo'].mean().to_dict()
-    
-    # Create array for all 12 months (fill missing with annual mean)
+
+    # Fill any missing months with the annual mean of the selected period
     annual_mean = daily_albedos['albedo'].mean()
     monthly_values = [monthly_avg.get(m, annual_mean) for m in range(1, 13)]
-    
-    # Print summary
+
     print("\n  Monthly albedo averages:")
     for month in range(1, 13):
         print(f"    Month {month:2d}: {monthly_values[month-1]:.8f}")
-    
+
     return monthly_values
 
 
@@ -200,9 +221,9 @@ def main():
     )
     parser.add_argument('station_name', help='Station name')
     parser.add_argument('osvas_root', help='OSVAS root directory')
-    parser.add_argument('--validation-period', nargs=2, 
+    parser.add_argument('--run-period', nargs=2, 
                        metavar=('START_DATE', 'END_DATE'),
-                       help='Validation period (YYYY-MM-DD format). If not provided, uses all available data.')
+                       help='Run period (YYYY-MM-DD format). If not provided, uses all available data.')
     parser.add_argument('--output', help='Output file path (default: namelists/{station_name}/albedo_estimates.nam)')
     
     args = parser.parse_args()
@@ -214,25 +235,25 @@ def main():
     print(f"Estimating surface albedos for {station_name}")
     print(f"{'='*70}\n")
     
-    # Get validation period
-    val_start, val_end = None, None
-    if args.validation_period:
-        val_start, val_end = args.validation_period
-        print(f"Validation period: {val_start} to {val_end}")
+    # Get run period
+    run_start, run_end = None, None
+    if args.run_period:
+        run_start, run_end = args.run_period
+        print(f"Run period: {run_start} to {run_end}")
     else:
         print("Using all available validation data")
     print()
     
     # Step 1: Find and read OBSTABLE files
     print("Step 1: Reading validation data from OBSTABLEs")
-    obstable_files = get_obstable_files(station_name, osvas_root, val_start, val_end)
+    obstable_files = get_obstable_files(station_name, osvas_root, run_start, run_end)
     
     if not obstable_files:
         print(f"❌ No OBSTABLE files found for {station_name}")
         sys.exit(1)
     
     print(f"  Found {len(obstable_files)} OBSTABLE files")
-    df_all = read_validation_data(obstable_files, val_start, val_end)
+    df_all = read_validation_data(obstable_files, run_start, run_end)
     
     if df_all.empty:
         print("❌ No valid radiation data found")

@@ -152,8 +152,8 @@ for station_name in stations_to_process:
         print("▶ Running Step 2b: Estimate surface albedos from validation data")
         try:
             # Get validation period from config
-            val_start = config['Validation_data'].get('validation_start', '').split()[0]
-            val_end = config['Validation_data'].get('validation_end', '').split()[0]
+            run_start = config['Forcing_data'].get('run_start', '').split()[0]
+            run_end = config['Forcing_data'].get('run_end', '').split()[0]
             
             # Run albedo estimation
             subprocess.run([
@@ -161,7 +161,7 @@ for station_name in stations_to_process:
                 f"{os.environ['OSVAS']}/scripts/python_scripts/estimate_albedo.py",
                 os.environ['STATION_NAME'],
                 os.environ['OSVAS'],
-                '--validation-period', val_start, val_end
+                '--run-period', run_start, run_end
             ], check=True)
             
             # Update namelists with estimated albedos
@@ -182,6 +182,49 @@ for station_name in stations_to_process:
         print("⏩ Skipping Step 2b: estimate_albedo=true but Get_validation=false")
     else:
         print("⏩ Skipping Step 2b: Estimate albedos (estimate_albedo=false)")
+
+
+    # Step 2c: Estimate monthly LAIs from Sentinel LAI a Copernicus global land service (CGLS) product
+    # if enabled
+    estimate_lai = config.get('Station_metadata', {}).get('estimate_lai', False)
+    if estimate_lai and get_validation:
+        print("▶ Running Step 2c: Estimate monthly LAIs from Copernicus data")
+        try:
+            # Get forcing period from config
+            run_start = config['Forcing_data'].get('run_start', '').split()[0]
+            run_end = config['Forcing_data'].get('run_end', '').split()[0]
+            
+            # Run albedo estimation
+            subprocess.run([
+                'python3', 
+                f"{os.environ['OSVAS']}/scripts/python_scripts/estimate_lai.py",
+                os.environ['STATION_NAME'],
+                os.environ['OSVAS'],
+                '--run-period', run_start, run_end
+            ], check=True)
+            
+            # Update namelists with estimated albedos
+            print("▶ Updating experiment namelists with estimated albedos")
+            subprocess.run([
+                'python3',
+                f"{os.environ['OSVAS']}/scripts/python_scripts/update_namelist_lais.py",
+                os.environ['STATION_NAME'],
+                os.environ['OSVAS'],
+                '--expnames'] + expnames,
+                check=True
+            )
+            print("✅ Albedo estimation and namelist update completed")
+        except subprocess.CalledProcessError as e:
+            print(f"⚠️  Warning: LAI estimation failed: {e}")
+            print("   Continuing with original namelists...")
+    elif estimate_lai and not get_validation:
+        print("⏩ Skipping Step 2c: estimate_lai=true but Get_validation=false")
+    else:
+        print("⏩ Skipping Step 2c: Estimate lai (estimate_lai=false)")
+
+
+
+
 
     # Step 3: Configure and run SURFEX simulations
     if run_surfex:

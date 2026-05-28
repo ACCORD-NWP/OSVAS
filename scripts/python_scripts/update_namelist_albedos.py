@@ -238,7 +238,7 @@ def update_namelist_with_albedos(namelist_file, albedo_content, vegtype, backup=
 
     # Create backup (done after we know something will be written)
     if backup:
-        backup_file = str(namelist_file) + '.backup'
+        backup_file = str(namelist_file) + '.backup_alb'
         shutil.copy2(namelist_file, backup_file)
         print(f"  ✓ Backup created: {backup_file}")
 
