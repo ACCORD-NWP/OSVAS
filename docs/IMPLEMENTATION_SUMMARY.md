@@ -1,8 +1,11 @@
-# Albedo Estimation Workflow - Implementation Summary
+# Parameter Estimation Workflows - Implementation Summary
 
 ## Overview
 
-A complete albedo estimation workflow has been integrated into OSVAS to automatically estimate monthly surface albedo values (NIR and VIS) from validation radiation data.
+Complete workflows have been integrated into OSVAS to automatically estimate key surface parameters from observational data:
+
+- **Albedo Estimation (Step 2b)**: Estimates monthly surface albedo values (NIR and VIS) from validation radiation data
+- **LAI Estimation (Step 2c)**: Estimates monthly Leaf Area Index (LAI) from CGLS satellite data via openEO
 
 ## Changes Made
 
@@ -144,6 +147,132 @@ if estimate_albedo and get_validation:
 - Troubleshooting table
 - Link to full documentation
 
+### 5. LAI Estimation Scripts and Documentation
+
+#### New File: `scripts/python_scripts/estimate_lai.py`
+
+**Purpose:** Core LAI estimation engine using CGLS satellite data
+
+**Functionality:**
+- Connects to openEO backend (Copernicus Data Space Ecosystem)
+- Fetches CGLS LAI using BIOPAR process (VITO Algorithm Plaza)
+- Retrieves 10-day composite LAI observations at 300 m resolution
+- Selects valid observations within bounding box around station (±0.005°)
+- Computes monthly climatology from all 10-day values per month
+- Handles gap-filling using nearest-neighbor interpolation for missing months
+- Generates Fortran namelist format output
+- Saves results to `namelists/{station}/lai_estimates.nam`
+
+**Usage:**
+```bash
+python3 scripts/python_scripts/estimate_lai.py <station> <osvas_root> \
+    --run-period START_DATE END_DATE [OPTIONS]
+```
+
+**Key features:**
+- OIDC authentication (device-code flow, cached credentials)
+- Multi-year climatology support: `--start-year 2017 --end-year 2022`
+- Physical LAI units directly from CGLS (no scale factor)
+- Gap-filling for months with no observations
+- Quality control: filters unrealistic values
+- Batch processing by year to manage openEO job sizes
+
+**Parameters Updated:**
+- `XUNIF_LAI(vegtype,1-12)` - Monthly LAI climatology [m²/m²]
+
+#### New File: `scripts/python_scripts/update_namelist_lais.py`
+
+**Purpose:** Apply estimated LAI values to SURFEX namelists
+
+**Functionality:**
+- Reads estimated LAI namelist block
+- Locates existing or seeks insertion point for LAI parameters in experiment namelists
+- Replaces old LAI blocks with new values or inserts into &NAM_DATA_ISBA group
+- Creates backup copies of original namelists
+
+**Usage:**
+```bash
+python3 scripts/python_scripts/update_namelist_lais.py <station> <osvas_root> \
+    --expnames EXP1 EXP2 ... [OPTIONS]
+```
+
+**Features:**
+- Handles namelists with or without existing LAI blocks
+- Preserves formatting and indentation
+- Creates backup files with `.backup_lai` suffix
+- Inserts into `&NAM_DATA_ISBA` if block doesn't exist
+
+#### Modified Files: Station YAML Configuration
+
+**Change:** Added `estimate_lai: false` flag to `Station_metadata` section
+
+```yaml
+Station_metadata:
+  ...
+  vegtype: 10
+  estimate_lai: false   # Set to true to enable LAI estimation
+```
+
+Files updated:
+- [config_files/Stations/Cabauw/Cabauw.yml](../config_files/Stations/Cabauw/Cabauw.yml)
+- [config_files/Stations/Loobos/Loobos.yml](../config_files/Stations/Loobos/Loobos.yml)
+- [config_files/Stations/Majadas_del_tietar/Majadas_del_tietar.yml](../config_files/Stations/Majadas_del_tietar/Majadas_del_tietar.yml)
+- [config_files/Stations/Meteopole/Meteopole.yml](../config_files/Stations/Meteopole/Meteopole.yml)
+
+#### Modified Workflow Scripts
+
+**`surfex_OSVAS_run_linux.py`**: Added Step 2c: LAI Estimation
+
+- Executes after Step 2b (Albedo Estimation)
+- Checks `estimate_lai` flag in Station_metadata
+- Calls `estimate_lai.py` with run period from Forcing_data config
+- Calls `update_namelist_lais.py` to update experiment namelists
+- Graceful error handling: continues with original namelists on failure
+- Optional OIDC authentication for first run
+
+**`surfex_OSVAS_run_atos.py`**: Added identical Step 2c for HPC execution
+
+- Same functionality as Linux version
+- Consistent behavior across platforms
+- Supports batch processing multiple stations
+
+#### New File: `docs/step2c_lai_estimation.md`
+
+**Content:**
+- Complete technical documentation (800+ lines)
+- Physical basis and methodology
+- Configuration instructions with authentication guide
+- Output files description
+- Manual execution guide with multiple examples
+- Validation and QC procedures
+- Troubleshooting guide
+- Advanced usage patterns (multi-year climatology, pre-computed values)
+- References to CGLS and openEO documentation
+
+**Sections:**
+1. Overview & motivation
+2. Physical basis (LAI definition and sources)
+3. Configuration (Station YAML, OIDC authentication)
+4. Workflow integration
+5. Output files
+6. Manual execution (with examples)
+7. Validation and quality control
+8. Troubleshooting
+9. Advanced usage
+10. References
+
+#### New File: `docs/lai_estimation_quickref.md`
+
+**Content:** Quick reference guide for LAI estimation
+
+- TL;DR setup (3 steps including authentication)
+- What gets computed
+- Output files
+- Key parameters and typical LAI ranges
+- Troubleshooting table
+- Manual command examples
+- Link to full documentation
+
 ## Workflow Sequence
 
 ```
@@ -167,8 +296,17 @@ Step 2b: ✨ Estimate albedos (NEW!)
         └─ Update experiment namelists with new albedos
         │   └─ Create backups (OPTIONS.nam.backup)
         ▼
+Step 2c: ✨ Estimate LAI (NEW!)
+        │
+        ├─ Connect to openEO (Copernicus Data Space)
+        ├─ Fetch CGLS LAI via BIOPAR process
+        ├─ Compute monthly climatology from 10-day data
+        ├─ Generate namelist blocks → lai_estimates.nam
+        └─ Update experiment namelists with new LAI
+        │   └─ Create backups (OPTIONS.nam.backup_lai)
+        ▼
 Step 3: Run SURFEX simulations
-        | (With updated albedos!)
+        | (With updated albedos and LAI!)
         ├─ PGD: Physiography
         ├─ PREP: Initialization
         └─ OFFLINE: Main simulation
@@ -185,11 +323,12 @@ Step 6: Visualization
 
 ## Enabling/Disabling
 
-### Enable for a station:
+### Enable both Albedo and LAI estimation for a station:
 ```yaml
 Station_metadata:
   ...
   estimate_albedo: true
+  estimate_lai: true
 ```
 
 Then run normal OSVAS workflow:
@@ -197,13 +336,29 @@ Then run normal OSVAS workflow:
 python3 scripts/python_scripts/surfex_OSVAS_run_linux.py
 ```
 
-### Disable:
+### Enable only Albedo (skip LAI):
+```yaml
+Station_metadata:
+  ...
+  estimate_albedo: true
+  estimate_lai: false
+```
+
+### Enable only LAI (skip Albedo):
 ```yaml
 Station_metadata:
   ...
   estimate_albedo: false
+  estimate_lai: true
 ```
-(No albedo estimation, uses original namelists)
+
+### Disable both (uses original namelists):
+```yaml
+Station_metadata:
+  ...
+  estimate_albedo: false
+  estimate_lai: false
+```
 
 ## Execution Flow
 
@@ -213,19 +368,31 @@ surfex_OSVAS_run_linux.py
     │
     ├─ Check estimate_albedo flag
     │
-    ├─ if false: Skip Step 2b
+    ├─ if true:
+    │   ├─ estimate_albedo.py
+    │   │   └─ Output: namelists/{station}/albedo_estimates.nam
+    │   │
+    │   └─ update_namelist_albedos.py
+    │       ├─ Read albedo_estimates.nam
+    │       ├─ Update OPTIONS.nam_{expname}
+    │       └─ Create .backup files
+    │
+    ├─ Check estimate_lai flag
     │
     └─ if true:
-        ├─ estimate_albedo.py
-        │   └─ Output: namelists/{station}/albedo_estimates.nam
+        ├─ estimate_lai.py
+        │   ├─ Connect to openEO (OIDC auth if needed)
+        │   └─ Output: namelists/{station}/lai_estimates.nam
         │
-        └─ update_namelist_albedos.py
-            ├─ Read albedo_estimates.nam
+        └─ update_namelist_lais.py
+            ├─ Read lai_estimates.nam
             ├─ Update OPTIONS.nam_{expname}
-            └─ Create .backup files
+            └─ Create .backup_lai files
 ```
 
 ### Manual (for testing):
+
+**Albedo estimation:**
 ```bash
 # Step 1: Estimate albedos
 python3 scripts/python_scripts/estimate_albedo.py Cabauw $OSVAS \
@@ -233,6 +400,17 @@ python3 scripts/python_scripts/estimate_albedo.py Cabauw $OSVAS \
 
 # Step 2: Update namelists
 python3 scripts/python_scripts/update_namelist_albedos.py Cabauw $OSVAS \
+    --expnames DIFMEB_v9 DIFMEB_v9DSL
+```
+
+**LAI estimation:**
+```bash
+# Step 1: Estimate LAI (requires authentication on first run)
+python3 scripts/python_scripts/estimate_lai.py Cabauw $OSVAS \
+    --run-period 2017-11-01 2018-01-31
+
+# Step 2: Update namelists
+python3 scripts/python_scripts/update_namelist_lais.py Cabauw $OSVAS \
     --expnames DIFMEB_v9 DIFMEB_v9DSL
 ```
 
@@ -256,13 +434,24 @@ XUNIF_ALBVIS_VEG(10,1)  = 0.19024633,
 ...
 ```
 
-### Script Output
+### LAI Estimates File
 ```
-======================================================================
-Estimating surface albedos for Cabauw
-======================================================================
+namelists/Cabauw/lai_estimates.nam
 
-Step 1: Reading validation data from OBSTABLEs
+! XUNIF_LAI estimates from CGLS LAI 300m (openEO/Copernicus Data Space)
+! Location  : lat=51.9703, lon=4.9264
+! Period    : 2017-11-01 – 2018-01-31
+! Generated by estimate_lai.py
+XUNIF_LAI(10, 1)  = 0.521,
+XUNIF_LAI(10, 2)  = 0.412,
+XUNIF_LAI(10, 3)  = 0.634,
+...
+XUNIF_LAI(10,12)  = 0.387,
+```
+
+### Script Output
+
+**Albedo Estimation:**
   Found 2 OBSTABLE files
   Loaded 8760 records with valid SW_OUT/SW_IN
 
@@ -360,9 +549,17 @@ Possible improvements for future releases:
 
 ## Support
 
-For issues or questions:
+### For Albedo Estimation issues:
 1. Check [docs/step2b_albedo_estimation.md](step2b_albedo_estimation.md) troubleshooting section
 2. Verify validation data quality: `sqlite3 sqlites/OBSTABLES/validation_data/{station}/OBSTABLE_YYYY.sqlite "SELECT COUNT(*), COUNT(SW_OUT), COUNT(SW_IN) FROM SYNOP;"`
 3. Review Python script output for diagnostic messages
 4. Check backups are created before namelist updates
 5. Examine albedo_estimates.nam file format
+
+### For LAI Estimation issues:
+1. Check [docs/step2c_lai_estimation.md](step2c_lai_estimation.md) troubleshooting section
+2. Verify Copernicus Data Space account is active (free registration at https://dataspace.copernicus.eu/)
+3. Check OIDC authentication: device code should be printed on first run
+4. Verify cached credentials in system (typically ~/.config/eodc/ or similar)
+5. Review LAI values for expected seasonal patterns
+6. Check openEO backend connectivity: `curl -s https://openeofed.dataspace.copernicus.eu`
