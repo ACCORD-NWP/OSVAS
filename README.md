@@ -42,8 +42,6 @@ All documentation is available inside the `docs/` folder and in https://accord-n
 
 **Step 6:** [Visualization Apps](docs/step6_visualization.md)
 
-In addition, [a pdf presentation is available](docs/OSVAS_Workflow.pdf)
-
 ### 🧪 <u>[**ICOS data**](docs/ICOS_data.md)</u>
 
 ---
