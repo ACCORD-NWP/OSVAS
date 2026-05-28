@@ -56,10 +56,11 @@ git clone https://github.com/ACCORD-NWP/OSVAS.git
 cd OSVAS
 ```
 
-### 2️⃣ Create the conda environment
+### 2️⃣ Download & patch oper-harp-verif scripts, create the conda environment
 
 ```bash
 cd scripts/bash_scripts
+./setup_osvas_installation.sh
 ./create_conda_and_R_envs.sh
 conda activate OSVASENV
 ```
