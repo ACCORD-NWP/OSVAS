@@ -40,16 +40,19 @@ def parse_args():
 
 
 def resolve_harpscripts_root(args, osvas_root):
+    """Resolve a valid HARPSCRIPTS directory without modifying the HARPSCRIPTS repository."""
     candidates = []
     if args.harpscripts:
         candidates.append(args.harpscripts)
     if 'HARPSCRIPTS' in os.environ and os.environ['HARPSCRIPTS'].strip():
         candidates.append(os.path.expanduser(os.environ['HARPSCRIPTS']))
+    candidates.append(os.path.expanduser('~/operharpverif'))
     candidates.append(os.path.join(osvas_root, 'HARPSCRIPTS'))
 
     for candidate in candidates:
         if Path(candidate).expanduser().exists():
             return str(Path(candidate).expanduser().resolve())
+    # Last resort: use the default path under OSVAS if nothing else exists
     return str(Path(os.path.join(osvas_root, 'HARPSCRIPTS')).resolve())
 
 args = parse_args()
@@ -155,8 +158,8 @@ for station_name in stations_to_process:
         print("▶ Running Step 2b: Estimate surface albedos from validation data")
         try:
             # Get validation period from config
-            val_start = config['Validation_data'].get('validation_start', '').split()[0]
-            val_end = config['Validation_data'].get('validation_end', '').split()[0]
+            run_start = config['Forcing_data'].get('run_start', '').split()[0]
+            run_end = config['Forcing_data'].get('run_end', '').split()[0]
             
             # Run albedo estimation
             subprocess.run([
@@ -164,7 +167,7 @@ for station_name in stations_to_process:
                 f"{os.environ['OSVAS']}/scripts/python_scripts/estimate_albedo.py",
                 os.environ['STATION_NAME'],
                 os.environ['OSVAS'],
-                '--validation-period', val_start, val_end
+                '--run-period', run_start, run_end
             ], check=True)
             
             # Update namelists with estimated albedos
@@ -185,6 +188,49 @@ for station_name in stations_to_process:
         print("⏩ Skipping Step 2b: estimate_albedo=true but Get_validation=false")
     else:
         print("⏩ Skipping Step 2b: Estimate albedos (estimate_albedo=false)")
+
+
+    # Step 2c: Estimate monthly LAIs from Sentinel LAI a Copernicus global land service (CGLS) product
+    # if enabled
+    estimate_lai = config.get('Station_metadata', {}).get('estimate_lai', False)
+    if estimate_lai and get_validation:
+        print("▶ Running Step 2c: Estimate monthly LAIs from Copernicus data")
+        try:
+            # Get forcing period from config
+            run_start = config['Forcing_data'].get('run_start', '').split()[0]
+            run_end = config['Forcing_data'].get('run_end', '').split()[0]
+            
+            # Run albedo estimation
+            subprocess.run([
+                'python3', 
+                f"{os.environ['OSVAS']}/scripts/python_scripts/estimate_lai.py",
+                os.environ['STATION_NAME'],
+                os.environ['OSVAS'],
+                '--run-period', run_start, run_end
+            ], check=True)
+            
+            # Update namelists with estimated albedos
+            print("▶ Updating experiment namelists with estimated albedos")
+            subprocess.run([
+                'python3',
+                f"{os.environ['OSVAS']}/scripts/python_scripts/update_namelist_lais.py",
+                os.environ['STATION_NAME'],
+                os.environ['OSVAS'],
+                '--expnames'] + expnames,
+                check=True
+            )
+            print("✅ Albedo estimation and namelist update completed")
+        except subprocess.CalledProcessError as e:
+            print(f"⚠️  Warning: LAI estimation failed: {e}")
+            print("   Continuing with original namelists...")
+    elif estimate_lai and not get_validation:
+        print("⏩ Skipping Step 2c: estimate_lai=true but Get_validation=false")
+    else:
+        print("⏩ Skipping Step 2c: Estimate lai (estimate_lai=false)")
+
+
+
+
 
     # Step 3: Configure and run SURFEX simulations
     if run_surfex:
@@ -365,7 +411,7 @@ for station_name in stations_to_process:
         with open(harp_config, 'w') as f:
             yaml.dump(harp_yaml, f)
         
-        os.makedirs(f"{os.environ['OSVAS']}/HARPVERIF/{os.environ['STATION_NAME']}", exist_ok=True)
+        os.makedirs(f"{os.environ['OSVAS']}/HARPVERIF/", exist_ok=True)
         
         validation_start = config['Validation_data']['validation_start']
         validation_end = config['Validation_data']['validation_end']
@@ -378,7 +424,23 @@ for station_name in stations_to_process:
         for key in config['Validation_data']:
             if key.startswith('dataset'):
                 vars_list.extend(config['Validation_data'][key]['variables'].keys())
-        vars_str = ','.join(vars_list)
+        # Expand SWC_* and TS_* patterns to SWCi_1..14 and TSi_1..14
+        expanded = []
+        swc_added = False
+        ts_added = False
+        for var in vars_list:
+            if re.fullmatch(r'SWC_[\d*]+', var) or var == 'SWC_*':
+                if not swc_added:
+                    expanded.extend([f'SWCi_{n}' for n in range(1, 15)])
+                    swc_added = True
+            elif re.fullmatch(r'TS_[\d*]+', var) or var == 'TS_*':
+                if not ts_added:
+                    expanded.extend([f'TSi_{n}' for n in range(1, 15)])
+                    ts_added = True
+            else:
+                expanded.append(var)
+
+        vars_str = ','.join(expanded)
         
         # Create a temporary .here marker in HARPSCRIPTS to ensure R's here package
         # resolves paths relative to HARPSCRIPTS, not to a parent OSVAS directory
