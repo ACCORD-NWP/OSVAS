@@ -1,0 +1,88 @@
+diff --git a/verification/point_verif.R b/verification/point_verif.R
+index fdab08c..ab37ce2 100755
+--- a/verification/point_verif.R
++++ b/verification/point_verif.R
+@@ -389,7 +389,7 @@ if (params_list == "ALL") {
+ 
+ # Make the grps for different verification types
+ grps_surface_default   <- harpCore::make_verif_groups(c("lead_time",
+-                     "valid_hour","valid_dttm"),c("fcst_cycle","station_group"))
++                     "valid_hour","valid_dttm"),c("fcst_cycle","station_group","month"))
+ grps_UA_default        <- harpCore::make_verif_groups(c("lead_time",
+                      "valid_hour"),c("fcst_cycle","station_group"))
+ grps_SID_default       <- list("SID",c("SID","valid_hour"))
+@@ -849,6 +849,8 @@ run_verif <- function(prm_info, prm_name) {
+   fcst <- harpCore::expand_date(fcst,valid_dttm)
+   fcst <- harpPoint::mutate_list(fcst,
+                                  valid_hour = sprintf("%02d",valid_hour))
++  fcst <- harpPoint::mutate_list(fcst,
++                                 month = sprintf("%02d",valid_month))
+   
+   # If UA variable, restrict to main valid hours i.e. 00, 06, 12, 18 Z
+   if (!is.na(vertical_coordinate)) {
+@@ -1064,8 +1066,29 @@ run_verif <- function(prm_info, prm_name) {
+     
+     st_plot <- Sys.time()
+     if (create_png) {
+-      
+-      fn_plot_point_verif(verif_toplot,
++
++      # Helper to filter a harp_list by month value, preserving attributes.
++      # The threshold element ([[2]]) is never filtered — fn_split_thr crashes if it is empty.
++      filter_by_month <- function(vt, mm) {
++        result <- vector("list", length(vt))
++        names(result) <- names(vt)
++        for (i in seq_along(vt)) {
++          df <- vt[[i]]
++          if (i == 2) {
++            result[[i]] <- df  # Always pass threshold scores unchanged
++          } else if (is.data.frame(df) && "month" %in% names(df)) {
++            result[[i]] <- dplyr::filter(df, month == mm)
++          } else {
++            result[[i]] <- df
++          }
++        }
++        attributes(result) <- attributes(vt)
++        result
++      }
++
++      # All-period PNGs: filter summary scores to month=="All", month="All" in filename
++      verif_toplot_all <- filter_by_month(verif_toplot, "All")
++      fn_plot_point_verif(verif_toplot_all,
+                                plot_output,
+                                png_projname  = png_projname,
+                                rolling_verif = rolling_verif,
+@@ -1076,7 +1099,32 @@ run_verif <- function(prm_info, prm_name) {
+                                n_stations    = n_stations,
+                                use_parallel  = use_parallel,
+                                plot_num_obs  = TRUE,
+-                               fcst          = fcst)
++                               fcst          = fcst,
++                               month         = "All")
++
++      # Per-month PNGs: same output directory, month encoded in filename
++      if ("month" %in% names(verif_toplot[[1]])) {
++        months_avail <- sort(unique(verif_toplot[[1]][["month"]]))
++        months_avail <- months_avail[months_avail != "All"]
++        for (mm in months_avail) {
++          verif_toplot_mm <- filter_by_month(verif_toplot, mm)
++          if (nrow(verif_toplot_mm[[1]]) == 0) next
++          fn_plot_point_verif(verif_toplot_mm,
++                                   plot_output,
++                                   png_projname  = png_projname,
++                                   rolling_verif = rolling_verif,
++                                   cmap          = cmap,
++                                   map_cbar_d    = map_cbar_d,
++                                   fsd           = fsd,
++                                   fed           = fed,
++                                   n_stations    = n_stations,
++                                   use_parallel  = use_parallel,
++                                   plot_num_obs  = TRUE,
++                                   fcst          = fcst,
++                                   month         = mm)
++        }
++      }
++
+       if ((is.na(vertical_coordinate)) & (!is.null(verif_sid))) {
+         fn_plot_point_verif(verif_sid,
+                                  plot_output,

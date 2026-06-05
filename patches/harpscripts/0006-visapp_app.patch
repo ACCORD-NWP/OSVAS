@@ -1,0 +1,195 @@
+diff --git a/visualization/visapp/app.R b/visualization/visapp/app.R
+index 6b0665f..cd6608c 100644
+--- a/visualization/visapp/app.R
++++ b/visualization/visapp/app.R
+@@ -585,22 +585,25 @@ ui <- shiny::tags$html(
+                         ),
+                         mainPanel(fluidRow(
+                           column(2,
+-                                 shiny::selectInput('param',label='Parameter',
++                                 shiny::selectInput('param',label=shiny::actionLink('lnk_param','Parameter'),
+                                                     choices = "Waiting...")),
+                           column(3,
+-                                 shiny::selectInput('score',label='Score',
++                                 shiny::selectInput('score',label=shiny::actionLink('lnk_score','Score'),
+                                                     choices = "Waiting...")),
+                           column(7,
+                                  column(2,
+-                                        shiny::selectInput('inittime',label='Cycle',
++                                        shiny::selectInput('inittime',label=shiny::actionLink('lnk_cycle','Cycle'),
+                                                            choices = "Waiting...")),
+-                                 column(5,
++                                 column(3,
+                                         shiny::uiOutput("validselect")),
+-                                 column(5,
+-                                        shiny::uiOutput("thresholdselect"))
+-                          ), # column 8
++                                 column(3,
++                                        shiny::uiOutput("thresholdselect")),
++                                 column(2,
++                                        shiny::uiOutput("monthselect"))
++                          ), # column 7
+                           br(),
+-                          shiny::imageOutput("pngImage")
++                          shiny::imageOutput("pngImage"),
++                          shiny::uiOutput("multiImageUI")
+                         ) # Fluid Row
+                         ) # MainPanel
+                       ) # Sidebar layout
+@@ -659,6 +662,7 @@ ui <- shiny::tags$html(
+ #================================================#
+ 
+ server <- function(input, output, session) {
++  shiny::addResourcePath("imgs", img_dir)
+   
+   observe({
+     
+@@ -1252,7 +1256,7 @@ server <- function(input, output, session) {
+     }
+   })
+   output$validselect <- shiny::renderUI({
+-    shiny::selectInput('validtime',label=pp_label(),
++    shiny::selectInput('validtime',label=shiny::tagList(shiny::actionLink('lnk_validtime',pp_label())),
+                        choices = "Waiting...")
+   })
+   
+@@ -1344,7 +1348,7 @@ server <- function(input, output, session) {
+     }
+   })
+   output$thresholdselect <- shiny::renderUI({
+-    shiny::selectInput('threshold',label=tt_label(),
++    shiny::selectInput('threshold',label=shiny::tagList(shiny::actionLink('lnk_threshold',tt_label())),
+                        choices = "Waiting...")
+   })
+   
+@@ -1402,6 +1406,108 @@ server <- function(input, output, session) {
+   
+   
+   # Now load the static image output
++  # ── Month selector ──────────────────────────────────────────────────────────
++  output$monthselect <- shiny::renderUI({
++    shiny::selectInput('month',
++                       label = shiny::actionLink('lnk_month', 'Month'),
++                       choices = "Waiting...")
++  })
++
++  month_out <- shiny::reactive({
++    mo <- gsub(paste0("\\.", img_vec, collapse = "|"), "",
++               unique(unlist(lapply(strsplit(rrrrel_files(), "-"), '[', 11))))
++    mo <- mo[!is.na(mo) & mo != ""]
++    if (length(mo) > 0) c(mo[mo == "All"], sort(mo[mo != "All"])) else mdi
++  })
++
++  selected_month_verif <- shiny::reactive({
++    sm <- NULL
++    if (!is.null(input$month) && input$month %in% month_out()) {
++      sm <- input$month
++    } else if (length(month_out()) > 0 && month_out()[1] == mdi) {
++      sm <- mdi
++    }
++    sm
++  })
++
++  shiny::observe(shiny::updateSelectInput(session, "month",
++    choices = month_out(), selected = selected_month_verif()))
++
++  # ── Multi-view: clicking a dropdown label shows all values stacked ───────────
++  multi_dim <- shiny::reactiveVal(NULL)
++
++  toggle_dim <- function(d) {
++    if (!is.null(multi_dim()) && multi_dim() == d) multi_dim(NULL) else multi_dim(d)
++  }
++  shiny::observeEvent(input$lnk_param,     { toggle_dim("param")     })
++  shiny::observeEvent(input$lnk_score,     { toggle_dim("score")     })
++  shiny::observeEvent(input$lnk_cycle,     { toggle_dim("cycle")     })
++  shiny::observeEvent(input$lnk_validtime, { toggle_dim("validtime") })
++  shiny::observeEvent(input$lnk_threshold, { toggle_dim("threshold") })
++  shiny::observeEvent(input$lnk_month,     { toggle_dim("month")     })
++
++  # All available choices for each dimension (using correct reactive names)
++  all_dim_choices <- shiny::reactive({
++    list(
++      param     = unlist(params_out(),  use.names = FALSE),
++      score     = unlist(scores_out(),  use.names = FALSE),
++      cycle     = inittime_out(),
++      validtime = unlist(validtime_out(), use.names = FALSE),
++      threshold = unlist(threshold_out(), use.names = FALSE),
++      month     = month_out()
++    )
++  })
++
++  # Build a single image URL given overrides for one dimension
++  make_one_fname <- function(override = list()) {
++    p_val  <- if (!is.null(override$param))     override$param     else input$param
++    s_val  <- if (!is.null(override$score))     override$score     else input$score
++    c_val  <- if (!is.null(override$cycle))     override$cycle     else input$inittime
++    vt_val <- if (!is.null(override$validtime)) override$validtime else input$validtime
++    th_val <- if (!is.null(override$threshold)) override$threshold else input$threshold
++    mo_val <- if (!is.null(override$month))     override$month     else {
++                if (!is.null(input$month)) input$month else "All"
++              }
++    mty <- if (is_ens_scores()) "ens" else "det"
++    fb <- paste0(p_val, "-", mty, "-", s_val, "-", c_val, "-",
++                 input$dates, "-", input$station, "-", vt_val, "-", th_val, "-", mo_val)
++    fnames <- paste0(fb, ".", img_vec)
++    if (proj_name_flag()) fnames <- paste0(input$expname, "-", fnames)
++    fs_paths  <- file.path(data_dirname(), fnames)
++    rel_dir   <- sub(paste0("^", normalizePath(img_dir, mustWork = FALSE), "/?"), "",
++                     normalizePath(data_dirname(), mustWork = FALSE))
++    url_paths <- paste0("imgs/", rel_dir, "/", fnames)
++    found <- which(file.exists(fs_paths))
++    if (length(found) > 0) url_paths[found[1]] else NULL
++  }
++
++  output$multiImageUI <- shiny::renderUI({
++    dm <- multi_dim()
++    req(!is.null(dm))
++    req(input$param, input$score, input$inittime, input$dates, input$station)
++    choices <- all_dim_choices()[[dm]]
++    choices <- choices[!is.na(choices) & choices != mdi & choices != "Waiting..."]
++    img_tags <- lapply(choices, function(val) {
++      override <- list(); override[[dm]] <- val
++      url <- make_one_fname(override)
++      if (is.null(url)) return(NULL)
++      shiny::tagList(
++        shiny::tags$p(shiny::tags$strong(val)),
++        shiny::tags$img(src = url,
++                        style = "max-width:100%;margin-bottom:12px;display:block;")
++      )
++    })
++    img_tags <- Filter(Negate(is.null), img_tags)
++    if (length(img_tags) == 0)
++      return(shiny::tags$p("No images found for this selection."))
++    shiny::tagList(
++      shiny::tags$hr(),
++      shiny::tags$p(shiny::tags$em(paste0(
++        "All values for '", dm, "' — click the label again to dismiss"))),
++      img_tags
++    )
++  })
++
+   output$pngImage <- renderImage({
+     
+     # Read image width and height according to display
+@@ -1415,6 +1521,7 @@ server <- function(input, output, session) {
+     req(input$inittime)
+     req(input$dates)
+     req(input$station)
++    req(input$month)
+     req(data_dirname())
+     
+     # Fixed dimensions
+@@ -1452,9 +1559,11 @@ server <- function(input, output, session) {
+       mty <- "det"
+     }
+     
+-    # Define the filename
++    # Define the filename (month is the last field)
++    mo_val <- if (!is.null(input$month)) input$month else "All"
+     fname_base <- paste0(input$param,"-",mty,"-",input$score,"-",input$inittime,"-",
+-                         input$dates,"-",input$station,"-",input$validtime,"-",input$threshold)
++                         input$dates,"-",input$station,"-",input$validtime,"-",input$threshold,
++                         "-",mo_val)
+     fname    <- paste0(fname_base,".",img_vec)
+     if (proj_name_flag()){
+       fname <- paste0(input$expname,"-",fname)

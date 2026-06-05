@@ -1,0 +1,24 @@
+diff --git a/visualization/fn_plot_point_verif.R b/visualization/fn_plot_point_verif.R
+index 01fbc7e..d9867d8 100644
+--- a/visualization/fn_plot_point_verif.R
++++ b/visualization/fn_plot_point_verif.R
+@@ -22,7 +22,8 @@ fn_plot_point_verif <- function(harp_verif_input,
+                                      n_stations = NULL,
+                                      use_parallel = FALSE,
+                                      plot_num_obs = FALSE,
+-                                     fcst = NULL){
++                                     fcst = NULL,
++                                     month = "All"){
+  
+   #=================================================#
+   # INITIAL CHECKS
+@@ -419,7 +420,8 @@ fn_plot_point_verif <- function(harp_verif_input,
+                         "png_projname" = png_projname,
+                         "score_sep"    = score_sep, 
+                         "comp_val"     = attributes(verif)$comp_val,
+-                        "thr_brks"     = attributes(verif)$thr_brks)
++                        "thr_brks"     = attributes(verif)$thr_brks,
++                        "month"        = month)
+   
+   #=====================================================#
+   # NOW DO THE PLOTTING

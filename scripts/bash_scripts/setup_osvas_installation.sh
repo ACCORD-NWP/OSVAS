@@ -96,16 +96,9 @@ else
     echo "✅ HARPSCRIPTS directory already set up"
 fi
 
-# Apply OSVAS-specific HARPSCRIPTS patches
-if command -v python3 &> /dev/null; then
-    echo ""
-    echo "Step 1b: Applying OSVAS HARPSCRIPTS compatibility patches"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    python3 "$OSVAS_DIR/scripts/python_scripts/harpscripts_osvas_patch.py" "$HARPSCRIPTS_DIR"
-else
-    echo "⚠️  python3 not found: cannot apply HARPSCRIPTS patches automatically"
-fi
-
+echo  "Applying OSVAS-specific HARPSCRIPTS patches"
+cd $OSVAS_DIR/patches/harpscripts
+./apply_harpscripts_patches.sh
 # Print environment setup instructions
 echo ""
 echo "Step 2: Environment Configuration"
