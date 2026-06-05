@@ -1,0 +1,78 @@
+diff --git a/visualization/fn_plot_aux_scores.R b/visualization/fn_plot_aux_scores.R
+index 25f4074..1f0dc51 100644
+--- a/visualization/fn_plot_aux_scores.R
++++ b/visualization/fn_plot_aux_scores.R
+@@ -25,7 +25,8 @@ fn_plot_aux_scores <- function(fcst_input,
+                                     plot_scat = TRUE,
+                                     use_parallel = FALSE,
+                                     fsd = NA_character_,
+-                                    fed = NA_character_){
++                                    fed = NA_character_,
++                                    month = NULL){
+   
+   #=================================================#
+   # INITIAL CHECKS 
+@@ -290,7 +291,8 @@ fn_plot_aux_scores <- function(fcst_input,
+                         "plot_num_cases"    = plot_num_cases,
+                         "fig_dpi"           = fig_dpi,
+                         "png_projname"      = png_projname,
+-                        "score_sep"         = score_sep)
++                        "score_sep"         = score_sep,
++                        "month"             = "All")
+   
+   #=================================================#
+   # COMPUTE VARIOUS AUX SCORES
+@@ -298,12 +300,37 @@ fn_plot_aux_scores <- function(fcst_input,
+   
+   fcst_all <- fcst
+   p_list <- list()
+-  
++
++  # Derive available months from the forecast data
++  if (!("valid_month" %in% names(fcst_all))) {
++    fcst_all <- harpCore::expand_date(fcst_all, valid_dttm)
++  }
++  months_avail <- sort(unique(sprintf("%02d", fcst_all[["valid_month"]])))
++  # Always run "All" first, then individual months
++  months_to_run <- c("All", months_avail)
++  # If caller passed a specific month, restrict to that
++  if (!is.null(month)) {
++    months_to_run <- unique(c("All", as.character(month)))
++  }
++
++  # Outer loop over months (All = full period, others = per-month subsets)
++  for (mm in months_to_run) {
++
++    if (mm == "All") {
++      fcst_mm <- fcst_all
++    } else {
++      fcst_mm <- dplyr::filter(fcst_all, sprintf("%02d", valid_month) == mm)
++    }
++    if (nrow(fcst_mm) == 0) next
++
++    # Update month in fxoption_list so fn_save_png encodes it in the filename
++    fxoption_list[["month"]] <- mm
++
+   # Add a loop over leadtime combinations
+   for (jj in seq(1,length(lt_to_use_list))) {
+     
+   lt_jj     <- lt_to_use_list[[jj]]
+-  fcst      <- dplyr::filter(fcst_all,lead_time %in% lt_jj)
++  fcst      <- dplyr::filter(fcst_mm,lead_time %in% lt_jj)
+   leadtimes <- sort(unique(fcst[["lead_time"]]))
+   if (length(leadtimes) > 1) {
+     lt_used <- paste0(leadtimes[1],"_",leadtimes[length(leadtimes)])
+@@ -470,9 +497,11 @@ fn_plot_aux_scores <- function(fcst_input,
+   } # cycle
+   
+   } # Loop over leadtime lists
+-  
++
++  } # Loop over months
++
+   if (use_parallel) {
+     fn_plot_parallel(p_list,fxoption_list)
+   }
+-  
++
+ } # End of function
