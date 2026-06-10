@@ -26,36 +26,44 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from collections import defaultdict
+import yaml
 
 
-def get_obstable_files(station_name, osvas_root, run_start=None, run_end=None):
-    """Find SQLite OBSTABLE files for a station within run period."""
-    obstable_dir = Path(osvas_root) / 'sqlites' / 'OBSTABLES' / 'validation_data' / station_name
-    
+def get_obstable_files(obstable_path, osvas_root, run_start=None, run_end=None):
+    """Find SQLite OBSTABLE files in the given obstable_path within run period.
+
+    `obstable_path` is either a station name or 'common_obstables'.
+    """
+    obstable_dir = Path(osvas_root) / 'sqlites' / 'OBSTABLES' / 'validation_data' / obstable_path
+
     if not obstable_dir.exists():
         print(f"❌ Error: OBSTABLE directory not found: {obstable_dir}")
         return []
-    
+
     obstable_files = sorted(obstable_dir.glob('OBSTABLE_*.sqlite'))
-    
+
     if run_start and run_end:
         start_year = int(run_start.split('-')[0])
         end_year = int(run_end.split('-')[0])
-        obstable_files = [f for f in obstable_files 
+        obstable_files = [f for f in obstable_files
                          if start_year <= int(f.stem.split('_')[1]) <= end_year]
-    
+
     return obstable_files
 
 
-def read_validation_data(obstable_files, run_start=None, run_end=None):
-    """Read SW_OUT and SW_IN from SQLite OBSTABLEs, filtering by run period."""
+def read_validation_data(obstable_files, station_sid=None, run_start=None, run_end=None):
+    """Read SW_OUT and SW_IN from SQLite OBSTABLEs, filtering by run period.
+
+    If `station_sid` is provided and OBSTABLEs contain multiple stations,
+    filter to that SID.
+    """
     data_list = []
     
     for obstable_file in obstable_files:
         print(f"  Reading: {obstable_file.name}")
         try:
             with sqlite3.connect(str(obstable_file)) as conn:
-                query = "SELECT valid_dttm, SW_OUT, SW_IN FROM SYNOP WHERE SW_OUT IS NOT NULL AND SW_IN IS NOT NULL AND SW_IN > 0"
+                query = "SELECT * FROM SYNOP WHERE SW_OUT IS NOT NULL AND SW_IN IS NOT NULL AND SW_IN > 0"
                 df = pd.read_sql_query(query, conn)
                 
                 if df.empty:
@@ -63,6 +71,17 @@ def read_validation_data(obstable_files, run_start=None, run_end=None):
                 
                 # Convert Unix seconds to datetime
                 df['valid_dttm'] = pd.to_datetime(df['valid_dttm'], unit='s', utc=True)
+                # If a station SID is provided and the OBSTABLEs contain multiple
+                # stations (common obstables), filter to only the requested SID.
+                if station_sid is not None:
+                    # Case-insensitive check for SID column
+                    cols_upper = {c.upper(): c for c in df.columns}
+                    if 'SID' in cols_upper:
+                        sid_col = cols_upper['SID']
+                        df = df[df[sid_col] == station_sid]
+                    else:
+                        # No SID column found; assume file is station-specific and keep as is
+                        pass
                 data_list.append(df)
         except Exception as e:
             print(f"  ⚠️  Warning: Error reading {obstable_file}: {e}")
@@ -244,16 +263,27 @@ def main():
         print("Using all available validation data")
     print()
     
+    # Read station config early to determine if validation uses common obstables
+    config_file = osvas_root / 'config_files' / 'Stations' / station_name / f'{station_name}.yml'
+    station_sid = None
+    common_obstable = False
+    if config_file.exists():
+        with open(config_file) as f:
+            config = yaml.safe_load(f)
+        station_sid = config.get('Station_metadata', {}).get('SID')
+        common_obstable = config.get('Validation_data', {}).get('common_obstable', False)
+
     # Step 1: Find and read OBSTABLE files
     print("Step 1: Reading validation data from OBSTABLEs")
-    obstable_files = get_obstable_files(station_name, osvas_root, run_start, run_end)
+    obstable_path = 'common_obstables' if common_obstable else station_name
+    obstable_files = get_obstable_files(obstable_path, osvas_root, run_start, run_end)
     
     if not obstable_files:
         print(f"❌ No OBSTABLE files found for {station_name}")
         sys.exit(1)
     
     print(f"  Found {len(obstable_files)} OBSTABLE files")
-    df_all = read_validation_data(obstable_files, run_start, run_end)
+    df_all = read_validation_data(obstable_files, station_sid=station_sid, run_start=run_start, run_end=run_end)
     
     if df_all.empty:
         print("❌ No valid radiation data found")
@@ -293,7 +323,6 @@ def main():
         print(f"⚠️  Warning: Station config not found: {config_file}")
         vegtype = 10  # default
     else:
-        import yaml
         with open(config_file) as f:
             config = yaml.safe_load(f)
         vegtype = config.get('Station_metadata', {}).get('vegtype', 10)
