@@ -1,19 +1,17 @@
 OSVAS_steps:
  Create_forcing: false
  Get_validation: true
- Run_surfex: true
+ Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - PGD
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
   - DIFMEB_v9
-  - DIFMEB_v9_lin02
-  #- DIFMEB_v9_lin04
-  #- DIFMEB_v9_lin06
-  #- DIFMEB_v9_lin08
- Extract_model_sqlites: true
- Run_HARP: true
+    #- DIFMEB_v9DSL
+    #- DIFMEB_v9DSLIT
+ Extract_model_sqlites: false
+ Run_HARP: false
  Display_HARP: false
 
 Station_metadata:
@@ -30,9 +28,9 @@ Station_metadata:
 Forcing_data:
   height_T: 20                       # Height of the temperature measurement
   height_V: 20                      # Height of the windspeed   measurement
-  run_start: '2022-12-01 00:00:00'    # Timestamp for the forcing start
-  run_end: '2023-12-31 23:30:00'      # Timestamp for the forcing end
-  forcing_format: 'netcdf'          # Choose between netcdf or ascii
+  run_start: '2023-11-01 00:00:00'    # Timestamp for the forcing start
+  run_end: '2024-12-31 23:30:00'      # Timestamp for the forcing end
+  forcing_format: 'ascii'          # Choose between netcdf or ascii
   dataset1:
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_meteo_lc1_t10/versions/v1.0/files/
     timedelta: 10  # in minutes
@@ -58,10 +56,10 @@ Forcing_data:
       Forc_TA: TA
     
 Validation_data:
-  validation_start: '2023-1-1 00:00:00'
-  validation_end: '2023-12-31 23:00:00'
-  common_obstable: false  # Write obs to a common obstable or to a single-station one
-  common_fctable: false
+  validation_start: '2024-1-1 00:00:00'
+  validation_end: '2024-12-31 23:00:00'
+  common_obstable: true
+  common_fctable: true
   dataset1: 
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_radiation_lc1_t10/versions/v1.0/files
     timedelta: 10
@@ -108,24 +106,24 @@ Validation_data:
       TS_8: degC
       TS_9: degC
           
-#  dataset4:
-#    doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_soil_water_lb1_t10/versions/v1.1/files
-#    timedelta: 10
-#    type: profile
-#    variables:
-#      TH05: SWC_1 #0.04
-#      TH05: SWC_2 #0.05
-#      TH19: SWC_3 #0.19
-#      TH33: SWC_4 #0.33
-#      TH40: SWC_5 #0.40
-#      TH56: SWC_6 #0.56
-#   units:
-#     SWC_1: m3/m3
-#     SWC_2: m3/m3
-#     SWC_3: m3/m3
-#     SWC_4: m3/m3
-#     SWC_5: m3/m3
-#     SWC_6: m3/m3
+  dataset4:
+    doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_soil_water_lb1_t10/versions/v1.1/files
+    timedelta: 10
+    type: profile
+    variables:
+      TH05: SWC_1 #0.04
+      TH05: SWC_2 #0.05
+      TH19: SWC_3 #0.19
+      TH33: SWC_4 #0.33
+      TH40: SWC_5 #0.40
+      TH56: SWC_6 #0.56
+   units:
+     SWC_1: m3/m3
+     SWC_2: m3/m3
+     SWC_3: m3/m3
+     SWC_4: m3/m3
+     SWC_5: m3/m3
+     SWC_6: m3/m3
 
   dataset5:
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_meteo_lc1_t10/versions/v1.0/files/
@@ -140,8 +138,8 @@ Validation_data:
       S10m: m/s
 
 Initialization_data:
-  initialization_start: '2016-01-01 00:00:00'
-  initialization_end: '2020-12-31 23:59:00'
+  initialization_start: '2020-01-01 00:00:00'
+  initialization_end: '2025-12-31 23:00:00'
   reuse_soil_profile: false
   Init_to_namelist: true   # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
   Init_to_prep: false       # patch PREP.txt or PREP.nc for each expname

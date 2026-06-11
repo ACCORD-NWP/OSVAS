@@ -1,4 +1,4 @@
-&NAM_CH_ISBAn          CCH_DRY_DEP = "WES89 "
+&NAM_CH_ISBAn          CCH_DRY_DEP = "WES89 " 
 /
 &NAM_COVER 	       YCOVER = 'ECOCLIMAP_II_EUROP_V2.2',
 		       YCOVERFILETYPE = 'DIRECT' ,
@@ -59,7 +59,7 @@
                        XUNIF_Z0LITTER(10,5)        = 0.025,
                        XUNIF_Z0LITTER(10,6)        = 0.025,
                        XUNIF_Z0LITTER(10,7)        = 0.025,
-                       XUNIF_Z0LITTER(10,8)        = 0.025,
+                       XUNIF_Z0LITTER(10,8)        = 0.025,                       
                        XUNIF_Z0LITTER(10,9)        = 0.025,
                        XUNIF_Z0LITTER(10,10)       = 0.025,
                        XUNIF_Z0LITTER(10,11)       = 0.025,
@@ -84,18 +84,18 @@
 
                        XUNIF_Z0_O_Z0H(10)    = 10.,
 
-                       XUNIF_LAI(10,1)       = 1.85,
-                       XUNIF_LAI(10,2)       = 1.50,
-                       XUNIF_LAI(10,3)       = 1.72,
-                       XUNIF_LAI(10,4)       = 2.35,
-                       XUNIF_LAI(10,5)       = 2.15,
-                       XUNIF_LAI(10,6)       = 1.37,
-                       XUNIF_LAI(10,7)       = 1.3,
-                       XUNIF_LAI(10,8)       = 1.25,
-                       XUNIF_LAI(10,9)       = 1.37,
-                       XUNIF_LAI(10,10)      = 1.45,
-                       XUNIF_LAI(10,11)      = 1.3,
-                       XUNIF_LAI(10,12)      = 1.25,
+                       XUNIF_LAI(10, 1)       = 1.693,
+                       XUNIF_LAI(10, 2)       = 2.012,
+                       XUNIF_LAI(10, 3)       = 1.61,
+                       XUNIF_LAI(10, 4)       = 1.602,
+                       XUNIF_LAI(10, 5)       = 1.111,
+                       XUNIF_LAI(10, 6)       = 0.608,
+                       XUNIF_LAI(10, 7)       = 0.501,
+                       XUNIF_LAI(10, 8)       = 0.368,
+                       XUNIF_LAI(10, 9)       = 0.371,
+                       XUNIF_LAI(10,10)       = 0.811,
+                       XUNIF_LAI(10,11)       = 1.176,
+                       XUNIF_LAI(10,12)       = 1.438,
 
                        XUNIF_RSMIN(10)        = 70.,
 
@@ -134,31 +134,31 @@
                        XUNIF_CV(10)          = 0.00001,
 
 
-                       XUNIF_ALBNIR_VEG(10, 1) = 0.18346128,
-                       XUNIF_ALBNIR_VEG(10, 2) = 0.19758527,
-                       XUNIF_ALBNIR_VEG(10, 3) = 0.18674360,
-                       XUNIF_ALBNIR_VEG(10, 4) = 0.19533487,
-                       XUNIF_ALBNIR_VEG(10, 5) = 0.20029806,
-                       XUNIF_ALBNIR_VEG(10, 6) = 0.16405554,
-                       XUNIF_ALBNIR_VEG(10, 7) = 0.14985470,
-                       XUNIF_ALBNIR_VEG(10, 8) = 0.14819970,
-                       XUNIF_ALBNIR_VEG(10, 9) = 0.13276322,
-                       XUNIF_ALBNIR_VEG(10,10) = 0.14195283,
+                       XUNIF_ALBNIR_VEG(10, 1) = 0.17046054,
+                       XUNIF_ALBNIR_VEG(10, 2) = 0.17046054,
+                       XUNIF_ALBNIR_VEG(10, 3) = 0.17046054,
+                       XUNIF_ALBNIR_VEG(10, 4) = 0.17046054,
+                       XUNIF_ALBNIR_VEG(10, 5) = 0.17046054,
+                       XUNIF_ALBNIR_VEG(10, 6) = 0.17046054,
+                       XUNIF_ALBNIR_VEG(10, 7) = 0.17046054,
+                       XUNIF_ALBNIR_VEG(10, 8) = 0.17046054,
+                       XUNIF_ALBNIR_VEG(10, 9) = 0.17046054,
+                       XUNIF_ALBNIR_VEG(10,10) = 0.17046054,
                        XUNIF_ALBNIR_VEG(10,11) = 0.16001314,
-                       XUNIF_ALBNIR_VEG(10,12) = 0.18066394,
+                       XUNIF_ALBNIR_VEG(10,12) = 0.18057094,
 
-                       XUNIF_ALBVIS_VEG(10, 1) = 0.18346128,
-                       XUNIF_ALBVIS_VEG(10, 2) = 0.19758527,
-                       XUNIF_ALBVIS_VEG(10, 3) = 0.18674360,
-                       XUNIF_ALBVIS_VEG(10, 4) = 0.19533487,
-                       XUNIF_ALBVIS_VEG(10, 5) = 0.20029806,
-                       XUNIF_ALBVIS_VEG(10, 6) = 0.16405554,
-                       XUNIF_ALBVIS_VEG(10, 7) = 0.14985470,
-                       XUNIF_ALBVIS_VEG(10, 8) = 0.14819970,
-                       XUNIF_ALBVIS_VEG(10, 9) = 0.13276322,
-                       XUNIF_ALBVIS_VEG(10,10) = 0.14195283,
+                       XUNIF_ALBVIS_VEG(10, 1) = 0.17046054,
+                       XUNIF_ALBVIS_VEG(10, 2) = 0.17046054,
+                       XUNIF_ALBVIS_VEG(10, 3) = 0.17046054,
+                       XUNIF_ALBVIS_VEG(10, 4) = 0.17046054,
+                       XUNIF_ALBVIS_VEG(10, 5) = 0.17046054,
+                       XUNIF_ALBVIS_VEG(10, 6) = 0.17046054,
+                       XUNIF_ALBVIS_VEG(10, 7) = 0.17046054,
+                       XUNIF_ALBVIS_VEG(10, 8) = 0.17046054,
+                       XUNIF_ALBVIS_VEG(10, 9) = 0.17046054,
+                       XUNIF_ALBVIS_VEG(10,10) = 0.17046054,
                        XUNIF_ALBVIS_VEG(10,11) = 0.16001314,
-                       XUNIF_ALBVIS_VEG(10,12) = 0.18066394,
+                       XUNIF_ALBVIS_VEG(10,12) = 0.18057094,
 
                        XUNIF_ALBUV_VEG(10,1)  = 0.015,
                        XUNIF_ALBUV_VEG(10,2)  = 0.015,
@@ -173,31 +173,31 @@
                        XUNIF_ALBUV_VEG(10,11) = 0.015,
                        XUNIF_ALBUV_VEG(10,12) = 0.015,
 
-                       XUNIF_ALBNIR_SOIL(10, 1) = 0.18346128,
-                       XUNIF_ALBNIR_SOIL(10, 2) = 0.19758527,
-                       XUNIF_ALBNIR_SOIL(10, 3) = 0.18674360,
-                       XUNIF_ALBNIR_SOIL(10, 4) = 0.19533487,
-                       XUNIF_ALBNIR_SOIL(10, 5) = 0.20029806,
-                       XUNIF_ALBNIR_SOIL(10, 6) = 0.16405554,
-                       XUNIF_ALBNIR_SOIL(10, 7) = 0.14985470,
-                       XUNIF_ALBNIR_SOIL(10, 8) = 0.14819970,
-                       XUNIF_ALBNIR_SOIL(10, 9) = 0.13276322,
-                       XUNIF_ALBNIR_SOIL(10,10) = 0.14195283,
+                       XUNIF_ALBNIR_SOIL(10, 1) = 0.17046054,
+                       XUNIF_ALBNIR_SOIL(10, 2) = 0.17046054,
+                       XUNIF_ALBNIR_SOIL(10, 3) = 0.17046054,
+                       XUNIF_ALBNIR_SOIL(10, 4) = 0.17046054,
+                       XUNIF_ALBNIR_SOIL(10, 5) = 0.17046054,
+                       XUNIF_ALBNIR_SOIL(10, 6) = 0.17046054,
+                       XUNIF_ALBNIR_SOIL(10, 7) = 0.17046054,
+                       XUNIF_ALBNIR_SOIL(10, 8) = 0.17046054,
+                       XUNIF_ALBNIR_SOIL(10, 9) = 0.17046054,
+                       XUNIF_ALBNIR_SOIL(10,10) = 0.17046054,
                        XUNIF_ALBNIR_SOIL(10,11) = 0.16001314,
-                       XUNIF_ALBNIR_SOIL(10,12) = 0.18066394,
+                       XUNIF_ALBNIR_SOIL(10,12) = 0.18057094,
 
-                       XUNIF_ALBVIS_SOIL(10, 1) = 0.18346128,
-                       XUNIF_ALBVIS_SOIL(10, 2) = 0.19758527,
-                       XUNIF_ALBVIS_SOIL(10, 3) = 0.18674360,
-                       XUNIF_ALBVIS_SOIL(10, 4) = 0.19533487,
-                       XUNIF_ALBVIS_SOIL(10, 5) = 0.20029806,
-                       XUNIF_ALBVIS_SOIL(10, 6) = 0.16405554,
-                       XUNIF_ALBVIS_SOIL(10, 7) = 0.14985470,
-                       XUNIF_ALBVIS_SOIL(10, 8) = 0.14819970,
-                       XUNIF_ALBVIS_SOIL(10, 9) = 0.13276322,
-                       XUNIF_ALBVIS_SOIL(10,10) = 0.14195283,
+                       XUNIF_ALBVIS_SOIL(10, 1) = 0.17046054,
+                       XUNIF_ALBVIS_SOIL(10, 2) = 0.17046054,
+                       XUNIF_ALBVIS_SOIL(10, 3) = 0.17046054,
+                       XUNIF_ALBVIS_SOIL(10, 4) = 0.17046054,
+                       XUNIF_ALBVIS_SOIL(10, 5) = 0.17046054,
+                       XUNIF_ALBVIS_SOIL(10, 6) = 0.17046054,
+                       XUNIF_ALBVIS_SOIL(10, 7) = 0.17046054,
+                       XUNIF_ALBVIS_SOIL(10, 8) = 0.17046054,
+                       XUNIF_ALBVIS_SOIL(10, 9) = 0.17046054,
+                       XUNIF_ALBVIS_SOIL(10,10) = 0.17046054,
                        XUNIF_ALBVIS_SOIL(10,11) = 0.16001314,
-                       XUNIF_ALBVIS_SOIL(10,12) = 0.18066394,
+                       XUNIF_ALBVIS_SOIL(10,12) = 0.18057094,
                        XUNIF_ALBUV_SOIL(10,1)  = 0.06,
                        XUNIF_ALBUV_SOIL(10,2)  = 0.06,
                        XUNIF_ALBUV_SOIL(10,3)  = 0.06,
@@ -288,6 +288,18 @@
      XUNIF_WSAT(23)      =     0.40 ,
      XUNIF_WSAT(24)      =     0.40 ,
 
+                       XUNIF_LAI(10, 1)       = 1.21,
+                       XUNIF_LAI(10, 2)       = 1.21,
+                       XUNIF_LAI(10, 3)       = 1.301,
+                       XUNIF_LAI(10, 4)       = 1.339,
+                       XUNIF_LAI(10, 5)       = 1.351,
+                       XUNIF_LAI(10, 6)       = 1.587,
+                       XUNIF_LAI(10, 7)       = 1.747,
+                       XUNIF_LAI(10, 8)       = 1.936,
+                       XUNIF_LAI(10, 9)       = 1.514,
+                       XUNIF_LAI(10,10)       = 1.432,
+                       XUNIF_LAI(10,11)       = 1.311,
+                       XUNIF_LAI(10,12)       = 1.311,
 
 /
 &NAM_DIAG_ISBAn        LPGD              = T ,
@@ -299,7 +311,7 @@
                        N2M          = 1      ,
 		       LRAD_BUDGET    = T    ,
                        LCOEF        = F      ,
-                       LSURF_VARS   = F      ,
+                       LSURF_VARS   = T      , 
 		       LSURF_BUDGETC = F
 /
 &nam_diag_surfn
@@ -319,14 +331,15 @@
 /
 &NAM_IO_OFFLINE        LPRINT  = T                       ,
                        CFORCING_FILETYPE =    'NETCDF '   ,
-                       CSURF_FILETYPE =       'NC '   ,
+                       CSURF_FILETYPE =       'ASCII '   ,
                        CTIMESERIES_FILETYPE = 'NETCDF'    ,
                        XTSTEP_SURF = 300.                ,
-                       XTSTEP_OUTPUT = 1800.             ,
-                       LFIX_OUTPUT = .F.                 
+                       XTSTEP_OUTPUT = 1800.,
+                       LFIX_OUTPUT = .F.,
 /
 &NAM_ISBA              XUNIF_CLAY    = 0.145         ,
                        XUNIF_SAND    = 0.51         ,
+                       YSANDFILETYPE = 'DIRECT'      ,
                        XUNIF_RUNOFFB = 0.0           ,
                        XUNIF_WDRAIN  = 0.000         ,
                        CPEDO_FUNCTION= 'CH78'        ,
@@ -335,19 +348,30 @@
                        CPHOTO        = 'AST'         ,
                        LTR_ML        = .true.        ,
                        NPATCH        = 12            ,
-                       LMEB=.TRUE.,
-                       CGNDRES       = 'NON'         ,
-                       NGROUND_LAYER = 14            ,
+                       LMEB          = .TRUE.,
+		       NGROUND_LAYER = 24            ,
+                       NSAND_LAYER   = 24            ,
+                       NCLAY_LAYER   = 24            ,
+                       CGNDRES       = 'NON'
 /
 &NAM_ISBAn             CSCOND     = "PL98"     ,
                        CC1DRY     = 'DEF '     ,
                        CSOILFRZ   = 'LWT'      ,
                        CDIFSFCOND = 'DEF '     ,
                        CSNOWRES   = 'RIL'      ,
-                       CCPSURF    = 'DRY'      ,
-                       CZ0HEAT    = 'Z95'      ,
+                       CCPSURF    = 'DRY',
+                       CZ0HEAT    = 'Z95',
                        XZ0HEAT    = 1.0
 /
+&NAM_ISBA_SNOW         CSNOWMOB      = 'ADAPT',
+                       LSNOWPAPPUS   = .F.,
+                       CSNOWPAPPUSERODEPO = 'FLUX',
+                       CSNOWFPAPPUS  = 'P92',
+                       CPAPPUSSUBLI  = 'S04', 
+                       CSALTPAPPUS   = 'NONE',
+                       CLIMVFALL     = 'AGE',
+                       OPAPPULIMTFLUX = .F.,
+                       OPAPPUDEBUG   = .F.
 &NAM_LONLAT_REG        XLONMIN = 1.35         ,
                        XLONMAX = 1.38         ,
                        XLATMIN = 43.55        ,
@@ -358,23 +382,23 @@
 &NAM_MEB_ISBA          LMEB_PATCH    = .F., .F., .F., .F., .F., .F., .F., .F., .F.,.T., .F., .F.,
                        LFORC_MEASURE = .T.,
                        LMEB_LITTER   = .F.,
-                       CMEB_GNDRES   = 'NON',
                        LMEB_TALL_VEG = .F.,
                        LMEB_INT_PLUN = .F.,
                        LMEB_INT_ULUN = .F.,
                        LMEB_INT_USFC = .F.,
+                       CMEB_GNDRES   = 'NON'
 /
 &NAM_PGD_ARRANGE_COVER  LWATER_TO_NATURE = T ,
                         LTOWN_TO_ROCK    = T
 /
-&NAM_PGD_GRID          CGRID = 'LONLAT REG'
+&NAM_PGD_GRID          CGRID = 'LONLAT REG' 
 /
-&NAM_PGD_SCHEMES       CNATURE = 'ISBA  '    ,
-                       CSEA    = 'NONE  '    ,
-                       CTOWN   = 'NONE  '    ,
-                       CWATER  = 'NONE  '
+&NAM_PGD_SCHEMES       CNATURE = 'ISBA  '    , 
+                       CSEA    = 'NONE  '    , 
+                       CTOWN   = 'NONE  '    , 
+                       CWATER  = 'NONE  ' 
 /
-&NAM_PREPFILE          CPREPFILE = 'PREP'
+&NAM_PREPFILE          CPREPFILE = 'PREP' 
 /
 &NAM_PREP_ISBA     
                        XUNIF_HUG_SOIL(1)      = .10,
@@ -406,22 +430,20 @@
                        XUNIF_TG_SOIL(13)     = 277.00,
                        XUNIF_TG_SOIL(14)     = 277.00
 /
-&NAM_PREP_ISBA_SNOW    CSNOW = '3-L'
+&NAM_PREP_ISBA_SNOW    CSNOW = '3-L' 
 /
 &NAM_PREP_SURF_ATM NYEAR  = 2018,
                    NMONTH = 01,
                    NDAY   = 01,
-                   XTIME  = 0.
+                   XTIME  = 0.  
 /
 &NAM_SGH_ISBAn         CRUNOFF    = "WSAT"
 /
 &NAM_SURF_CSTS
-                       XTAU_LW       = 0.4
-/
-&NAM_TREEDRAG
+                       XTAU_LW       = 0.4 
 /
 &NAM_WRITE_DIAG_SURFn  LPROVAR_TO_DIAG   = T
-		       LSELECT           = F ,
+		       LSELECT           = F
 /
 &NAM_WRITE_SURF_ATM    LSPLIT_PATCH      = T
 /

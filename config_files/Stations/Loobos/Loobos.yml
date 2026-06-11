@@ -8,8 +8,8 @@ OSVAS_steps:
   - OFFLINE
  Expnames: #Don't forget a space before each item
   - DIFMEB_v9
-  #- DIFMEB_v9DSL
-  #- DIFMEB_v9DSLIT
+    #- DIFMEB_v9DSL
+    #- DIFMEB_v9DSLIT
  Extract_model_sqlites: false
  Run_HARP: false
  Display_HARP: false
@@ -31,7 +31,7 @@ Forcing_data:
   height_T: 38.2  # Height of the temperature measurement https://maq-observations.nl/operational-data/
   height_V: 38.2  # Height of the windspeed   measurement https://maq-observations.nl/operational-data/
   run_start: '2023-11-01 00:00:00'    # Timestamp for the forcing start
-  run_end: '2024-9-30 23:30:00'      # Timestamp for the forcing end
+  run_end: '2024-12-31 23:30:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
   dataset1:
     doi: https://meta.icos-cp.eu/objects/QfstRcIlaOI5kNIgBhSCKinI
@@ -57,8 +57,8 @@ Forcing_data:
 Validation_data:
   validation_start: '2024-1-1 00:00:00'
   validation_end: '2024-12-31 23:00:00'
-  common_obstable: false
-  common_fctable: false
+  common_obstable: true
+  common_fctable: true
   dataset1: 
     doi: https://meta.icos-cp.eu/objects/QfstRcIlaOI5kNIgBhSCKinI
     timedelta: 30

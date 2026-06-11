@@ -1,5 +1,5 @@
 OSVAS_steps:
- Create_forcing: false
+ Create_forcing: true
  Get_validation: true
  Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
@@ -8,8 +8,8 @@ OSVAS_steps:
   - OFFLINE
  Expnames: #Don't forget a space before each item
   - DIFMEB_v9
-  - DIFMEB_v9DSL
-  - DIFMEB_v9DSLIT
+    #- DIFMEB_v9DSL
+    #- DIFMEB_v9DSLIT
  Extract_model_sqlites: false
  Run_HARP: false
  Display_HARP: false
@@ -23,7 +23,8 @@ Station_metadata:
   lon: -5.77465
   vegtype: 10
   estimate_albedo: true  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
-
+  estimate_lai: true    # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
+  
 Forcing_data:
   height_T: 2                       # Height of the temperature measurement
   height_V: 10                      # Height of the windspeed   measurement
@@ -49,8 +50,8 @@ Forcing_data:
 Validation_data:
   validation_start: '2024-1-1 00:00:00'
   validation_end: '2024-12-31 23:00:00'
-  common_obstable: false
-  common_fctable: false
+  common_obstable: true
+  common_fctable: true
   dataset1: 
     doi: https://meta.icos-cp.eu/objects/ei48butWy0H0b12KOZy2njyw
     timedelta: 30

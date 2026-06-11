@@ -6,8 +6,25 @@ set -euo pipefail
 # -----------------------------
 
 # 0. Load conda module (ATOS) and name your Conda environment
+IS_ATOS=false
 if [[ -d "/ec/res4/scratch" ]]; then
+    # On ATOS, 'module load conda' makes the conda binary available but does NOT
+    # initialise the conda shell functions (conda activate, conda env list, etc.)
+    # in a non-interactive script. We must explicitly source conda's shell hook
+    # after the module load to get a fully working conda in this bash process.
     module load conda
+    IS_ATOS=true
+
+    # Find the conda installation prefix and source its shell integration hook.
+    # 'conda info --base' gives the root prefix even without the hook active.
+    CONDA_BASE="$(conda info --base 2>/dev/null)" || CONDA_BASE=""
+    if [[ -z "$CONDA_BASE" ]]; then
+        # Fallback: derive from the conda binary location
+        CONDA_BASE="$(dirname "$(dirname "$(which conda)")")"
+    fi
+    # shellcheck source=/dev/null
+    source "$CONDA_BASE/etc/profile.d/conda.sh"
+    echo "✅ Conda shell integration sourced from $CONDA_BASE"
 fi
 CONDAENV=OSVHARP
 PYTHON_VERSION=3.11
@@ -34,15 +51,22 @@ else
     conda create -n "$CONDAENV" python="$PYTHON_VERSION" -y
 fi
 
-# 3. Activate the environment
-echo "Activating environment '$CONDAENV'..."
-eval "$(conda shell.bash hook)"
-conda activate "$CONDAENV"
+# Resolve the conda env prefix so we can call its binaries directly,
+# regardless of whether shell-level activation works in this script context.
+CONDA_ENV_PREFIX="$(conda env list | grep "^$CONDAENV " | awk '{print $NF}')"
+if [[ -z "$CONDA_ENV_PREFIX" ]]; then
+    echo "❌ Could not resolve prefix for conda env '$CONDAENV'"
+    exit 1
+fi
+CONDA_PYTHON="$CONDA_ENV_PREFIX/bin/python"
+CONDA_PIP="$CONDA_ENV_PREFIX/bin/pip"
+echo "📍 Conda env prefix: $CONDA_ENV_PREFIX"
+echo "   python → $CONDA_PYTHON ($(${CONDA_PYTHON} --version))"
 
-# 4. Install yq (Go version) from conda-forge
+# 3. Install yq (Go version) from conda-forge
 echo "🔍 Checking system type for yq installation..."
 
-if [[ -d "/ec/res4/scratch" ]]; then
+if $IS_ATOS; then
     echo "➡ ECMWF HPC detected — installing MikeFarah yq v4 via direct download..."
     YQ_VERSION=v4.48.1
     BINARY=yq_linux_amd64
@@ -54,29 +78,39 @@ if [[ -d "/ec/res4/scratch" ]]; then
     echo "✅ yq v4 installed at: $INSTALL_DIR/yq"
 else
     echo "➡ Not ECMWF — installing yq from conda-forge"
-    conda install -c conda-forge yq -y
+    conda install -n "$CONDAENV" -c conda-forge yq -y
 fi
 
 # Refresh PATH for current script execution
 export PATH="$HOME/.local/bin:$PATH"
 
-# 5. Install Python packages from requirements.txt
+# 4. Install Python packages from requirements.txt
+# - Use the env's pip directly (via absolute path) to guarantee packages land
+#   in the OSVHARP env, not in ~/.local user site-packages.
+# - PYTHONNOUSERSITE=1 prevents pip from seeing or writing to ~/.local, which
+#   can shadow conda env packages and cause import errors at runtime.
+# - --force-reinstall ensures a clean install even if the env was partially
+#   populated before (e.g. from a previous run that installed to the wrong place).
 if [[ -f "$REQ_FILE" ]]; then
-    echo "Installing Python packages from $REQ_FILE..."
-    pip install --upgrade pip
-    pip install -r "$REQ_FILE"
+    echo "Installing Python packages from $REQ_FILE into '$CONDAENV'..."
+    PYTHONNOUSERSITE=1 "$CONDA_PIP" install --upgrade pip
+    PYTHONNOUSERSITE=1 "$CONDA_PIP" install --force-reinstall -r "$REQ_FILE"
+    # Set PYTHONNOUSERSITE permanently in the conda env so it is always active
+    # when the environment is used, preventing ~/.local from shadowing env packages.
+    conda env config vars set PYTHONNOUSERSITE=1 -n "$CONDAENV"
+    echo "✅ Python packages installed and PYTHONNOUSERSITE=1 set in env."
 else
     echo "⚠️ Requirements file not found at $REQ_FILE. Skipping pip install."
 fi
-
-# 6. Install HARP libraries in an isolated renv
-if [[ -d "/ec/res4/scratch" ]]; then
+# 5. Install HARP libraries in an isolated renv
+if $IS_ATOS; then
     # --- ATOS branch ---
     echo "➡ ECMWF HPC detected — installing HARP via ATOS renv setup..."
-    conda deactivate
+    # Deactivate conda before touching the module system
+    eval "$(conda shell.bash hook)" && conda deactivate 2>/dev/null || true
     module reset
     cd "$RENV_ATOS_DIR"
-    ./atos_renv_setup.sh
+    #./atos_renv_setup.sh
     CURRENT_WDIR="$(pwd)"
     SETENV_FILE="$CURRENT_WDIR/Setenv"
     if [[ ! -f "$SETENV_FILE" ]]; then
@@ -153,5 +187,7 @@ EOF
     echo "  Rscript -e \"library(harp)\""
 fi
 
-# 7. Final activation message
+# 6. Final activation message
+echo ""
 echo "✅ Conda environment '$CONDAENV' is ready. Activate it with: conda activate $CONDAENV"
+echo "   Verify yaml is available with: conda run -n $CONDAENV python -c \"import yaml; print('yaml OK')\""
