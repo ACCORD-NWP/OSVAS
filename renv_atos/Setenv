@@ -1,8 +1,0 @@
-export PATH="$HOME/.local/bin:$PATH"
-module load python3/3.10.10-01
-module load ecflow
-module load netcdf4
-module load ecmwf-toolbox/2025.04.0.0
-export R_PROFILE_USER=/perm/sp3c/OSVAS/renv_atos/.Rprofile
-export RENV_PROJECT=/perm/sp3c/OSVAS/renv_atos/
-module load R

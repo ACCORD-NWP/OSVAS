@@ -26,7 +26,7 @@ if [[ -d "/ec/res4/scratch" ]]; then
     source "$CONDA_BASE/etc/profile.d/conda.sh"
     echo "✅ Conda shell integration sourced from $CONDA_BASE"
 fi
-CONDAENV=OSVHARP
+CONDAENV=OSVHARPSCRATCH2
 PYTHON_VERSION=3.11
 
 # Resolve this script location and use absolute renv paths from there
@@ -97,7 +97,7 @@ if [[ -f "$REQ_FILE" ]]; then
     PYTHONNOUSERSITE=1 "$CONDA_PIP" install --force-reinstall -r "$REQ_FILE"
     # Set PYTHONNOUSERSITE permanently in the conda env so it is always active
     # when the environment is used, preventing ~/.local from shadowing env packages.
-    conda env config vars set PYTHONNOUSERSITE=1 -n "$CONDAENV"
+    #conda env config vars set PYTHONNOUSERSITE=1 -n "$CONDAENV"
     echo "✅ Python packages installed and PYTHONNOUSERSITE=1 set in env."
 else
     echo "⚠️ Requirements file not found at $REQ_FILE. Skipping pip install."
@@ -113,19 +113,20 @@ if $IS_ATOS; then
     #./atos_renv_setup.sh
     CURRENT_WDIR="$(pwd)"
     SETENV_FILE="$CURRENT_WDIR/Setenv"
-    if [[ ! -f "$SETENV_FILE" ]]; then
-        echo "WARNING: $SETENV_FILE not found; creating a default Setenv file"
-        cat > "$SETENV_FILE" <<EOF
+    #Create a Setenv file to source prior to HARP use 
+    # Capture the current PATH with gcc prepended
+    RUNTIME_PATH="/usr/local/apps/gcc/13.1.0/bin:${PATH}"
+    cat > "$SETENV_FILE" <<EOF
 # Source this file to activate the ATOS HARP renv in a new terminal:
 #   source $SETENV_FILE
 export R_PROFILE_USER=$CURRENT_WDIR/.Rprofile
 export RENV_PROJECT=$CURRENT_WDIR/
-export PATH="/usr/local/apps/gcc/13.1.0/bin:$PATH"
-export LD_LIBRARY_PATH="/usr/local/apps/gcc/13.1.0/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-module load R/4.4.3
+export PATH="$RUNTIME_PATH"
+export LD_LIBRARY_PATH="/usr/local/apps/gcc/13.1.0/lib64"
+module load R
 
 EOF
-    fi
+    
     sed -i "s|^export R_PROFILE_USER=.*|export R_PROFILE_USER=$CURRENT_WDIR/.Rprofile|" "$SETENV_FILE"
     sed -i "s|^export RENV_PROJECT=.*|export RENV_PROJECT=$CURRENT_WDIR/|" "$SETENV_FILE"
     RPROFILE_FILE="$CURRENT_WDIR/.Rprofile"
