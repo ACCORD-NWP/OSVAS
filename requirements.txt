@@ -10,4 +10,6 @@ icoscp
 notebook
 nbconvert
 jupyterlab
+pyyaml
+openeo
 

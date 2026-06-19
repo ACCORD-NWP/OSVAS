@@ -23,6 +23,10 @@
     "LWU_ISBA": "LW_OUT",
     "LWD_ISBA": "LW_IN",
     "SWU_ISBA": "SW_OUT",
-    "SWD_ISBA": "SW_IN"
+    "SWD_ISBA": "SW_IN",
+    "SWD_ISBA": "SW_IN",
+    "T2M_ISBA": "T2m",
+    "Q2M_ISBA": "Q2m",
+    "W10M_ISBA": "S10m"
 }
 
