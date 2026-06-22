@@ -40,7 +40,7 @@ index 09b564c..3be9ee4 100644
        scale_round <- 0
      }
 +
-+  } else if (param %in% c("H,LE,SW_IN,SW_OUT,LW_IN,LW_OUT")) {
++  } else if (param %in% c("H","LE","SW_IN","SW_OUT","LW_IN","LW_OUT")) {
 +    
 +    # Assuming hPa as default
 +    if (score %in% c("bias","mean_bias")) {
