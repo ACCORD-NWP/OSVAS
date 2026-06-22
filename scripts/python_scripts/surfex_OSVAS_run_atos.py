@@ -58,7 +58,7 @@ def resolve_harpscripts_root(args, osvas_root):
 args = parse_args()
 
 # Load conda environment (equivalent to module load conda and conda activate)
-subprocess.run(['module', 'load', 'conda/24.11.3-2'], check=True)
+#subprocess.run(['module', 'load', 'conda/24.11.3-2'], check=True)
 
 # Set environment variables with command line overrides or defaults
 if args.condaenv:
@@ -76,7 +76,7 @@ elif 'OSVAS' not in os.environ:
 os.environ['HARPSCRIPTS'] = resolve_harpscripts_root(args, os.environ['OSVAS'])
 print(f"Using HARPSCRIPTS directory: {os.environ['HARPSCRIPTS']}")
 
-subprocess.run(['conda', 'activate', os.environ['CONDAENV']], shell=True, check=True)
+#subprocess.run(['conda', 'activate', os.environ['CONDAENV']], shell=True, check=True)
 
 # Determine stations to process
 if args.stations:
@@ -237,20 +237,22 @@ for station_name in stations_to_process:
         print("▶ Running Step 3: Run SURFEX offline simulations")
         
         # SURFEX paths for ATOS
-        surfex_parent = os.environ.get('HPCPERM', '/ec/res4/hpcperm')
-        surfex_ver = 'SURFEX_NWP_NOMPI'
+        surfex_parent = os.environ.get('PERM', '/perm/sp3c/')
+        surfex_ver = 'SURFEX_ACCORD'
         surfex_home = f"{surfex_parent}/{surfex_ver}"
-        surfex_profile = 'profile_surfex-atos-gnu-SFX-V8-1-1-NOMPI-OMP-O2-X0'
-        surfex_exe = f"{surfex_home}/src/dir_obj-atos-gnu-SFX-V8-1-1-NOMPI-OMP-O2-X0/MASTER/"
+        surfex_profile = 'profile_surfex-atos-gnu-SFX-V9-1-0-MPIAUTO-OMP-O2-X0'
+        surfex_exe = f"{surfex_home}/src/dir_obj-atos-gnu-SFX-V9-1-0-MPIAUTO-OMP-O2-X0/MASTER/"
         os.environ['PATH'] = f"{surfex_exe}:{os.environ['PATH']}"
         
         paramfiles = f"{surfex_home}/MY_RUN/ECOCLIMAP/"
         hm_cldata = '/ec/res4/hpcperm/hlam/data/climate'
         ecosg_data_path = f"{hm_cldata}/ECOCLIMAP-SG"
-        gmted2010_data_path = f"{hm_cldata}/GMTED2010"
-        soilgrid_data_path = f"{hm_cldata}/SOILGRID"
-        gmted_path = '/ec/res4/scratch/sp3c/hm_home/harmonie46h111/climate/DKCOEXP/'
-        soilgrids_path = '/ec/res4/scratch/sp3c/hm_home/harmonie46h111/climate/DKCOEXP/'
+        gmted2010_data_path = f"{hm_cldata}/GMTED2010" #PATH to GMTED's dir and hdr files, not really used
+        soilgrid_data_path = f"{hm_cldata}/SOILGRID"   #PATH to SOILGRID's dir and hdr files, not really used
+        #gmted_path = '/ec/res4/scratch/sp3c/hm_home/harmonie46h111/climate/DKCOEXP/'
+        #soilgrids_path = '/ec/res4/scratch/sp3c/hm_home/harmonie46h111/climate/DKCOEXP/'
+        gmted_path= '/perm/sbu/gmted_carra2/'   #Switch to these accord-accessible paths with data above 30ºN latitude
+        soilgrids_path= '/perm/sbu/soilgrid_carra2/' #Switch to these accord-accessible paths with data above 30ºN latitude
         
         # Source SURFEX profile and capture environment
         result = subprocess.run(['bash', '-c', f'source {surfex_home}/conf/{surfex_profile} ; env'], capture_output=True, text=True, check=True)
@@ -318,11 +320,12 @@ for station_name in stations_to_process:
             ]
             for p in physio_paths:
                 if os.path.exists(p):
+                    print(f"Trying to link: {p}")                    
                     for f in os.listdir(p):
                         src = f"{p}/{f}"
-                    dst = f"{run_dir}/{f}"
-                    if not os.path.exists(dst):
-                        os.symlink(src, dst)
+                        dst = f"{run_dir}/{f}"
+                        if not os.path.exists(dst):
+                            os.symlink(src, dst)
         
         # Modify namelist
         namelist = f"{run_dir}/OPTIONS.nam"

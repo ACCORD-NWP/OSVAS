@@ -26,7 +26,7 @@ if [[ -d "/ec/res4/scratch" ]]; then
     source "$CONDA_BASE/etc/profile.d/conda.sh"
     echo "✅ Conda shell integration sourced from $CONDA_BASE"
 fi
-CONDAENV=OSVHARPSCRATCH2
+CONDAENV=OSVHARP
 PYTHON_VERSION=3.11
 
 # Resolve this script location and use absolute renv paths from there
