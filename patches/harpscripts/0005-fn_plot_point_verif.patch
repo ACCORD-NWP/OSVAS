@@ -1,5 +1,5 @@
 diff --git a/visualization/fn_plot_point_verif.R b/visualization/fn_plot_point_verif.R
-index 01fbc7e..d9867d8 100644
+index 01fbc7e..b02a92c 100644
 --- a/visualization/fn_plot_point_verif.R
 +++ b/visualization/fn_plot_point_verif.R
 @@ -22,7 +22,8 @@ fn_plot_point_verif <- function(harp_verif_input,
@@ -22,3 +22,15 @@ index 01fbc7e..d9867d8 100644
    
    #=====================================================#
    # NOW DO THE PLOTTING
+@@ -663,9 +665,9 @@ fn_plot_point_verif <- function(harp_verif_input,
+             num_stations <- ns_val
+           }
+           if (numbers_only(station)) {
+-            subtitle_str <- paste0("Station ",station," (",num_stations,") : ",cy_str)
++            subtitle_str <- paste0("Month",month,", ","Station ",station," (",num_stations,") : ",cy_str)		  
+           } else {
+-            subtitle_str <- paste0(station," stations (",num_stations,") : ",cy_str)
++            subtitle_str <- paste0("Month:",month,", ",station," stations (",num_stations,") : ",cy_str)		  
+           }
+           # Add in lead times used for valid_dttm
+           if ((xgroup %in% c("valid_dttm")) & (!is.null(alta))) {
