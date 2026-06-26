@@ -56,12 +56,13 @@ def create_fc_table(conn, param_name, experiment_name):
                valid_dttm INT,
                parameter TEXT,
                units TEXT,
-               {experiment_name}_det DOUBLE
+               "{experiment_name}_det" DOUBLE
            )
        """)
        conn.commit()
-    except:
-        print("table FC apparently exists already")
+    except Exception as e:
+        print(f"Could not create FC table: {e}")
+        raise  # don't silently swallow DDL failures
 
 
 
