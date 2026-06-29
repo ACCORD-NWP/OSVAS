@@ -106,7 +106,7 @@ for station_name in stations_to_process:
     init_to_prep = init_cfg.get('Init_to_prep', False)
 
     # Jupyter settings
-    jupyter = True
+    jupyter = True   # If false, python scripts will be used instead
     extension = '.ipynb' if jupyter else '.py'
 
     def run_notebook(script_path, ldelete=False):

@@ -23,9 +23,11 @@ Station_metadata:
   lon: 5.74355
   vegtype: 10
   lai: 1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9
+  canopy_storage: true
   closure_type: 1
-  estimate_albedo: true  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
-  estimate_lai: true    # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
+  estimate_albedo: false  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
+  estimate_lai: false     # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
+  Tree_height: 21
   
 Forcing_data:
   height_T: 38.2  # Height of the temperature measurement https://maq-observations.nl/operational-data/
@@ -70,6 +72,8 @@ Validation_data:
       TS_*: TS_*
       SWC_*: SWC_*
       G: G_2
+      Tcan: TA_5
+      PA: PA
     units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
       SW_OUT: W/m2
       LW_OUT: W/m2
@@ -78,6 +82,9 @@ Validation_data:
       TS_*: degC
       SWC_*: percent
       G: W/m2
+      Tcan: degC
+      PA: kPa
+
   dataset2: 
     doi: https://meta.icos-cp.eu/objects/v7pbR5OY2J4fAvWuLvmxj0ac
     timedelta: 30

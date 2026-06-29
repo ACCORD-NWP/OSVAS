@@ -51,6 +51,27 @@ Validation_data:
       LE: W/m2
 ```
 
+### Canopy storage and H/LE closure
+The station YAML can activate canopy storage estimation and SEB closure correction in `Station_metadata`.
+
+Example:
+```yaml
+Station_metadata:
+  canopy_storage: true
+  closure_type: 1
+  Tree_height: 21
+  cp: 1004.0
+  Lv: 2500000.0
+  cveg: 2650.0
+  rho_veg: 1.67
+```
+- `canopy_storage: true` enables canopy energy storage estimation when `Tcan` is available in validation data.
+- `Tcan` is required; `Qcan` is optional. If `Qcan` is missing, the vapor storage term `S_q` is treated as zero.
+- `closure_type: 0` leaves `H` and `LE` unchanged.
+- `closure_type: 1`–`3` perform closure by adjusting `H` and `LE` to match available energy using the Bowen ratio.
+- `closure_type: 4` includes canopy storage terms (`S_T`, `S_veg`, `S_q`) when solving closure.
+- `Tree_height` is required for canopy storage. `cp`, `Lv`, `cveg`, and `rho_veg` are optional station constants with defaults used when absent.
+
 ### OBSTABLE output
 The notebook creates SQLite files with validation observations in HARP-compatible format:
 

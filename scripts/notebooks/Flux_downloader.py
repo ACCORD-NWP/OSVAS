@@ -1200,6 +1200,141 @@ def upsample_to_common_timedelta(datasets, dfs, common_td):
 
     return dfs_resampled
 
+
+def _parse_float(value, default=None):
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _normalize_unit_string(unit):
+    if unit is None:
+        return ""
+    return str(unit).strip().lower().replace(" ", "").replace("°", "")
+
+
+def _convert_pressure_to_pa(values, unit):
+    """Convert pressure-like values to Pa using a simple unit parser."""
+    if values is None:
+        return None
+
+    unit_norm = _normalize_unit_string(unit)
+    if unit_norm in {"", "pa", "pascal", "pascals"}:
+        return values
+    if unit_norm in {"hpa", "hectopascal", "hectopascals", "mbar", "millibar", "millibars", "mb"}:
+        return values * 100.0
+    if unit_norm in {"kpa", "kilopascal", "kilopascals"}:
+        return values * 1000.0
+    if unit_norm in {"bar", "bars"}:
+        return values * 100000.0
+    if unit_norm in {"atm", "atmosphere", "atmospheres"}:
+        return values * 101325.0
+
+    return values
+
+
+def _convert_temperature_to_kelvin(values, unit):
+    """Convert temperature-like values to Kelvin using a simple unit parser."""
+    if values is None:
+        return None
+
+    unit_norm = _normalize_unit_string(unit)
+    if unit_norm in {"", "k", "kelvin", "degreeskelvin", "degk"}:
+        return values
+    if unit_norm in {"c", "degc", "celsius", "degreecelsius", "centigrade"}:
+        return values + 273.15
+    if unit_norm in {"f", "degf", "fahrenheit", "degreefahrenheit"}:
+        return (values - 32.0) * 5.0 / 9.0 + 273.15
+
+    return values
+
+
+def _air_density(P_pa, T_K):
+    """Return approximate air density in kg/m^3 from pressure (Pa) and temperature (K)."""
+    R_d = 287.058  # J kg^-1 K^-1
+    return P_pa / (R_d * T_K)
+
+
+def _get_canopy_storage_constants(station_info):
+    return {
+        'cp': _parse_float(station_info.get('cp'), 1004.0),
+        'Lv': _parse_float(station_info.get('Lv'), 2.5e6),
+        'cveg': _parse_float(station_info.get('cveg'), 2650.0),
+        'rho_veg': _parse_float(station_info.get('rho_veg'), 1.67),
+        'tree_height': _parse_float(
+            station_info.get('Tree_height')
+            or station_info.get('tree_height')
+            or station_info.get('tree_height_m'),
+            None
+        ),
+    }
+
+
+def _compute_canopy_storage(df, station_info, units_map=None):
+    """Compute canopy storage terms S_T, S_veg, S_q and S_can when enabled."""
+    if not bool(station_info.get('canopy_storage', False)):
+        return df
+
+    if 'Tcan' not in df.columns:
+        print("  ⚠️  canopy_storage enabled but Tcan column not found; skipping canopy storage estimation.")
+        return df
+
+    if 'valid_dttm' not in df.columns:
+        raise KeyError("valid_dttm column is required to compute canopy storage slopes.")
+
+    df = df.copy()
+    delta_seconds = df['valid_dttm'].diff().dt.total_seconds()
+    df['Tslope'] = df['Tcan'].diff() / delta_seconds
+    if 'Qcan' in df.columns:
+        df['Qslope'] = df['Qcan'].diff() / delta_seconds
+    else:
+        df['Qslope'] = np.nan
+
+    pressure_col = None
+    for col in ('AP', 'PA', 'P'):
+        if col in df.columns:
+            pressure_col = col
+            break
+    if pressure_col is None:
+        print("  ⚠️  canopy_storage enabled but pressure column AP/PA/P not found; skipping canopy storage estimation.")
+        return df
+
+    pressure_unit = None
+    if units_map is not None:
+        pressure_unit = units_map.get(pressure_col)
+    if pressure_unit is None and 'pressure_unit' in station_info:
+        pressure_unit = station_info.get('pressure_unit')
+
+    temperature_unit = None
+    if units_map is not None:
+        temperature_unit = units_map.get('Tcan')
+    if temperature_unit is None and 'temperature_unit' in station_info:
+        temperature_unit = station_info.get('temperature_unit')
+
+    Tcan_K = _convert_temperature_to_kelvin(df['Tcan'], temperature_unit)
+    P_pa = _convert_pressure_to_pa(df[pressure_col], pressure_unit)
+    df['rhoa'] = _air_density(P_pa, Tcan_K)
+    const = _get_canopy_storage_constants(station_info)
+    tree_height = const['tree_height']
+    if tree_height is None:
+        raise KeyError(
+            "Station_metadata must define Tree_height/tree_height/tree_height_m when canopy_storage is enabled."
+        )
+
+    df['S_T'] = const['cp'] * df['rhoa'] * tree_height * df['Tslope']
+    df['S_veg'] = const['cveg'] * const['rho_veg'] * tree_height * df['Tslope']
+    if 'Qcan' in df.columns:
+        df['S_q'] = const['Lv'] * df['rhoa'] * tree_height * df['Qslope']
+    else:
+        df['S_q'] = 0.0
+
+    df['S_can'] = df['S_T'].fillna(0.0) + df['S_veg'].fillna(0.0) + df['S_q'].fillna(0.0)
+    print("  ✅ canopy storage estimation completed (S_T, S_veg, S_q, S_can).")
+    return df
+
 def _to_datetime_series(s):
     """Return datetime64[ns,UTC] series for index or column 'valid_dttm'."""
     # If already datetime
@@ -1212,10 +1347,13 @@ def _to_datetime_series(s):
     return pd.to_datetime(s, utc=True)
 
 def enforce_seb_closure(df,
-                        closure=1,
+                        closure=0,
                         timestamp_col='valid_dttm'):
     """
-    Enforce surface energy balance closure on df, returning a copy with H_cor and LE_cor.
+    Enforce surface energy balance closure on df, returning a copy with corrected
+    H/LE values for closure modes 1-4 and preserving the original values in
+    H_uncor/LE_uncor.
+
     
     Parameters
     ----------
@@ -1234,8 +1372,26 @@ def enforce_seb_closure(df,
     Returns
     -------
     df_out : pd.DataFrame (copy of input with added columns)
-        Columns added: AE, BR_used, H_cor, LE_cor
+        For closure modes 1-4, original H/LE are preserved in H_uncor and LE_uncor.
+        The H and LE fields are replaced by the corrected values.
+        For closure mode 0, H and LE remain unchanged.
     """
+    # Informative stdout for users: chosen closure and behavior
+    try:
+        c_int = int(closure)
+    except Exception:
+        c_int = closure
+    if c_int == 0:
+        print(f"SEB closure: {c_int} (no correction). H and LE will be left unchanged.")
+    else:
+        print(f"SEB closure: {c_int}. Correcting H/LE and preserving originals in H_uncor/LE_uncor.")
+
+    if closure == 0:
+        df_out = df.copy()
+        df_out['AE'] = np.nan
+        df_out['BR_used'] = np.nan
+        return df_out
+
     df_out = df.copy()
     
     # Ensure timestamps
@@ -1410,9 +1566,18 @@ def enforce_seb_closure(df,
                 Hc.loc[mask_fallback][non_eq_mask] = AE.loc[mask_fallback][non_eq_mask] * p[non_eq_mask]
                 Lec.loc[mask_fallback][non_eq_mask] = AE.loc[mask_fallback][non_eq_mask] * (1.0 - p[non_eq_mask])
 
-    # attach to df_out
-    df_out['H_cor'] = Hc
-    df_out['LE_cor'] = Lec
+    # attach corrected fluxes to df_out and preserve uncorrected versions
+    df_out['H_uncor'] = df_out['H'].copy()
+    df_out['LE_uncor'] = df_out['LE'].copy()
+    df_out['H'] = Hc.astype(float)
+    df_out['LE'] = Lec.astype(float)
+    # Report summary of changes to stdout
+    if c_int != 0:
+        n_total = len(df_out)
+        n_corr = int(((~df_out['H_uncor'].isna()) | (~df_out['LE_uncor'].isna())).sum())
+        print(f"SEB closure applied: closure_type={c_int}. Rows with available H/LE: {n_corr}/{n_total}.")
+        print("Created columns: H_uncor, LE_uncor; replaced H, LE with corrected values.")
+
 
     # cleanup helper column if created
     if '_dt_index_for_daily' in df_out.columns:
@@ -1449,8 +1614,7 @@ end_date = pd.to_datetime(forcing_data["run_end"], utc=True)
 # To be able to evaluate albedos for 
 # spin-up period too.
 
-closure_type = config.get("Station_metadata", {}).get("closure_type", 1) #Default value is 1.
-
+closure_type = config.get("Station_metadata", {}).get("closure_type", 0) #Default value is 0 (no closure adjustment).
 station_type = station_info.get("Station_type", "ICOS").upper()
 print(f"Station_type: {station_type}")
 
@@ -1557,7 +1721,8 @@ dfs_resampled = upsample_to_common_timedelta(datasets, dfs, common_td)
 #Cell 6: Merge all datasets, produce Hcor and LEcor based in a closure method if necessary and all SEB components available.
 df_merged = reduce(lambda left, right: pd.merge(left, right, on=['valid_dttm', 'SID', 'lat', 'lon', 'elev'], how='outer'), dfs_resampled)
 df_merged = df_merged.sort_values("valid_dttm").reset_index(drop=True)
-#df_merged=enforce_seb_closure(df_merged,closure_type)
+df_merged = _compute_canopy_storage(df_merged, station_info, units_map)
+df_merged=enforce_seb_closure(df_merged,closure_type)
 
 
 # In[ ]:
