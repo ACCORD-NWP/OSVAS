@@ -43,26 +43,21 @@ def load_station_info(station_list_path):
 
 def create_fc_table(conn, param_name, experiment_name):
     cursor = conn.cursor()
-    #cursor.execute("DROP TABLE IF EXISTS FC")
-    try:
-       cursor.execute(f"""
-           CREATE TABLE FC (
-               fcst_dttm INT,
-               lead_time INT,
-               z DOUBLE,
-               SID DOUBLE,
-               lat DOUBLE,
-               lon DOUBLE,
-               valid_dttm INT,
-               parameter TEXT,
-               units TEXT,
-               "{experiment_name}_det" DOUBLE
-           )
-       """)
-       conn.commit()
-    except Exception as e:
-        print(f"Could not create FC table: {e}")
-        raise  # don't silently swallow DDL failures
+    cursor.execute(f"""
+        CREATE TABLE IF NOT EXISTS FC (
+            fcst_dttm INT,
+            lead_time INT,
+            z DOUBLE,
+            SID DOUBLE,
+            lat DOUBLE,
+            lon DOUBLE,
+            valid_dttm INT,
+            parameter TEXT,
+            units TEXT,
+            "{experiment_name}_det" DOUBLE
+        )
+    """)
+    conn.commit()
 
 
 
