@@ -217,7 +217,7 @@ def fetch_lai_biopar(conn, lat: float, lon: float,
         ts  = cube.aggregate_spatial(geometries=polygon, reducer="mean")
 
         try:
-            raise Exception("force it")
+            raise Exception("force going to the slow alternative (the quick one times out)")
             print("      Trying synchronous processing (small request) ...")
             result  = ts.execute()
             records = _parse_sync_result(result)

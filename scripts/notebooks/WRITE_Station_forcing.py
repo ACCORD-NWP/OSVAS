@@ -213,6 +213,157 @@ def create_lockfile(Forcing_path):
     with open(lockfile, "w") as f:
         f.write("LOCKED")
 
+def _infer_sampling_hours(index):
+    if len(index) < 2:
+        return 1.0
+    diffs = pd.Series(index).diff().dropna()
+    if diffs.empty:
+        return 1.0
+    median_seconds = diffs.dt.total_seconds().median()
+    if pd.isna(median_seconds) or median_seconds <= 0:
+        return 1.0
+    return max(1.0, median_seconds / 3600.0)
+
+
+def _fill_with_interpolation(series, timestamps):
+    filled = series.copy().astype(float)
+    if filled.empty:
+        return filled
+    if filled.notna().all():
+        return filled
+    if timestamps is not None:
+        filled = filled.set_axis(pd.to_datetime(timestamps))
+    filled = filled.interpolate(method='time', limit_direction='both')
+    filled = filled.ffill().bfill()
+    return filled.reset_index(drop=True)
+
+
+def _fill_with_diurnal_cycle(series, timestamps, few_hours_steps=None):
+    filled = series.copy().astype(float)
+    if filled.empty:
+        return filled
+    if filled.notna().all() or not filled.isna().any():
+        return filled
+
+    if timestamps is not None:
+        filled = filled.set_axis(pd.to_datetime(timestamps))
+
+    sampling_hours = _infer_sampling_hours(pd.to_datetime(timestamps))
+    if few_hours_steps is None:
+        few_hours_steps = max(1, int(round(6 / sampling_hours)))
+    one_day_steps = max(1, int(round(24 / sampling_hours)))
+
+    base = series.copy().astype(float)
+    prev_day = base.shift(one_day_steps)
+    next_day = base.shift(-one_day_steps)
+    candidate = prev_day.combine_first(next_day)
+
+    missing_mask = filled.isna().to_numpy()
+    if missing_mask.any():
+        start = None
+        for idx, is_missing in enumerate(missing_mask):
+            if is_missing and start is None:
+                start = idx
+            elif not is_missing and start is not None:
+                segment_length = idx - start
+                if segment_length > few_hours_steps:
+                    filled.iloc[start:idx] = candidate.iloc[start:idx].to_numpy()
+                start = None
+        if start is not None:
+            segment_length = len(filled) - start
+            if segment_length > few_hours_steps:
+                filled.iloc[start:] = candidate.iloc[start:].to_numpy()
+
+    filled = filled.interpolate(method='time', limit_direction='both')
+    filled = filled.ffill().bfill()
+    return filled.reset_index(drop=True)
+
+
+def _fill_with_interpolation_or_diurnal_cycle(series, timestamps):
+    filled = series.copy().astype(float)
+    if filled.empty:
+        return filled
+    if filled.notna().all() or not filled.isna().any():
+        return filled
+
+    if timestamps is not None:
+        filled = filled.set_axis(pd.to_datetime(timestamps))
+
+    sampling_hours = _infer_sampling_hours(pd.to_datetime(timestamps))
+    one_day_steps = max(1, int(round(24 / sampling_hours)))
+
+    base = series.copy().astype(float)
+    prev_day = base.shift(one_day_steps)
+    next_day = base.shift(-one_day_steps)
+    candidate = prev_day.combine_first(next_day)
+
+    missing_mask = filled.isna().to_numpy()
+    if missing_mask.any():
+        start = None
+        for idx, is_missing in enumerate(missing_mask):
+            if is_missing and start is None:
+                start = idx
+            elif not is_missing and start is not None:
+                segment_length = idx - start
+                if segment_length >= one_day_steps:
+                    filled.iloc[start:idx] = candidate.iloc[start:idx].to_numpy()
+                start = None
+        if start is not None:
+            segment_length = len(filled) - start
+            if segment_length >= one_day_steps:
+                filled.iloc[start:] = candidate.iloc[start:].to_numpy()
+
+    filled = filled.interpolate(method='time', limit_direction='both')
+    filled = filled.ffill().bfill()
+    return filled.reset_index(drop=True)
+
+
+def apply_gap_filling_to_forcing(df):
+    """Apply variable-specific gap filling to a forcing dataframe."""
+    if df is None or df.empty:
+        return df.copy()
+
+    filled = df.copy()
+    if "valid_dttm" in filled.columns:
+        filled = filled.sort_values("valid_dttm").reset_index(drop=True)
+
+    timestamps = filled["valid_dttm"] if "valid_dttm" in filled.columns else None
+
+    for col in ["Forc_TA", "Forc_DIR_SW"]:
+        if col in filled.columns:
+            filled[col] = _fill_with_diurnal_cycle(filled[col], timestamps)
+
+    if "Forc_PS" in filled.columns:
+        filled["Forc_PS"] = _fill_with_interpolation(filled["Forc_PS"], timestamps)
+
+    if "Forc_RAIN" in filled.columns:
+        filled["Forc_RAIN"] = filled["Forc_RAIN"].fillna(0.0)
+
+    for col in ["Forc_WIND", "Forc_DIR", "Forc_LW"]:
+        if col in filled.columns:
+            filled[col] = _fill_with_interpolation_or_diurnal_cycle(filled[col], timestamps)
+
+    if "Forc_QA" in filled.columns:
+        qa_series = filled["Forc_QA"].astype(float).copy()
+        qa_series = qa_series.where(qa_series >= 0.0005, np.nan)
+        filled["Forc_QA"] = _fill_with_interpolation_or_diurnal_cycle(qa_series, timestamps)
+
+    return filled
+
+
+def _plot_forcing_series(ax, values, timestamps, ylabel, label=None, color='blue', linewidth=0.5):
+    plot_times = pd.to_datetime(timestamps)
+    ax.plot(plot_times, values.values, label=label or ylabel, color=color, linewidth=linewidth)
+    ax.set_ylabel(ylabel)
+    ax.set_xlabel('Timestamp')
+    ax.yaxis.label.set_size(3)   # forces it, overriding anything upstream
+    ax.grid(True, alpha=0.3)
+    if label:
+        ax.legend(fontsize=3)
+    ax.figure.autofmt_xdate()
+    return ax
+
+
 ################ Write forcing and Params_config file in ascii  ##############################3
 ################ Write forcing and Params_config file in ascii  ##############################3
 
@@ -255,17 +406,39 @@ def write_forcing_ascii(Forcing_vars, Forcing_path, Station_forcing, run_start, 
         Station_forcing_run = Station_forcing[
              (dttm >= run_start_cmp) &
              (dttm <= run_end_cmp)
-        ]
+        ].copy()
+        Station_forcing_run = apply_gap_filling_to_forcing(Station_forcing_run)
         for var in Forcing_vars:
             print(f"{var} with {Station_forcing_run[var].isna().sum()} NaNs")
-            fig, ax = plt.subplots(figsize=(17, 5))
-            Station_forcing_run[var].plot(ax=ax, label=f"{var} no_filter")
-            ax.set_ylabel(var)
-            plt.legend()
+            fig, ax = plt.subplots(figsize=(10, 3))
+            original_values = Station_forcing[Station_forcing["valid_dttm"].isin(Station_forcing_run["valid_dttm"])]
+            if var in original_values.columns:
+                original_series = original_values.set_index("valid_dttm")[var].reindex(Station_forcing_run["valid_dttm"])
+            else:
+                original_series = Station_forcing_run[var]
+            _plot_forcing_series(
+                ax,
+                original_series,
+                Station_forcing_run["valid_dttm"],
+                var,
+                label=f"{var} no_filter",
+                color='blue',
+                linewidth=0.3,
+            )
+            _plot_forcing_series(
+                ax,
+                Station_forcing_run[var],
+                Station_forcing_run["valid_dttm"],
+                var,
+                label=f"{var} gap_filled",
+                color='red',
+                linewidth=0.1,
+            )
+
             plt.show()
             if write_forcing.lower() == 'yes':
                 np.savetxt(os.path.join(Forcing_path, f"{var}.txt"), 
-                           Station_forcing_run[var].bfill().ffill().values, fmt='%.6f')
+                           Station_forcing_run[var].values, fmt='%.6f')
         
         params_lines = [
             1, len(Station_forcing_run), delta_t,
@@ -280,6 +453,7 @@ def write_forcing_ascii(Forcing_vars, Forcing_path, Station_forcing, run_start, 
     except Exception as e:
         print(f"Error encountered: {e}")
         raise
+
 
 
 ################ Write daily forcing files in netcdf  ##############################
@@ -326,12 +500,7 @@ def write_forcing_netcdf(Forcing_vars, Forcing_path, Station_forcing, run_start,
             (Station_forcing["valid_dttm"] <= run_end_cmp)
         ].copy()
 
-        # Fill missing values globally
-        Station_forcing_run[Forcing_vars] = (
-            Station_forcing_run[Forcing_vars]
-            .bfill()
-            .ffill()
-        )
+        Station_forcing_run = apply_gap_filling_to_forcing(Station_forcing_run)
 
         forcing_vars = [
             "CO2air", "Wind_DIR", "PSurf", "Rainf", "Snowf", "Wind",
@@ -342,10 +511,28 @@ def write_forcing_netcdf(Forcing_vars, Forcing_path, Station_forcing, run_start,
         # Plot diagnostic (optional)
         for forcing_key in Forcing_vars:
             print(f"{forcing_key} with {Station_forcing_run[forcing_key].isna().sum()} NaNs after filling")
-            fig, ax = plt.subplots(figsize=(17, 5))
-            Station_forcing_run[forcing_key].plot(ax=ax, label=f"{forcing_key} (filled)")
-            ax.set_ylabel(forcing_key)
-            plt.legend()
+            fig, ax = plt.subplots(figsize=(10, 3))
+            original_series = Station_forcing.loc[Station_forcing["valid_dttm"].isin(Station_forcing_run["valid_dttm"])]
+            if forcing_key in original_series.columns:
+                original_series = original_series.set_index("valid_dttm")[forcing_key].reindex(Station_forcing_run["valid_dttm"])
+            else:
+                original_series = Station_forcing_run[forcing_key]
+            _plot_forcing_series(
+                ax,
+                original_series,
+                Station_forcing_run["valid_dttm"],
+                forcing_key,
+                label=f"{forcing_key} no_filter",
+                color='blue',
+            )
+            _plot_forcing_series(
+                ax,
+                Station_forcing_run[forcing_key],
+                Station_forcing_run["valid_dttm"],
+                forcing_key,
+                label=f"{forcing_key} gap_filled",
+                color='red',
+            )
             plt.show()
 
         # Time origin (fixed)
@@ -441,8 +628,6 @@ def write_forcing_netcdf(Forcing_vars, Forcing_path, Station_forcing, run_start,
                     for forcing_key, nc_var in forcing_var_map.items():
                         forcing_data_vars[nc_var][:] = (
                             daily_data[forcing_key]
-                            .bfill()
-                            .ffill()
                             .values.reshape(len(time_values), 1)
                         )
 
@@ -942,41 +1127,40 @@ else:
 ###### ( OFFLINE SURFEX VALIDATION SYSTEM)#######################
 #### STEP 1.5: PLOT FORCING VARIABLES FOR THE SELECTED PERIOD #####
 #### WRITE THE FORCING FILES IN THE SELECTED FILE TYPE ##########
+if __name__ == "__main__":
+    Forcing_vars=['Forc_CO2','Forc_DIR','Forc_PS','Forc_RAIN','Forc_SNOW','Forc_WIND','Forc_DIR_SW','Forc_LW','Forc_QA','Forc_SCA_SW','Forc_TA']
+    Forcing_path=os.path.join(OSVAS,'forcings',Station_name)
+    write_forcing='yes' #Set to yes for writing forcing
+    print(f"Writing forcing data in {forcing_format} format")
+    if forcing_format=='ascii':
+        write_forcing_ascii(
+        Forcing_vars=Forcing_vars,
+        Forcing_path=Forcing_path,
+        Station_forcing=Station_forcing,
+        run_start=start_date,
+        run_end=end_date,
+        delta_t=common_td.seconds,
+        lon=lon, lat=lat, elev=elev,
+        height_T=height_T, height_V=height_V,
+        write_forcing=write_forcing
+        )
 
+    if forcing_format=='netcdf':
+        write_forcing_netcdf(
+        Forcing_vars=Forcing_vars,
+        Forcing_path=Forcing_path,
+        Station_forcing=Station_forcing,
+        run_start=start_date,
+        run_end=end_date,
+        delta_t=common_td.seconds,
+        lon=lon, lat=lat, elev=elev,
+        height_T=height_T, height_V=height_V,
+        write_forcing=write_forcing
+        )
 
-Forcing_vars=['Forc_CO2','Forc_DIR','Forc_PS','Forc_RAIN','Forc_SNOW','Forc_WIND','Forc_DIR_SW','Forc_LW','Forc_QA','Forc_SCA_SW','Forc_TA']
-Forcing_path=os.path.join(OSVAS,'forcings',Station_name)
-write_forcing='yes' #Set to yes for writing forcing
-print(f"Writing forcing data in {forcing_format} format")
-if forcing_format=='ascii':
-    write_forcing_ascii(
-    Forcing_vars=Forcing_vars, 
-    Forcing_path=Forcing_path,
-    Station_forcing=Station_forcing, 
-    run_start=start_date, 
-    run_end=end_date, 
-    delta_t=common_td.seconds, 
-    lon=lon, lat=lat, elev=elev, 
-    height_T=height_T, height_V=height_V,
-    write_forcing=write_forcing
-    )
-    
-if forcing_format=='netcdf':
-    write_forcing_netcdf(
-    Forcing_vars=Forcing_vars, 
-    Forcing_path=Forcing_path,
-    Station_forcing=Station_forcing, 
-    run_start=start_date, 
-    run_end=end_date, 
-    delta_t=common_td.seconds, 
-    lon=lon, lat=lat, elev=elev, 
-    height_T=height_T, height_V=height_V,
-    write_forcing=write_forcing
-    )
-
-#Construct single forcing file for a period from the individual netcdf files
-if forcing_format=='netcdf':
-    merge_forcing_netcdf(Forcing_path=Forcing_path,start_date=start_date, end_date=end_date, output_filename="FORCING.nc")
+    #Construct single forcing file for a period from the individual netcdf files
+    if forcing_format=='netcdf':
+        merge_forcing_netcdf(Forcing_path=Forcing_path,start_date=start_date, end_date=end_date, output_filename="FORCING.nc")
 
 
 #### Example on how to reconstruct a forcing file for a period from the individual netcdf files
