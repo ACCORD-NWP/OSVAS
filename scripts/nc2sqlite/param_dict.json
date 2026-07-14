@@ -1,6 +1,6 @@
-
 {
-    "_comment": "Parameter mapping between SURFEX variable names (left column) in netcdf files and observation variable names",
+    "_comment": "Parameter mapping between SURFEX variable names (left column) in netcdf files and observation variable names. Entries can be either a plain string (direct passthrough: netcdf_name -> output_name) or an object describing a derived/postprocessed variable (see TAU and Bowen_ratio below).",
+
     "RI_ISBA": "RI",
     "H_ISBA": "H",
     "LE_ISBA": "LE",
@@ -24,9 +24,21 @@
     "LWD_ISBA": "LW_IN",
     "SWU_ISBA": "SW_OUT",
     "SWD_ISBA": "SW_IN",
-    "SWD_ISBA": "SW_IN",
     "T2M_ISBA": "T2m",
     "Q2M_ISBA": "Q2m",
-    "W10M_ISBA": "S10m"
-}
+    "W10M_ISBA": "S10m",
 
+    "TAU": {
+        "type": "derived",
+        "inputs": ["FMU_ISBA", "FMV_ISBA"],
+        "expression": "-sqrt(FMU_ISBA**2 + FMV_ISBA**2)",
+        "units": "N m-2"
+    },
+    "Bowen_ratio": {
+        "type": "derived",
+        "inputs": ["H","LE"],
+        "constants": {"factor": 1},
+        "expression": "(H/LE) * factor",
+        "units": ""
+    }
+}
