@@ -1,0 +1,117 @@
+OSVAS_steps:
+ Create_forcing: false
+ Get_validation: false
+ Run_surfex: true
+ Surfex_steps: #Don't forget a space before each item
+  - pgd
+  - PREP
+  - OFFLINE
+ Expnames: #Don't forget a space before each item
+  - DIFMEBACC
+  - DIFMEBACC_RSL
+  # - DIFMEB_nwp
+  # - DIFMEB_nwp_rsl
+     #- DIFMEBACC
+     #- DIFMEBACC_RSL
+    #- DIFMEB_v9DSL
+    #- DIFMEB_v9DSLIT
+ Extract_model_sqlites: true
+ Run_HARP: false
+ Display_HARP: false
+
+Station_metadata:
+  Station_type: ICOS
+  Station_name: Svartberget
+  SID: 4300000001
+  elev: 267
+  lat: 64.2500
+  lon: 19.7666
+  vegtype: 5
+  canopy_storage: true
+  closure_type: 3
+  estimate_albedo: true  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
+  estimate_lai: true     # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
+  Tree_height: 20
+  diag_T: 30.0   # AGL height of temperature diagnostic
+  diag_RH: 32.5   # AGL height of humidity diagnostic
+Forcing_data:
+  height_T: 35  # Height of the temperature measurement https://maq-observations.nl/operational-data/
+  height_V: 35  # Height of the windspeed   measurement https://maq-observations.nl/operational-data/
+  run_start: '2021-05-15 00:00:00'    # Timestamp for the forcing start
+  run_end: '2021-09-30 23:30:00'      # Timestamp for the forcing end
+  forcing_format: 'ascii'          # Choose between netcdf or ascii
+  dataset1:
+    doi: https://meta.icos-cp.eu/objects/gzeLiX_AZKcwj3Bqpp73clsC
+    timedelta: 30  # in minutes
+    variables:
+      Forc_CO2: -, 0.00062
+      Forc_SNOW: 
+      Forc_DIR_SW: SW_IN
+      Forc_LW: LW_IN
+      Forc_QA: 
+      Forc_SCA_SW: 
+      Forc_TA: TA_4, +273.15
+      Forc_PS: PA, *1000
+  dataset2:
+    doi: https://meta.icos-cp.eu/objects/_jhtvfTkwpS6KGHYQwVkstYB
+    timedelta: 60  # in minutes
+    variables:
+      Forc_RH: RH
+      Forc_WIND: WS
+      Forc_DIR: WD          
+  dataset3:
+    doi: https://meta.icos-cp.eu/objects/0nj2wu8f5M0ZDXSnNxsw-XHx
+    timedelta: 30
+    variables:
+      Forc_RAIN: P_2_1_1, /(timedelta*60)
+Validation_data:
+  validation_start: '2021-06-1 00:00:00'
+  validation_end: '2021-09-30 23:30:00'
+  common_obstable: true
+  common_fctable: true
+  dataset1: 
+    doi: https://meta.icos-cp.eu/objects/gzeLiX_AZKcwj3Bqpp73clsC
+    timedelta: 30
+    variables: # Map ICOS variables (right) to a name (left) in the OBSTABLE
+      SW_OUT: SW_OUT
+      LW_OUT: LW_OUT
+      SW_IN: SW_IN
+      LW_IN: LW_IN  
+      TS_*: TS_*
+      SWC_*: SWC_*
+      G: G_2
+      Tcan: TA_6 #check
+      PA: PA  #Not really needed, but useful for estimation of canopy storage components
+      T_diag: TA_3 
+      RH_diag: RH_2
+    units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
+      SW_OUT: W/m2
+      LW_OUT: W/m2
+      LW_IN: W/m2
+      SW_IN: W/m2
+      TS_*: degC
+      SWC_*: percent
+      G: W/m2
+      Tcan: degC
+      PA: kPa
+      T_diag: degC
+      RH_diag: percent
+  dataset2: 
+    doi: https://meta.icos-cp.eu/objects/MCCzme--Xitf-2f2mKW-cd-m
+    timedelta: 30
+    variables:
+      H: H
+      LE: LE
+      TAU: TAU
+    units:
+      H: W/m2
+      LE: W/m2
+      TAU: Pa
+Initialization_data: 
+  initialization_start: '2019-1-1 00:00:00'
+  initialization_end: '2024-12-31 23:00:00'
+  metadata_filename: 'ICOSETC_SE-Svb_VARINFO_METEO_L2.csv'
+  reuse_soil_profile: true
+  Init_to_namelist: false  # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
+  Init_to_prep: true   # patch PREP.txt or PREP.nc for each expname
+

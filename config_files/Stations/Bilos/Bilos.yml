@@ -1,0 +1,115 @@
+OSVAS_steps:
+ Create_forcing: true
+ Get_validation: false
+ Run_surfex: false
+ Surfex_steps: #Don't forget a space before each item
+  - pgd
+  - PREP
+  - OFFLINE
+ Expnames: #Don't forget a space before each item
+  - DIFMEBACC
+  - DIFMEBACC_RSL
+  # - DIFMEB_nwp
+  # - DIFMEB_nwp_rsl
+     #- DIFMEBACC
+     #- DIFMEBACC_RSL
+    #- DIFMEB_v9DSL
+    #- DIFMEB_v9DSLIT
+ Extract_model_sqlites: false
+ Run_HARP: false
+ Display_HARP: false
+
+Station_metadata:
+  Station_type: ICOS
+  Station_name: Bilos
+  SID: 4300000003
+  elev: 40
+  lat: 44.4936
+  lon: -0.95608
+  vegtype: 5
+  canopy_storage: true
+  closure_type: 3
+  estimate_albedo: true  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
+  estimate_lai: true     # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
+  Tree_height: 9.5
+  diag_T: 11   # AGL height of temperature/humidity diagnostic
+  diag_V: 11   # AGL height of wind diagnostic
+  
+Forcing_data:
+  height_T: 15.6  # Height of the temperature measurement https://maq-observations.nl/operational-data/
+  height_V: 15.6  # Height of the windspeed   measurement https://maq-observations.nl/operational-data/
+  run_start: '2021-5-15 00:00:00'
+  run_end: '2021-09-30 23:30:00'      # Timestamp for the forcing end
+  forcing_format: 'ascii'          # Choose between netcdf or ascii
+  dataset1:
+    doi: https://meta.icos-cp.eu/objects/qMCz5ns33-kIkSZs1gEJCY7H
+    timedelta: 30  # in minutes
+    variables:
+      Forc_CO2: -, 0.00062
+      Forc_RAIN: P, /(timedelta*60)
+      Forc_SNOW: 
+      Forc_DIR_SW: SW_IN
+      Forc_LW: LW_IN
+      Forc_QA: 
+      Forc_SCA_SW: 
+      Forc_TA: TA_1, +273.15
+      Forc_PS: PA, *1000
+      Forc_RH: RH_1
+      Forc_WIND: WS_1
+      Forc_DIR: WD_1      
+
+Validation_data:
+  validation_start: '2021-6-1 00:00:00'
+  validation_end: '2021-09-30 23:30:00'
+  common_obstable: true
+  common_fctable: true
+  dataset1: 
+    doi: https://meta.icos-cp.eu/objects/qMCz5ns33-kIkSZs1gEJCY7H
+    timedelta: 30
+    variables: # Map ICOS variables (right) to a name (left) in the OBSTABLE
+      SW_OUT: SW_OUT
+      LW_OUT: LW_OUT
+      SW_IN: SW_IN
+      LW_IN: LW_IN  
+      TS_*: TS_*
+      SWC_*: SWC_*
+      G: G_2
+      Tcan: TA_4
+      PA: PA  #Not really needed, but useful for estimation of canopy storage components
+      T_diag: TA_2
+      V_diag: WS_2
+      D_diag: WD_2
+      RH_diag: RH_2
+    units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
+      SW_OUT: W/m2
+      LW_OUT: W/m2
+      LW_IN: W/m2
+      SW_IN: W/m2
+      TS_*: degC
+      SWC_*: percent
+      G: W/m2
+      Tcan: degC
+      PA: kPa
+      T_diag: degC
+      V_diag: m/s
+      D_diag: º
+      RH_diag: percent
+  dataset2: 
+    doi: https://meta.icos-cp.eu/objects/EYxm67-33pkyyHucxZBzEMb2
+    timedelta: 30
+    variables:
+      H: H
+      LE: LE
+      TAU: TAU
+    units:
+      H: W/m2
+      LE: W/m2
+      TAU: Pa
+Initialization_data: 
+  initialization_start: '2019-1-1 00:00:00'
+  initialization_end: '2024-12-31 23:00:00'
+  metadata_filename: 'ICOSETC_FR-Bil_VARINFO_METEO_L2.csv'
+  reuse_soil_profile: true
+  Init_to_namelist: false  # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
+  Init_to_prep: true   # patch PREP.txt or PREP.nc for each expname
+

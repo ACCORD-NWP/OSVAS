@@ -9,6 +9,15 @@ verif:
   fcst_type: "det"                          # det or eps
   domains:                                  # what domains to verify ("All" will use all stations available)
     - "All"
+    - "4300000001"
+    - "4300000002"
+    - "4300000003"
+    - "4300000004"
+    - "4300000005"
+    - "4300000006"
+    - "4300000007"
+    - "4300000008"
+
   domains_UA:                               # what domains to verify for UA variables. Defaults to "domains" if NULL or missing.
     - NULL
   members:                                  # What members to verify for each ensemble. Include a list if the members differ between fcst_model. Set to NULL to use all available members in an ensemble.

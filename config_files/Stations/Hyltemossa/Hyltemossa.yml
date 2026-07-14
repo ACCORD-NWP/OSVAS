@@ -1,0 +1,127 @@
+OSVAS_steps:
+ Create_forcing: false
+ Get_validation: false
+ Run_surfex: true
+ Surfex_steps: #Don't forget a space before each item
+  - pgd
+  - PREP
+  - OFFLINE
+ Expnames: #Don't forget a space before each item
+  - DIFMEBACC
+  - DIFMEBACC_RSL
+  # - DIFMEB_nwp
+  # - DIFMEB_nwp_rsl
+     #- DIFMEBACC
+     #- DIFMEBACC_RSL
+    #- DIFMEB_v9DSL
+    #- DIFMEB_v9DSLIT
+ Extract_model_sqlites: true
+ Run_HARP: false
+ Display_HARP: false
+
+Station_metadata:
+  Station_type: ICOS
+  Station_name: Hyltemossa
+  SID: 4300000002
+  elev: 115
+  lat: 56.1000
+  lon: 12.4166
+  vegtype: 5
+  canopy_storage: true
+  closure_type: 3
+  estimate_albedo: true  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
+  estimate_lai: true     # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
+  Tree_height: 14.5
+  diag_T: 30.0   # AGL height of temperature diagnostic
+  diag_RH: 30.0   # AGL height of humidity diagnostic
+  diag_V: 30.0   # AGL height of wind diagnostic  
+Forcing_data:
+  height_T: 70  # Height of the temperature measurement https://maq-observations.nl/operational-data/
+  height_V: 70  # Height of the windspeed   measurement https://maq-observations.nl/operational-data/
+  run_start: '2021-05-15 00:00:00'    # Timestamp for the forcing start
+  run_end: '2021-09-30 23:30:00'      # Timestamp for the forcing end
+  forcing_format: 'ascii'          # Choose between netcdf or ascii
+  dataset1:
+    doi: https://meta.icos-cp.eu/objects/MVaQYW9Uyy-tngnoZgX5DoqV
+    timedelta: 30  # in minutes
+    variables:
+      Forc_CO2: -, 0.00062
+      Forc_RAIN: P, /(timedelta*60)
+      Forc_SNOW: 
+      Forc_DIR_SW: SW_IN_1
+      Forc_LW: LW_IN
+      Forc_QA: 
+      Forc_SCA_SW: 
+  dataset2:
+    doi: https://meta.icos-cp.eu/objects/Ef6c-PEFA0HANXVSEDmmsbO7
+    timedelta: 60  # in minutes
+    variables:
+      Forc_RH: RH
+      Forc_WIND: WS
+      Forc_DIR: WD  
+      Forc_TA: AT, +273.15        
+  dataset3:
+    doi: https://meta.icos-cp.eu/objects/5ucdBdap8m-IrkkBuv1hvC4R
+    timedelta: 30  # in minutes
+    variables:
+      Forc_PS: PA_F, *1000          
+Validation_data:
+  validation_start: '2021-06-1 00:00:00'
+  validation_end: '2021-09-30 23:30:00'
+  common_obstable: true
+  common_fctable: true
+  dataset1: 
+    doi: https://meta.icos-cp.eu/objects/MVaQYW9Uyy-tngnoZgX5DoqV
+    timedelta: 30
+    variables: # Map ICOS variables (right) to a name (left) in the OBSTABLE
+      SW_OUT: SW_OUT
+      LW_OUT: LW_OUT
+      SW_IN: SW_IN
+      LW_IN: LW_IN  
+      TS_*: TS_*
+      SWC_*: SWC_*
+      G: G_2
+      Tcan: TA_5 #check
+      PA: PA  #Not really needed, but useful for estimation of canopy storage components
+    units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
+      SW_OUT: W/m2
+      LW_OUT: W/m2
+      LW_IN: W/m2
+      SW_IN: W/m2
+      TS_*: degC
+      SWC_*: percent
+      G: W/m2
+      Tcan: degC
+      PA: kPa
+  dataset2: 
+    doi: https://meta.icos-cp.eu/objects/mT-dHc2QYqolwumZU97sXPhd
+    timedelta: 30
+    variables:
+      H: H
+      LE: LE
+      TAU: TAU
+    units:
+      H: W/m2
+      LE: W/m2
+      TAU: Pa
+  dataset3:
+    doi: https://meta.icos-cp.eu/objects/4ZMiAEawgs5vYyscbRb7EgSG
+    timedelta: 60
+    variables: 
+      T_diag: AT
+      V_diag: WS
+      D_diag: WD 
+      RH_diag: RH 
+    units:
+      T_diag: degC
+      V_diag: m/s
+      D_diag: º
+      RH_diag: percent           
+Initialization_data: 
+  initialization_start: '2019-1-1 00:00:00'
+  initialization_end: '2024-12-31 23:00:00'
+  metadata_filename: 'ICOSETC_SE-Htm_VARINFO_METEO_L2.csv'
+  reuse_soil_profile: true
+  Init_to_namelist: false  # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
+  Init_to_prep: true   # patch PREP.txt or PREP.nc for each expname
+
