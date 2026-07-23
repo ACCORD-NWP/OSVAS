@@ -365,7 +365,6 @@ def _plot_forcing_series(ax, values, timestamps, ylabel, label=None, color='blue
 
 
 ################ Write forcing and Params_config file in ascii  ##############################3
-################ Write forcing and Params_config file in ascii  ##############################3
 
 def write_forcing_ascii(Forcing_vars, Forcing_path, Station_forcing, run_start, run_end, 
                         delta_t, lon, lat, elev, height_T, height_V, write_forcing='yes'):
@@ -439,17 +438,18 @@ def write_forcing_ascii(Forcing_vars, Forcing_path, Station_forcing, run_start, 
             if write_forcing.lower() == 'yes':
                 np.savetxt(os.path.join(Forcing_path, f"{var}.txt"), 
                            Station_forcing_run[var].values, fmt='%.6f')
-        
+
         params_lines = [
             1, len(Station_forcing_run), delta_t,
             Station_forcing_run.valid_dttm[1].year, Station_forcing_run.valid_dttm[1].month,
             Station_forcing_run.valid_dttm[1].day, 3600*Station_forcing_run.valid_dttm[1].hour,
             lon, lat, elev, height_T, height_V
         ]
-        
+
         if write_forcing.lower() == 'yes':
             with open(os.path.join(Forcing_path, "Params_config.txt"), 'w') as f:
-                f.write("\n".join(map(str, params_lines)) + "\n")
+                f.write("\n".join(f"{float(v)}" for v in params_lines) + "\n")    
+    
     except Exception as e:
         print(f"Error encountered: {e}")
         raise
