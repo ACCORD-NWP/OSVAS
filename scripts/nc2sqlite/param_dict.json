@@ -24,15 +24,17 @@
     "LWD_ISBA": "LW_IN",
     "SWU_ISBA": "SW_OUT",
     "SWD_ISBA": "SW_IN",
-    "T2M_ISBA": "T2m",
-    "Q2M_ISBA": "Q2m",
-    "W10M_ISBA": "S10m",
-
+    "T2M_ISBA": "T_diag",
+    "Q2M_ISBA": "Q_diag",
+    "HU2M_ISBA": "RH_diag",    
+    "W10M_ISBA": "V_diag",
+    "TCP5_ISBA": "Tcan",
+    "GFLUX_ISBA": "G",
     "TAU": {
         "type": "derived",
         "inputs": ["FMU_ISBA", "FMV_ISBA"],
         "expression": "-sqrt(FMU_ISBA**2 + FMV_ISBA**2)",
-        "units": "N m-2"
+        "units": "Pa"
     },
     "Bowen_ratio": {
         "type": "derived",
