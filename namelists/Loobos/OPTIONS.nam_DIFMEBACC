@@ -1,0 +1,151 @@
+&NAM_CH_ISBAn
+	CCH_DRY_DEP = "WES89 "
+/
+&NAM_COVER
+	YCOVER = 'ECOCLIMAP_II_EUROP_V2.2'
+	YCOVERFILETYPE = 'DIRECT'
+	XRM_COVER = 0.01
+/
+/
+&NAM_DIAG_ISBAn
+	LPGD = T
+	LSURF_EVAP_BUDGET = T
+	LSURF_MISC_BUDGET = T
+/
+&NAM_DIAG_SURFn
+	LSURF_BUDGET = T
+	N2M = 2
+	LRAD_BUDGET = T
+	LCOEF = F
+	LSURF_VARS = T
+	LSURF_BUDGETC = F
+/
+&NAM_DIAG_SURF_ATMn
+	LFRAC = F
+/
+&NAM_FRAC
+	LECOCLIMAP = T
+	XUNIF_SEA = 0.
+	XUNIF_WATER = 0.
+	XUNIF_TOWN = 0.
+	XUNIF_NATURE = 1.
+/
+&NAM_IO_OFFLINE        LPRINT  = T                       ,
+                       cpgdfile = 'PGD'
+                       cprepfile = 'PREP'
+                       csurffile = 'SURFOUT'
+                       csurf_filetype = 'NC'
+                       CFORCING_FILETYPE  = 'ASCII ' ,
+                       CSURF_FILETYPE =       'ASCII '   ,
+                       CTIMESERIES_FILETYPE = 'NETCDF '  ,
+                       XTSTEP_SURF          = 300.    ,
+                       XTSTEP_OUTPUT        = 1800.   ,
+                       LLIMIT_QAIR          = T       ,
+                       LSET_FORC_ZS         = F       ,
+		       XDELTA_OROG          = 2200.   ,
+                       LRESTART             = T       ,
+                       LPRINT               = T       ,
+		       LOUT_TIMENAME        = T       ,
+		       LWRITE_COORD         = T       ,
+                       NB_READ_FORC         = 0       ,
+                       LALLOW_ADD_DIM       = F
+
+/
+&NAM_ISBA              XUNIF_CLAY    = 0.27   ,
+                       XUNIF_SAND    = 0.58   ,
+                       YSANDFILETYPE = 'DIRECT'
+		       XUNIF_SOC_TOP = 21.55  ,
+		       XUNIF_SOC_SUB = 52.18  ,
+		       CALBEDO       = 'CM13'	,
+                       CPEDO_FUNCTION= 'CH78',
+                       CISBA         = 'DIF' ,
+                       CPHOTO        = 'AST' ,
+                       YSOCFILETYPE = 'DIRECT',
+                       NPATCH        = 12    ,
+		       NGROUND_LAYER = 14    ,
+                        LMEB=.TRUE.,
+		       XSOILGRID     = 0.01,0.04,0.1,0.2,0.4,0.6,0.8,1.0,1.5,2.0,3.0,5.0,8.0,12
+/
+&NAM_ISBAn             CC1DRY       = 'DEF '	,
+                       CSCOND       = 'PL98'	,
+		       CSOILFRZ     = 'LWT'	,
+		       CDIFSFCOND   = 'DEF '	,
+		       CSNOWRES     = 'RIL'	,
+		       CCPSURF      = 'DRY'
+/
+&NAM_LONLATVAL         XX = 1.365,
+   		       XY = 43.57,
+   		       XDX = 0.00833333,
+   		       XDY = 0.00833333,
+   		       NPOINTS = 1
+/
+&NAM_MEB_ISBA          LMEB_PATCH    = .F., .F., .F., .F., .T., .F., .F., .F., .F.,.F., .F., .F.,
+                       LFORC_MEASURE = .true.,
+		       LMEB_LITTER   = .F.,
+                       LMEB_GNDRES   = .FALSE.
+	               !CMEB_GNDRES = 'DSL'
+/
+&NAM_PGD_ARRANGE_COVER
+	LWATER_TO_NATURE = T
+	LTOWN_TO_ROCK = T
+/
+&NAM_PGD_GRID          CGRID = 'LONLATVAL' 
+/
+&NAM_PGD_SCHEMES       CNATURE = 'ISBA  '    , 
+                       CSEA    = 'NONE  '    , 
+                       CTOWN   = 'NONE  '    , 
+                       CWATER  = 'NONE  ' 
+/
+&NAM_PREPFILE
+	CPREPFILE = 'PREP'
+/
+&NAM_PREP_ISBA     XHUG_SURF = 1.,
+                   XHUG_ROOT = 1.,
+                   XHUG_DEEP = 1.,
+                   XTG_SURF  = 281.1,
+                   XTG_ROOT  = 284.55,
+                   XTG_DEEP  = 283.82,
+/
+&NAM_PREP_ISBA_SNOW    CSNOW = '3-L'      ,
+                       NSNOW_LAYER  = 12  ,
+                       LSNOW_FRAC_TOT = F
+/
+&NAM_PREP_SURF_ATM NYEAR  = 2021,
+                   NMONTH = 8,
+                   NDAY   = 15,
+                   XTIME  = 0. 
+/
+&NAM_SGH_ISBAn         LSOC         = T,
+                       CRUNOFF    = 'WSAT'
+/
+&NAM_SSOn              CROUGH       = 'NONE'
+/
+&NAM_SURF_ATM          XRIMAX       = 0.4    ,
+                       LNOSOF       = T       ,
+                       LVERTSHIFT   = F
+/
+&NAM_SURF_CSTS
+                       XTAU_LW       = 0.4   ,
+                       XEMISSN       = 0.99  ,
+                       XWSNV         = 2.0 
+/
+&NAM_TREEDRAG
+             LRSL=.FALSE.
+             LRSLMEB=.FALSE.
+             XDIAGW=22.1
+             XDIAGT=22.1
+             LRSLHGT=.true.
+/
+&NAM_SURF_CSTS
+	XTAU_LW = 0.4
+/
+&NAM_WRITE_DIAG_SURFn
+	LPROVAR_TO_DIAG = T
+	LSELECT = F
+/
+&NAM_WRITE_SURF_ATM
+	LSPLIT_PATCH = T
+/
+&NAM_ZS
+	XUNIF_ZS = 40.
+/

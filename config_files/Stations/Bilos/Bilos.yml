@@ -1,5 +1,5 @@
 OSVAS_steps:
- Create_forcing: true
+ Create_forcing: false
  Get_validation: false
  Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
@@ -7,15 +7,9 @@ OSVAS_steps:
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
-  - DIFMEBACC
-  - DIFMEBACC_RSL
-  # - DIFMEB_nwp
-  # - DIFMEB_nwp_rsl
-     #- DIFMEBACC
-     #- DIFMEBACC_RSL
-    #- DIFMEB_v9DSL
-    #- DIFMEB_v9DSLIT
- Extract_model_sqlites: false
+   - DIFMEBACC
+   - DIFMEBACC_RSL
+ Extract_model_sqlites: true
  Run_HARP: false
  Display_HARP: false
 
@@ -29,16 +23,16 @@ Station_metadata:
   vegtype: 5
   canopy_storage: true
   closure_type: 3
-  estimate_albedo: true  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
-  estimate_lai: true     # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
+  estimate_albedo: false  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
+  estimate_lai: false     # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
   Tree_height: 9.5
-  diag_T: 11   # AGL height of temperature/humidity diagnostic
-  diag_V: 11   # AGL height of wind diagnostic
+  diag_T: 11.0   # AGL height of temperature/humidity diagnostic
+  diag_V: 11.0   # AGL height of wind diagnostic
   
 Forcing_data:
   height_T: 15.6  # Height of the temperature measurement https://maq-observations.nl/operational-data/
   height_V: 15.6  # Height of the windspeed   measurement https://maq-observations.nl/operational-data/
-  run_start: '2021-5-15 00:00:00'
+  run_start: '2021-05-15 00:00:00'    # Timestamp for the forcing start
   run_end: '2021-09-30 23:30:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
   dataset1:
@@ -59,7 +53,7 @@ Forcing_data:
       Forc_DIR: WD_1      
 
 Validation_data:
-  validation_start: '2021-6-1 00:00:00'
+  validation_start: '2021-06-01 00:00:00'
   validation_end: '2021-09-30 23:30:00'
   common_obstable: true
   common_fctable: true
@@ -79,7 +73,7 @@ Validation_data:
       T_diag: TA_2
       V_diag: WS_2
       D_diag: WD_2
-      RH_diag: RH_2
+
     units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
       SW_OUT: W/m2
       LW_OUT: W/m2
@@ -93,7 +87,7 @@ Validation_data:
       T_diag: degC
       V_diag: m/s
       D_diag: º
-      RH_diag: percent
+
   dataset2: 
     doi: https://meta.icos-cp.eu/objects/EYxm67-33pkyyHucxZBzEMb2
     timedelta: 30
@@ -109,7 +103,7 @@ Initialization_data:
   initialization_start: '2019-1-1 00:00:00'
   initialization_end: '2024-12-31 23:00:00'
   metadata_filename: 'ICOSETC_FR-Bil_VARINFO_METEO_L2.csv'
-  reuse_soil_profile: true
+  reuse_soil_profile: false
   Init_to_namelist: false  # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
   Init_to_prep: true   # patch PREP.txt or PREP.nc for each expname
 

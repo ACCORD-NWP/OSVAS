@@ -79,9 +79,13 @@ Validation_data:
     variables:
       H: H
       LE: LE
+      G: G
+      UST : UST
     units:
       H: W/m2
       LE: W/m2
+      G: W/m2
+    UST: m/s
   dataset3:
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_soil_heat_lb1_t10/versions/v1.0/files
     timedelta: 10
@@ -129,13 +133,13 @@ Validation_data:
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_meteo_lc1_t10/versions/v1.0/files/
     timedelta: 10
     variables:
-      T2m: TA002
-      Q2m: Q002
-      S10m: F010
+      T_diag: TA002
+      Q_diag: Q002
+      V_diag: F010
     units:
-      T2m: K
-      Q2m: g/Kg
-      S10m: m/s
+      T_diag: K
+      Q_diag: g/Kg
+      V_diag: m/s
 
 Initialization_data:
   initialization_start: '2020-01-01 00:00:00'
