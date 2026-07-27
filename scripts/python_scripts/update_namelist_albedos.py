@@ -62,8 +62,10 @@ def extract_parameter_ranges(content, vegtype):
     patterns = [
         ('XUNIF_ALBNIR_VEG', f'XUNIF_ALBNIR_VEG\\({vegtype},\\s*1\\)'),
         ('XUNIF_ALBVIS_VEG', f'XUNIF_ALBVIS_VEG\\({vegtype},\\s*1\\)'),
+        ('XUNIF_ALBUV_VEG', f'XUNIF_ALBUV_VEG\\({vegtype},\\s*1\\)'),
         ('XUNIF_ALBNIR_SOIL', f'XUNIF_ALBNIR_SOIL\\({vegtype},\\s*1\\)'),
         ('XUNIF_ALBVIS_SOIL', f'XUNIF_ALBVIS_SOIL\\({vegtype},\\s*1\\)'),
+        ('XUNIF_ALBUV_SOIL', f'XUNIF_ALBUV_SOIL\\({vegtype},\\s*1\\)'),        
     ]
     
     parameter_ranges = {}
@@ -129,8 +131,8 @@ def build_albuv_block(vegtype):
 
 
 def extract_new_blocks_from_albedo(albedo_content, vegtype):
-    """Extract the four NIR/VIS VEG/SOIL blocks from the albedo estimates file."""
-    param_names = ['XUNIF_ALBNIR_VEG', 'XUNIF_ALBVIS_VEG', 'XUNIF_ALBNIR_SOIL', 'XUNIF_ALBVIS_SOIL']
+    """Extract the six NIR/VIS VEG/SOIL blocks from the albedo estimates file."""
+    param_names = ['XUNIF_ALBNIR_VEG', 'XUNIF_ALBVIS_VEG',  'XUNIF_ALBUV_VEG', 'XUNIF_ALBNIR_SOIL', 'XUNIF_ALBVIS_SOIL',  'XUNIF_ALBUV_SOIL']
     new_blocks = {}
 
     for param_name in param_names:
@@ -155,7 +157,7 @@ def extract_new_blocks_from_albedo(albedo_content, vegtype):
 def insert_albedos_into_nam_data_isba(content, albedo_content, vegtype):
     """Fallback: insert all albedo blocks just before the closing '/' of &NAM_DATA_ISBA.
 
-    Inserts the four NIR/VIS estimated blocks plus the fixed ALBUV blocks.
+    Inserts the six NIR/VIS/UV estimated blocks.
     Returns the updated content, or None if &NAM_DATA_ISBA is not found.
     """
     # Find &NAM_DATA_ISBA group
@@ -180,7 +182,7 @@ def insert_albedos_into_nam_data_isba(content, albedo_content, vegtype):
         print(f"  ⚠️  Could not extract estimated albedo blocks from albedo file")
         return None
 
-    param_order = ['XUNIF_ALBNIR_VEG', 'XUNIF_ALBVIS_VEG', 'XUNIF_ALBNIR_SOIL', 'XUNIF_ALBVIS_SOIL']
+    param_order = ['XUNIF_ALBNIR_VEG', 'XUNIF_ALBVIS_VEG', 'XUNIF_ALBUV_VEG', 'XUNIF_ALBNIR_SOIL', 'XUNIF_ALBVIS_SOIL', 'XUNIF_ALBUV_SOIL']   
     block_parts = []
     for param_name in param_order:
         if param_name in new_blocks:
@@ -193,8 +195,7 @@ def insert_albedos_into_nam_data_isba(content, albedo_content, vegtype):
     insertion = '\n'.join(block_parts) + '\n'
 
     content = content[:insert_pos] + insertion + content[insert_pos:]
-    print(f"  ✓ Inserted NIR/VIS albedo blocks into &NAM_DATA_ISBA")
-    print(f"  ✓ Inserted ALBUV VEG/SOIL blocks into &NAM_DATA_ISBA")
+    print(f"  ✓ Inserted NIR/VIS/UV SOIL/VEG albedo blocks into &NAM_DATA_ISBA")
     return content
 
 
@@ -229,7 +230,6 @@ def update_namelist_with_albedos(namelist_file, albedo_content, vegtype, backup=
 
         # Replace blocks in reverse order to maintain position validity
         sorted_params = sorted(param_ranges.keys(), key=lambda x: param_ranges[x][0], reverse=True)
-
         for param_name in sorted_params:
             if param_name in new_blocks:
                 start_pos, end_pos = param_ranges[param_name]

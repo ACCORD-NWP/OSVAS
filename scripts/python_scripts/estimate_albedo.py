@@ -5,10 +5,17 @@ Estimate surface albedo (NIR and VIS) from validation data.
 This script:
 1. Reads validation data from SQLite OBSTABLEs (SW_OUT, SW_IN)
 2. Selects observations between 11:00-13:00 UTC daily
-3. Calculates daily albedos as SW_OUT/SW_IN
+3. Calculates daily albedos as SW_OUT/SW_IN (broadband)
 4. Computes monthly averages
-5. Generates namelist format text for both vegetation and soil
-6. Saves output to station namelist directory
+5. Decomposes the broadband albedo into VIS/NIR/UV bands for vegetation and
+   soil separately, using the station's vegetation cover fraction
+   (Station_metadata.veg_fraction in the station yml) and a first-order
+   spectral-shape assumption (see estimate_veg_and_soil_albedos). Soil is
+   NOT copied from vegetation: its monthly value is derived from the
+   in-situ measurement via a residual method (see estimate_soil_vis_monthly)
+6. Generates namelist format text for the six SURFEX/ISBA namelist
+   variables: XUNIF_ALB{NIR,VIS,UV}_{VEG,SOIL}
+7. Saves output to station namelist directory
 
 Useage:
     python3 estimate_albedo.py <station_name> <osvas_root> [--run-period start_date end_date]
@@ -27,6 +34,153 @@ import numpy as np
 import pandas as pd
 from collections import defaultdict
 import yaml
+
+
+# ---------------------------------------------------------------------------
+# First-order spectral decomposition assumptions
+# ---------------------------------------------------------------------------
+# The radiometer measures broadband albedo (SW_OUT/SW_IN), integrated over the
+# whole solar spectrum. SURFEX/ISBA needs it split into VIS and NIR bands
+# (UV is folded into VIS, since ISBA has no separate UV band). We approximate
+# the broadband value as a solar-irradiance-weighted average of UV/VIS/NIR
+# band albedos, and assume a fixed *spectral shape* (ratios between bands)
+# taken from typical literature values, anchoring the absolute level to the
+# in-situ measurement. These are first-order, order-of-magnitude assumptions
+# meant for configuring an experiment quickly -- not a spectral retrieval.
+
+# Fraction of broadband solar irradiance carried by each band
+W_UV, W_VIS, W_NIR = 0.05, 0.45, 0.50
+
+# Vegetation (closed forest canopy): strong VIS absorption (chlorophyll),
+# strong NIR scattering (multiple within-canopy reflections), UV slightly
+# below VIS.
+VEG_UV_VIS_RATIO = 0.83
+VEG_NIR_VIS_RATIO = 4.0
+
+# Soil (forest floor, humid/organic litter under canopy shade): much flatter
+# spectrum than vegetation.
+SOIL_UV_VIS_RATIO = 0.6
+SOIL_NIR_VIS_RATIO = 1.8
+
+# Prior for forest-floor VIS albedo (humid/organic litter, shaded) -- used
+# only as an anchor; the monthly value is then adjusted using the in-situ
+# signal (see estimate_soil_vis_monthly).
+SOIL_VIS_PRIOR = 0.08
+
+# Physical plausibility bounds used to clip the decomposition
+VIS_RANGE = (0.02, 0.40)
+NIR_RANGE = (0.05, 0.60)
+
+
+def split_spectral_bands(alpha_total, uv_vis_ratio, nir_vis_ratio,
+                          w_uv=W_UV, w_vis=W_VIS, w_nir=W_NIR):
+    """Decompose a broadband albedo into UV/VIS/NIR assuming a fixed spectral
+    shape (band ratios relative to VIS) and solar-irradiance band weights.
+
+    alpha_total = w_uv*(r_uv*VIS) + w_vis*VIS + w_nir*(r_nir*VIS)
+    => VIS = alpha_total / (w_uv*r_uv + w_vis + w_nir*r_nir)
+    """
+    denom = w_uv * uv_vis_ratio + w_vis + w_nir * nir_vis_ratio
+    vis = alpha_total / denom
+    uv = uv_vis_ratio * vis
+    nir = nir_vis_ratio * vis
+    return uv, vis, nir
+
+
+def estimate_soil_vis_monthly(monthly_total, f_soil, soil_vis_prior=SOIL_VIS_PRIOR,
+                               damping=0.3):
+    """First-order monthly soil VIS albedo estimate that still makes use of
+    the in-situ signal, even though soil's contribution to the total mixture
+    is small.
+
+    Rationale: under a closed canopy the vegetation contribution is large
+    and fairly stable across the year (roughly constant phenology), while
+    forest-floor/soil albedo is the surface most likely to vary quickly
+    month to month (moisture, litter, occasional snow). So instead of
+    freezing soil at a fixed tabulated value, we attribute part of the
+    *anomaly* of the measured broadband albedo relative to its annual mean
+    to the soil term, inversely scaled by its small areal weight (f_soil).
+
+    `damping` (0-1) tempers this attribution. Dividing the raw anomaly by a
+    very small f_soil (e.g. 0.04) amplifies it ~25x, which turns ordinary
+    measurement noise into implausible swings once f_soil gets this small.
+    damping<1 assumes only part of the total's monthly variability really
+    comes from the forest floor (the rest being canopy variability or noise
+    not worth resolving at this fraction of cover); damping=1 recovers the
+    undamped residual method, damping=0 freezes soil at soil_vis_prior.
+
+    Caveat: this still assumes a roughly evergreen canopy with stable
+    albedo; for deciduous forest experiencing leaf-off periods, part of the
+    seasonal anomaly is actually due to vegetation, not soil. Values are
+    clipped to a physically plausible VIS range regardless.
+
+    !!! ONLY VALID FOR EVERGREEN/PERENNIAL CANOPIES !!!
+    In a deciduous forest this assumption breaks down for two compounding
+    reasons: (1) leafless-canopy albedo (bare branches/trunks) is itself
+    quite different from foliage albedo, so alpha_veg is NOT stable across
+    the year as assumed here; and (2) the *radiative* vegetation fraction
+    drops sharply in winter (the canopy becomes far more transparent to
+    shortwave), so the true f_soil in winter is much larger than the
+    structural/summer f_veg used as a constant here. Applying this residual
+    method to a deciduous site will misattribute canopy-driven seasonal
+    variability to the soil. See main() for the runtime warning tied to
+    Station_metadata.canopy_type.
+    """
+    annual_mean = np.mean(monthly_total)
+    f_soil = np.clip(f_soil, 1e-3, 1.0)
+    soil_vis = [
+        soil_vis_prior + damping * (month_val - annual_mean) / f_soil
+        for month_val in monthly_total
+    ]
+    return list(np.clip(soil_vis, *VIS_RANGE))
+
+
+def estimate_veg_and_soil_albedos(monthly_total, f_veg):
+    """Given monthly broadband albedo and the vegetation cover fraction,
+    return monthly NIR/VIS albedo lists for vegetation and soil.
+
+    Steps:
+      1. Estimate a monthly soil VIS (and derived UV/NIR) using the
+         in-situ residual method above.
+      2. Back out the vegetation-only broadband albedo from the linear
+         mixture: alpha_total = f_veg*alpha_veg + f_soil*alpha_soil.
+      3. Split alpha_veg into VIS/NIR using the fixed canopy spectral shape.
+    """
+    f_veg = np.clip(f_veg, 0.01, 1.0)
+    f_soil = 1.0 - f_veg
+
+    soil_vis_monthly = estimate_soil_vis_monthly(monthly_total, f_soil)
+
+    nir_veg, vis_veg, uv_veg = [], [], []
+    nir_soil, vis_soil, uv_soil = [], [], []
+    for alpha_total, soil_vis in zip(monthly_total, soil_vis_monthly):
+        # soil_vis is already the anchor (from the residual method above);
+        # derive UV/NIR from it using the fixed soil spectral shape.
+        s_uv = SOIL_UV_VIS_RATIO * soil_vis
+        s_nir = SOIL_NIR_VIS_RATIO * soil_vis
+        s_vis = soil_vis
+        soil_total_est = W_UV * s_uv + W_VIS * s_vis + W_NIR * s_nir
+
+        alpha_veg = (alpha_total - f_soil * soil_total_est) / f_veg
+        alpha_veg = max(alpha_veg, 0.01)  # guard against noisy/edge months
+
+        v_uv, v_vis, v_nir = split_spectral_bands(alpha_veg, VEG_UV_VIS_RATIO, VEG_NIR_VIS_RATIO)
+
+        vis_veg.append(float(np.clip(v_vis, *VIS_RANGE)))
+        nir_veg.append(float(np.clip(v_nir, *NIR_RANGE)))
+        uv_veg.append(float(np.clip(v_uv, *VIS_RANGE)))
+        vis_soil.append(float(np.clip(s_vis, *VIS_RANGE)))
+        nir_soil.append(float(np.clip(s_nir, *NIR_RANGE)))
+        uv_soil.append(float(np.clip(s_uv, *VIS_RANGE)))
+
+    return {
+        'nir_veg': nir_veg,
+        'vis_veg': vis_veg,
+        'uv_veg': uv_veg,
+        'nir_soil': nir_soil,
+        'vis_soil': vis_soil,
+        'uv_soil': uv_soil,
+    }
 
 
 def get_obstable_files(obstable_path, osvas_root, run_start=None, run_end=None):
@@ -205,32 +359,48 @@ def generate_namelist_block(vegtype, albedo_monthly, param_name):
     return '\n'.join(lines)
 
 
-def generate_complete_albedo_namelist(vegtype, niralbedo_monthly, visalbedo_monthly):
-    """Generate complete namelist text with all four albedo parameters."""
+def generate_complete_albedo_namelist(vegtype, nir_veg, vis_veg, uv_veg,
+                                       nir_soil, vis_soil, uv_soil, f_veg):
+    """Generate complete namelist text with all six albedo parameters
+    (VIS/NIR/UV x vegetation/soil), using independently decomposed series
+    (first-order spectral split anchored on the in-situ measured broadband
+    albedo, see estimate_veg_and_soil_albedos)."""
     output = []
     output.append("\n! Estimated albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)")
-    output.append("! Monthly averages for vegetation and soil surfaces\n")
-    
+    output.append(f"! Decomposed into VIS/NIR/UV for vegetation and soil assuming f_veg={f_veg:.3f}")
+    output.append("! (first-order spectral split, see estimate_veg_and_soil_albedos in this script)\n")
+
     # Vegetation NIR albedo
     output.append("! Vegetation NIR albedo (monthly)")
-    output.append(generate_namelist_block(vegtype, niralbedo_monthly, 'XUNIF_ALBNIR_VEG'))
+    output.append(generate_namelist_block(vegtype, nir_veg, 'XUNIF_ALBNIR_VEG'))
     output.append("")
-    
+
     # Vegetation VIS albedo
     output.append("! Vegetation VIS albedo (monthly)")
-    output.append(generate_namelist_block(vegtype, visalbedo_monthly, 'XUNIF_ALBVIS_VEG'))
+    output.append(generate_namelist_block(vegtype, vis_veg, 'XUNIF_ALBVIS_VEG'))
     output.append("")
-    
-    # Soil NIR albedo (same as vegetation initially, can be adjusted separately)
-    output.append("! Soil NIR albedo (monthly) - estimated same as vegetation")
-    output.append(generate_namelist_block(vegtype, niralbedo_monthly, 'XUNIF_ALBNIR_SOIL'))
+
+    # Vegetation UV albedo
+    output.append("! Vegetation UV albedo (monthly)")
+    output.append(generate_namelist_block(vegtype, uv_veg, 'XUNIF_ALBUV_VEG'))
     output.append("")
-    
-    # Soil VIS albedo (same as vegetation initially, can be adjusted separately)
-    output.append("! Soil VIS albedo (monthly) - estimated same as vegetation")
-    output.append(generate_namelist_block(vegtype, visalbedo_monthly, 'XUNIF_ALBVIS_SOIL'))
+
+    # Soil NIR albedo -- derived from the in-situ residual method, not a
+    # fixed default and not simply copied from vegetation
+    output.append("! Soil NIR albedo (monthly) - derived from in-situ residual (low sensitivity)")
+    output.append(generate_namelist_block(vegtype, nir_soil, 'XUNIF_ALBNIR_SOIL'))
     output.append("")
-    
+
+    # Soil VIS albedo
+    output.append("! Soil VIS albedo (monthly) - derived from in-situ residual (low sensitivity)")
+    output.append(generate_namelist_block(vegtype, vis_soil, 'XUNIF_ALBVIS_SOIL'))
+    output.append("")
+
+    # Soil UV albedo
+    output.append("! Soil UV albedo (monthly) - derived from in-situ residual (low sensitivity)")
+    output.append(generate_namelist_block(vegtype, uv_soil, 'XUNIF_ALBUV_SOIL'))
+    output.append("")
+
     return '\n'.join(output)
 
 
@@ -308,28 +478,59 @@ def main():
     # Step 4: Compute monthly averages
     print("\nStep 4: Computing monthly averages")
     monthly_albedos = compute_monthly_averages(daily_albedos)
-    
-    # For now, assume NIR and VIS albedos are the same (can be refined later)
-    # In reality, vegetation typically has different NIR vs VIS albedos
-    nir_albedos = monthly_albedos
-    vis_albedos = monthly_albedos
-    
-    # Step 5: Generate namelist format
-    print("\nStep 5: Generating namelist format")
-    
-    # Read vegtype from station config
+
+    # Step 5: Read vegtype and vegetation fraction from station config, then
+    # decompose the measured broadband albedo into VIS/NIR for vegetation
+    # and soil (first-order spectral split, see estimate_veg_and_soil_albedos)
+    print("\nStep 5: Decomposing broadband albedo into VIS/NIR (vegetation/soil)")
+
     config_file = osvas_root / 'config_files' / 'Stations' / station_name / f'{station_name}.yml'
     if not config_file.exists():
         print(f"⚠️  Warning: Station config not found: {config_file}")
         vegtype = 10  # default
+        f_veg = 1.0
     else:
         with open(config_file) as f:
             config = yaml.safe_load(f)
         vegtype = config.get('Station_metadata', {}).get('vegtype', 10)
-    
-    print(f"  Using vegtype: {vegtype}")
-    
-    namelist_text = generate_complete_albedo_namelist(vegtype, nir_albedos, vis_albedos)
+        f_veg = config.get('Station_metadata', {}).get('veg_fraction', None)
+        if f_veg is None:
+            print("  ⚠️  'veg_fraction' not found in station config — assuming f_veg=1.0 "
+                  "(no soil correction). Add Station_metadata.veg_fraction to the station "
+                  "yml to enable it.")
+            f_veg = 1.0
+
+    canopy_type = None
+    if config_file.exists():
+        canopy_type = config.get('Station_metadata', {}).get('canopy_type', None)
+
+    if f_veg < 0.999 and canopy_type not in ('evergreen', 'perennial', 'perennifolio'):
+        print(
+            "\n" + "!" * 78 + "\n"
+            "!! WARNING: soil albedo decomposition assumes an EVERGREEN/PERENNIAL\n"
+            "!! canopy (stable albedo year-round). Station_metadata.canopy_type is\n"
+            f"!! {'not set' if canopy_type is None else repr(canopy_type)} for '{station_name}'.\n"
+            "!!\n"
+            "!! If this is a DECIDUOUS forest, the monthly XUNIF_ALB*_SOIL values\n"
+            "!! below are NOT reliable: leaf-off winter months change both the\n"
+            "!! canopy's own albedo and the effective (radiative) vegetation\n"
+            "!! fraction, so seasonal variability gets misattributed to soil.\n"
+            "!! Set Station_metadata.canopy_type: evergreen in the station yml to\n"
+            "!! silence this warning once confirmed, or treat the SOIL values as\n"
+            "!! unreliable and replace them with a fixed literature value instead.\n"
+            + "!" * 78 + "\n"
+        )
+
+    print(f"  Using vegtype: {vegtype}, f_veg: {f_veg:.3f}")
+
+    split = estimate_veg_and_soil_albedos(monthly_albedos, f_veg)
+    nir_albedos, vis_albedos, uv_albedos = split['nir_veg'], split['vis_veg'], split['uv_veg']
+    nir_soil_albedos, vis_soil_albedos, uv_soil_albedos = split['nir_soil'], split['vis_soil'], split['uv_soil']
+
+    namelist_text = generate_complete_albedo_namelist(
+        vegtype, nir_albedos, vis_albedos, uv_albedos,
+        nir_soil_albedos, vis_soil_albedos, uv_soil_albedos, f_veg
+    )
     
     # Step 6: Save output
     print("\nStep 6: Saving results")
@@ -343,8 +544,12 @@ def main():
     output_path.write_text(namelist_text)
     
     print(f"  ✅ Albedo estimates saved to: {output_path}")
-    print(f"\n  NIR albedo:  min={min(nir_albedos):.8f}, max={max(nir_albedos):.8f}, mean={np.mean(nir_albedos):.8f}")
-    print(f"  VIS albedo:  min={min(vis_albedos):.8f}, max={max(vis_albedos):.8f}, mean={np.mean(vis_albedos):.8f}")
+    print(f"\n  VEG  NIR: min={min(nir_albedos):.8f}, max={max(nir_albedos):.8f}, mean={np.mean(nir_albedos):.8f}")
+    print(f"  VEG  VIS: min={min(vis_albedos):.8f}, max={max(vis_albedos):.8f}, mean={np.mean(vis_albedos):.8f}")
+    print(f"  VEG  UV : min={min(uv_albedos):.8f}, max={max(uv_albedos):.8f}, mean={np.mean(uv_albedos):.8f}")
+    print(f"  SOIL NIR: min={min(nir_soil_albedos):.8f}, max={max(nir_soil_albedos):.8f}, mean={np.mean(nir_soil_albedos):.8f}")
+    print(f"  SOIL VIS: min={min(vis_soil_albedos):.8f}, max={max(vis_soil_albedos):.8f}, mean={np.mean(vis_soil_albedos):.8f}")
+    print(f"  SOIL UV : min={min(uv_soil_albedos):.8f}, max={max(uv_soil_albedos):.8f}, mean={np.mean(uv_soil_albedos):.8f}")
     print(f"\n{'='*70}")
     print("✅ Albedo estimation completed successfully")
     print(f"{'='*70}\n")
