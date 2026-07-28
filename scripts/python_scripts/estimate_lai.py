@@ -74,10 +74,13 @@ except ImportError:
 # Federated backend exposes VITO partner resources (BIOPAR process)
 DEFAULT_BACKEND = "https://openeofed.dataspace.copernicus.eu"
 
-# BIOPAR process namespace (VITO on CDSE Algorithm Plaza)
+# BIOPAR process namespace (VITO/ESA-APEx hosted UDP, referenced by URL).
+# The old CDSE "u:<uuid>/BIOPAR" namespace has been retired by the backend
+# (it now raises ProcessNamespaceInvalid); the process is now published as a
+# plain openEO UDP JSON on the ESA-APEx algorithm catalogue instead.
 BIOPAR_NAMESPACE = (
-    "https://openeo.dataspace.copernicus.eu/openeo/1.1/processes/"
-    "u:3e24e251-2e9a-438f-90a9-d4500e576574/BIOPAR"
+    "https://raw.githubusercontent.com/ESA-APEx/apex_algorithms/refs/heads/"
+    "main/algorithm_catalog/vito/biopar/openeo_udp/biopar.json"
 )
 
 # Small spatial buffer around point (degrees, ~0.5 km)
@@ -198,21 +201,36 @@ def fetch_lai_biopar(conn, lat: float, lon: float,
         yr_end   = min(end,   pd.Timestamp(f"{year}-12-31")).strftime("%Y-%m-%d")
         print(f"    Processing {yr_start} → {yr_end} ...")
 
+        bbox = {
+            "west":  lon - POINT_BUFFER, "east":  lon + POINT_BUFFER,
+            "south": lat - POINT_BUFFER, "north": lat + POINT_BUFFER,
+        }
+
         cube = conn.datacube_from_process(
-            "BIOPAR",
+            "biopar",
             namespace=BIOPAR_NAMESPACE,
-            date=[yr_start, yr_end],
-            polygon=polygon,
+            spatial_extent=bbox,
+            temporal_extent=[yr_start, yr_end],
             biopar_type="LAI",
         )
 
         ts  = cube.aggregate_spatial(geometries=polygon, reducer="mean")
-        job = ts.create_job(title=f"LAI_BIOPAR_{lat:.4f}_{lon:.4f}_{year}")
-        job.start_and_wait()
 
-        records = _parse_job_results(job)
+        try:
+            raise Exception("force going to the slow alternative (the quick one times out)")
+            print("      Trying synchronous processing (small request) ...")
+            result  = ts.execute()
+            records = _parse_sync_result(result)
+            print(f"      → {len(records)} observations (sync)")
+        except Exception as exc:
+            print(f"      Sync processing unavailable/timed out ({exc});"
+                  f" falling back to batch job ...")
+            job = ts.create_job(title=f"LAI_BIOPAR_{lat:.4f}_{lon:.4f}_{year}")
+            job.start_and_wait()
+            records = _parse_job_results(job)
+            print(f"      → {len(records)} observations (batch)")
+
         all_records.extend(records)
-        print(f"      → {len(records)} observations")
 
     if not all_records:
         raise RuntimeError("No LAI data returned from BIOPAR for any year.")
@@ -236,6 +254,34 @@ def _parse_job_results(job) -> list:
     asset = (json_assets or csv_assets or assets)[0]
     raw   = asset.load_bytes()
 
+    return _parse_lai_bytes(raw)
+
+
+def _parse_sync_result(result) -> list:
+    """
+    Extract (date, lai) pairs from a synchronous `.execute()` result.
+
+    Depending on the openeo client version/backend, this can already be a
+    parsed dict/list, raw bytes, or a requests.Response-like object with
+    .content — normalize all of those into bytes and reuse the same
+    parsing logic as the batch-job path.
+    """
+    if isinstance(result, (dict, list)):
+        data = result
+        records = []
+        if isinstance(data, dict):
+            for date_str, features in data.items():
+                val = _extract_value_from_feature(features)
+                if val is not None and not (isinstance(val, float) and math.isnan(val)):
+                    records.append({"date": date_str, "lai": float(val)})
+        return records
+
+    raw = result.content if hasattr(result, "content") else result
+    return _parse_lai_bytes(raw)
+
+
+def _parse_lai_bytes(raw) -> list:
+    """Shared JSON/CSV parsing logic for both sync and batch-job results."""
     records = []
     try:
         data = json.loads(raw)
@@ -243,9 +289,10 @@ def _parse_job_results(job) -> list:
             val = _extract_value_from_feature(features)
             if val is not None and not (isinstance(val, float) and math.isnan(val)):
                 records.append({"date": date_str, "lai": float(val)})
-    except (json.JSONDecodeError, ValueError):
+    except (json.JSONDecodeError, ValueError, TypeError):
         from io import StringIO
-        df_raw = pd.read_csv(StringIO(raw.decode("utf-8")))
+        raw_text = raw.decode("utf-8") if isinstance(raw, bytes) else raw
+        df_raw = pd.read_csv(StringIO(raw_text))
         df_raw.columns = [c.strip() for c in df_raw.columns]
         date_col = next(c for c in df_raw.columns if "date" in c.lower() or "time" in c.lower())
         val_col  = next(c for c in df_raw.columns if c != date_col)

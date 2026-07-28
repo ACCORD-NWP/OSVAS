@@ -1,6 +1,6 @@
 OSVAS_steps:
  Create_forcing: false
- Get_validation: true
+ Get_validation: false
  Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - pgd
@@ -15,53 +15,50 @@ OSVAS_steps:
 
 Station_metadata:
   Station_type: ICOS
-  Station_name: Loobos
-  SID: 4300000007
-  elev: 33
-  lat: 52.166447
-  lon: 5.74355
+  Station_name: Bilos
+  SID: 4300000003
+  elev: 40
+  lat: 44.4936
+  lon: -0.95608
   vegtype: 5
-  lai: 1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9
   canopy_storage: true
   closure_type: 3
   estimate_albedo: false  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
   estimate_lai: false     # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
-  Tree_height: 21
+  Tree_height: 9.5
+  diag_T: 11.0   # AGL height of temperature/humidity diagnostic
+  diag_V: 11.0   # AGL height of wind diagnostic
   
 Forcing_data:
-  height_T: 38.2  # Height of the temperature measurement https://maq-observations.nl/operational-data/
-  height_V: 38.2  # Height of the windspeed   measurement https://maq-observations.nl/operational-data/
-  run_start: '2023-11-01 00:00:00'    # Timestamp for the forcing start
-  run_end: '2024-12-31 23:30:00'      # Timestamp for the forcing end
+  height_T: 15.6  # Height of the temperature measurement https://maq-observations.nl/operational-data/
+  height_V: 15.6  # Height of the windspeed   measurement https://maq-observations.nl/operational-data/
+  run_start: '2021-05-15 00:00:00'    # Timestamp for the forcing start
+  run_end: '2021-09-30 23:30:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
   dataset1:
-    doi: https://meta.icos-cp.eu/objects/QfstRcIlaOI5kNIgBhSCKinI
+    doi: https://meta.icos-cp.eu/objects/qMCz5ns33-kIkSZs1gEJCY7H
     timedelta: 30  # in minutes
     variables:
       Forc_CO2: -, 0.00062
-      Forc_PS: PA, *1000
       Forc_RAIN: P, /(timedelta*60)
       Forc_SNOW: 
-      Forc_WIND: WS_1
-      Forc_DIR: WD_1    
       Forc_DIR_SW: SW_IN
       Forc_LW: LW_IN
       Forc_QA: 
       Forc_SCA_SW: 
       Forc_TA: TA_1, +273.15
-      Forc_RH: RH
-  dataset2:
-    doi: https://meta.icos-cp.eu/objects/QfstRcIlaOI5kNIgBhSCKinI
-    timedelta: 30  # in minutes
-    variables:
-      Forc_VPD: VPD
+      Forc_PS: PA, *1000
+      Forc_RH: RH_1
+      Forc_WIND: WS_1
+      Forc_DIR: WD_1      
+
 Validation_data:
-  validation_start: '2024-1-1 00:00:00'
-  validation_end: '2024-12-31 23:00:00'
+  validation_start: '2021-06-01 00:00:00'
+  validation_end: '2021-09-30 23:30:00'
   common_obstable: true
   common_fctable: true
   dataset1: 
-    doi: https://meta.icos-cp.eu/objects/QfstRcIlaOI5kNIgBhSCKinI
+    doi: https://meta.icos-cp.eu/objects/qMCz5ns33-kIkSZs1gEJCY7H
     timedelta: 30
     variables: # Map ICOS variables (right) to a name (left) in the OBSTABLE
       SW_OUT: SW_OUT
@@ -71,11 +68,11 @@ Validation_data:
       TS_*: TS_*
       SWC_*: SWC_*
       G: G_2
-      Tcan: TA_5
-      PA: PA
-      T_diag: TA_2  #nominally 22.1m
-      V_diag: WS_2  #nominally 22.1m
-      D_diag: WD_2  #nominally 22.1m
+      Tcan: TA_4
+      PA: PA  #Not really needed, but useful for estimation of canopy storage components
+      T_diag: TA_2
+      V_diag: WS_2
+      D_diag: WD_2
 
     units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
       SW_OUT: W/m2
@@ -92,23 +89,21 @@ Validation_data:
       D_diag: º
 
   dataset2: 
-    doi: https://meta.icos-cp.eu/objects/v7pbR5OY2J4fAvWuLvmxj0ac
+    doi: https://meta.icos-cp.eu/objects/EYxm67-33pkyyHucxZBzEMb2
     timedelta: 30
     variables:
-      H: H_F_MDS
-      LE: LE_F_MDS
-      VPD: VPD_F
-      NEE: NEE_VUT_REF
+      H: H
+      LE: LE
+      TAU: TAU
     units:
       H: W/m2
       LE: W/m2
-      VPD: hPa 
-      NEE: W/m2
+      TAU: Pa
 Initialization_data: 
-  initialization_start: '2023-6-1 00:00:00'
-  initialization_end: '2025-12-31 23:00:00'
-  metadata_filename: 'ICOSETC_NL-Loo_VARINFO_METEO_L2.csv'
+  initialization_start: '2019-1-1 00:00:00'
+  initialization_end: '2024-12-31 23:00:00'
+  metadata_filename: 'ICOSETC_FR-Bil_VARINFO_METEO_L2.csv'
   reuse_soil_profile: false
-  Init_to_namelist: true   # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
-  Init_to_prep: false   # patch PREP.txt or PREP.nc for each expname
+  Init_to_namelist: false  # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
+  Init_to_prep: true   # patch PREP.txt or PREP.nc for each expname
 

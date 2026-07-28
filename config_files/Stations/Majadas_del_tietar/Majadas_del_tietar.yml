@@ -8,8 +8,8 @@ OSVAS_steps:
   - OFFLINE
  Expnames: #Don't forget a space before each item
   - DIFMEB_v9
-    #- DIFMEB_v9DSL
-    #- DIFMEB_v9DSLIT
+  - DIFMEB_v9DSL
+  - DIFMEB_v9DSLIT
  Extract_model_sqlites: false
  Run_HARP: false
  Display_HARP: false
@@ -26,8 +26,8 @@ Station_metadata:
   estimate_lai: true    # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
   
 Forcing_data:
-  height_T: 2                       # Height of the temperature measurement
-  height_V: 10                      # Height of the windspeed   measurement
+  height_T: 8.0                       # Height of the temperature measurement
+  height_V: 15.6                      # Height of the windspeed   measurement
   run_start: '2023-11-01 00:00:00'    # Timestamp for the forcing start
   run_end: '2024-12-31 23:30:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
@@ -75,9 +75,20 @@ Validation_data:
     variables:
       H: H
       LE: LE
+      TAU: TAU
     units:
       H: W/m2
       LE: W/m2
+      TAU: Pa
+  dataset3:
+    doi: https://meta.icos-cp.eu/objects/bSceGKFPYtSyRgGxAqmfq_DF
+    timedelta: 30
+    variables:
+      RH_diag : RH_2_1_1  #Nominally 1.8m
+      T_diag  : TA_2_1_1  #Nominally 1.8m
+    units: 
+      RH_diag: percent
+      T_diag: degC
 Initialization_data: 
   initialization_start: '2020-01-01 00:00:00'
   initialization_end: '2025-12-31 23:00:00'

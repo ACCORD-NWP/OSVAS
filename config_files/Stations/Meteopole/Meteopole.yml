@@ -1,6 +1,6 @@
 OSVAS_steps:
  Create_forcing: false
- Get_validation: true
+ Get_validation: false
  Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - pgd
@@ -8,11 +8,11 @@ OSVAS_steps:
   - OFFLINE
  Expnames: #Don't forget a space before each item
   - DIFMEB_v9
-    #- DIFMEB_v9DSL
-    #- DIFMEB_v9DSLIT
+  - DIFMEB_v9DSL
+  - DIFMEB_v9DSLIT
  Extract_model_sqlites: false
  Run_HARP: false
- Display_HARP: false
+ Display_HARP: true
 
 Station_metadata:
   Station_type: ICOS
@@ -27,8 +27,8 @@ Station_metadata:
   estimate_lai: true    # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
   
 Forcing_data:
-  height_T: 2                       # Height of the temperature measurement
-  height_V: 10                      # Height of the windspeed   measurement
+  height_T: 10.0                       # Height of the temperature measurement
+  height_V: 10.0                      # Height of the windspeed   measurement
   run_start: '2023-11-01 00:00:00'    # Timestamp for the forcing start
   run_end: '2024-12-31 23:30:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
@@ -51,8 +51,8 @@ Forcing_data:
 Validation_data:
   validation_start: '2024-1-1 00:00:00'
   validation_end: '2024-12-31 23:00:00'
-  common_obstable: true
-  common_fctable: true
+  common_obstable: false
+  common_fctable: false
   dataset1: 
     doi: https://meta.icos-cp.eu/objects/ClxZ0M4-XC0WevhDm_cO2LeA
     timedelta: 30
@@ -64,6 +64,8 @@ Validation_data:
       TS_*: TS_*
       SWC_*: SWC_*
       G: G
+      T_diag: TA_2  #Nominally 2m
+      RH_diag: RH_2 #Nominally 2m
     units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
       SW_OUT: W/m2
       LW_OUT: W/m2
@@ -72,6 +74,8 @@ Validation_data:
       TS_*: degC
       SWC_*: percent
       G: W/m2
+      T_diag: degC
+      RH_diag: percent
   dataset2: 
     doi: https://meta.icos-cp.eu/objects/No7s1uuHhY2frqKUg6CSIRV-
     timedelta: 30
@@ -85,7 +89,12 @@ Validation_data:
       LE: W/m2
       VPD: hPa 
       NEE: W/m2
-
+  dataset3:
+    doi: https://meta.icos-cp.eu/objects/5bs2BOVRCqwGfrjHnTJxKe_X
+    variables:
+      TAU: TAU
+    units:
+      TAU: Pa 
 Initialization_data:
   initialization_start: '2020-01-01 00:00:00'
   initialization_end: '2025-12-31 23:00:00'

@@ -1,0 +1,134 @@
+OSVAS_steps:
+ Create_forcing: false
+ Get_validation: false
+ Run_surfex: false
+ Surfex_steps: #Don't forget a space before each item
+  - pgd
+  - PREP
+  - OFFLINE
+ Expnames: #Don't forget a space before each item
+   - DIFMEBACC
+   - DIFMEBACC_RSL
+ Extract_model_sqlites: false
+ Run_HARP: true
+ Display_HARP: false
+ 
+Station_metadata:
+  Station_type: ICOS
+  Station_name: Norunda
+  SID: 4300000004
+  elev: 46.0
+  lat: 60.0865
+  lon: 17.479504
+  vegtype: 5
+  canopy_storage: true
+  closure_type: 3
+  estimate_albedo: false  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
+  estimate_lai: false     # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
+  Tree_height: 25.0
+  diag_T: 32.0   # AGL height of temperature diagnostic
+  diag_RH: 32.0   # AGL height of humidity diagnostic
+  diag_V: 32.0   # AGL height of wind diagnostic
+Forcing_data:
+  height_T: 58.0  # Height of the temperature measurement https://maq-observations.nl/operational-data/
+  height_V: 58.0  # Height of the windspeed   measurement https://maq-observations.nl/operational-data/
+  run_start: '2021-05-15 00:00:00'    # Timestamp for the forcing start
+  run_end: '2021-09-30 23:30:00'      # Timestamp for the forcing end
+  forcing_format: 'ascii'          # Choose between netcdf or ascii
+  dataset1:
+    doi: https://meta.icos-cp.eu/objects/pq_ziUZiYyoYKne9HMTbkfJr
+    timedelta: 30  # in minutes
+    variables:
+      Forc_CO2: -, 0.00062
+      Forc_SNOW: 
+      Forc_DIR_SW: SW_IN
+      Forc_LW: LW_IN
+      Forc_QA: 
+      Forc_SCA_SW: 
+      Forc_TA: TA_4, +273.15
+      Forc_PS: PA, *1000
+      Forc_RAIN: P, /(timedelta*60)   
+  dataset2:
+    doi: https://meta.icos-cp.eu/objects/U3fNQUj34MhLD22CRC3LhZIY
+    timedelta: 60  # in minutes
+    variables:
+      Forc_RH: RH
+      Forc_WIND: WS
+      Forc_DIR: WD          
+#dataset3:
+#    doi: https://meta.icos-cp.eu/objects/A_FN-1irsZyY9wvyZnK_nauA
+#    timedelta: 30  # in minutes
+#    variables:
+
+Validation_data:
+  validation_start: '2021-08-15 00:00:00'
+  validation_end: '2021-09-15 23:30:00'
+  common_obstable: true
+  common_fctable: true
+  dataset1: 
+    doi: https://meta.icos-cp.eu/objects/pq_ziUZiYyoYKne9HMTbkfJr
+    timedelta: 30
+    variables: # Map ICOS variables (right) to a name (left) in the OBSTABLE
+      SW_OUT: SW_OUT
+      LW_OUT: LW_OUT
+      SW_IN: SW_IN
+      LW_IN: LW_IN  
+      TS_*: TS_*
+      SWC_*: SWC_*
+      TS_1: TS_1
+      SWC_1: SWC_1      
+      TS_2: TS_1      
+      SWC_2: SWC_1            
+      TS_3: TS_1
+      SWC_3: SWC_1            
+      G: G_2
+      Tcan: TA_5
+      PA: PA  #Not really needed, but useful for estimation of canopy storage components
+    units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
+      SW_OUT: W/m2
+      LW_OUT: W/m2
+      LW_IN: W/m2
+      SW_IN: W/m2
+      TS_*: degC
+      SWC_*: percent
+      TS_1: degC
+      SWC_1: percent
+      TS_2: degC
+      SWC_2: percent
+      TS_3: degC
+      SWC_3: percent
+      G: W/m2
+      Tcan: degC
+      PA: kPa
+  dataset2: 
+    doi: https://meta.icos-cp.eu/objects/l9M-3MKhuDb3IC7FOnnSC23U
+    timedelta: 30
+    variables:
+      H: H
+      LE: LE
+      TAU: TAU
+    units:
+      H: W/m2
+      LE: W/m2
+      TAU: Pa
+  dataset3:
+    doi: https://meta.icos-cp.eu/objects/VYNGJ36Bt-oVxKRevahF-Ekx
+    timedelta: 60
+    variables: 
+      T_diag: AT
+      V_diag: WS
+      D_diag: WD 
+      RH_diag: RH 
+    units:
+      T_diag: degC
+      V_diag: m/s
+      D_diag: º
+      RH_diag: percent           
+Initialization_data: 
+  initialization_start: '2019-1-1 00:00:00'
+  initialization_end: '2024-12-31 23:00:00'
+  metadata_filename: 'ICOSETC_SE-Nor_VARINFO_METEO_L2.csv'
+  reuse_soil_profile: true
+  Init_to_namelist: false  # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
+  Init_to_prep: true   # patch PREP.txt or PREP.nc for each expname
+  

@@ -46,7 +46,7 @@ params <- list(
     T2m = list(
       thresholds = c(-20, -10, seq(-5, 25, 5)),
       scale_fcst = list(scaling = -273.15, new_units = "degC"),
-      scale_obs  = list(scaling = -273.15, new_units = "degC"),
+      scale_obs  = list(scaling = 0, new_units = "degC"),
       obsmin_val = - 30,
       obsmax_val = + 50,
       error_sd   = 6,
@@ -55,7 +55,7 @@ params <- list(
     Td2m = list(
       thresholds = c(-20, -10, seq(-5, 30, 5)),
       scale_fcst = list(scaling = -273.15, new_units = "degC"),
-      scale_obs  = list(scaling = -273.15, new_units = "degC"),
+      scale_obs  = list(scaling = 0, new_units = "degC"),
       obsmin_val = - 30,
       obsmax_val = + 50,
       error_sd   = 6
@@ -78,6 +78,8 @@ params <- list(
     ),
     RH2m = list(
       thresholds = c(30,50,65,75,85,95),
+      scale_fcst = list(scaling = 100, new_units = "%", mult = TRUE),
+      scale_obs  = list(scaling = 1, new_units = "%", mult = TRUE),      
       obsmin_val = 12.5,
       obsmax_val = 100,
       error_sd   = 6
@@ -302,7 +304,19 @@ params <- list(
    SW_IN = list(
       thresholds = c(seq(100, 1100, 200	)),
       obsmin_val=-50,
-      obsmin_val=500,
+      obsmax_val=500,
+      error_sd   = 6
+    ),
+   TAU = list(
+      thresholds = c(seq(-5, 1, 0.5)),
+      obsmin_val=-15,
+      obsmax_val=1,
+      error_sd   = 6
+    ),
+    G = list(
+      thresholds = c(seq(-20, 40, 5	)),
+      obsmin_val=-30,
+      obsmax_val=50,
       error_sd   = 6
     )
 )
@@ -314,3 +328,8 @@ for (i in 1:14) {
   params[[paste0("TSi_", i)]]  <- TSi_template
   params[[paste0("SWCi_", i)]] <- SWCi_template
 }
+params[["T_diag"]] <- params[["T2m"]]
+params[["Tcan"]] <- params[["T2m"]]
+params[["RH_diag"]] <- params[["RH2m"]]
+params[["V_diag"]] <- params[["S10m"]]
+
