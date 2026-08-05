@@ -1,5 +1,5 @@
 diff --git a/visualization/fn_plot_point_verif.R b/visualization/fn_plot_point_verif.R
-index 01fbc7e..b02a92c 100644
+index 01fbc7e..4ea9a8f 100644
 --- a/visualization/fn_plot_point_verif.R
 +++ b/visualization/fn_plot_point_verif.R
 @@ -22,7 +22,8 @@ fn_plot_point_verif <- function(harp_verif_input,
@@ -12,6 +12,15 @@ index 01fbc7e..b02a92c 100644
   
    #=================================================#
    # INITIAL CHECKS
+@@ -355,7 +356,7 @@ fn_plot_point_verif <- function(harp_verif_input,
+   }
+   
+   # Define the colour scheme used in line plots
+-  mcolors <- fn_gen_model_colors(model_names,cmap)
++  mcolors <- fn_gen_model_colors(model_names,cmap,custom_colors = custom_colors)
+   
+   # Line stylces
+   line_styles <- c("solid","dashed","dotted","dotdash")
 @@ -419,7 +420,8 @@ fn_plot_point_verif <- function(harp_verif_input,
                          "png_projname" = png_projname,
                          "score_sep"    = score_sep, 

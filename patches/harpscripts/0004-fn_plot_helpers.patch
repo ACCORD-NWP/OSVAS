@@ -1,5 +1,5 @@
 diff --git a/visualization/fn_plot_helpers.R b/visualization/fn_plot_helpers.R
-index 09b564c..f1137a3 100644
+index 09b564c..2428bba 100644
 --- a/visualization/fn_plot_helpers.R
 +++ b/visualization/fn_plot_helpers.R
 @@ -182,12 +182,13 @@ fn_png_name <- function(fcst_type,
@@ -35,12 +35,31 @@ index 09b564c..f1137a3 100644
                             projectname = fxoption_list$png_projname)
    
    #if (!is.object(p_c)){
-@@ -2079,11 +2083,34 @@ get_param_classes <- function(param,par_unit,score = "freq") {
+@@ -742,7 +746,7 @@ fn_plot_point <- function(verif,
+       }
+       p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,720,lt_sep))
+     } else if (xgroup == "valid_hour") {
+-      p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,21,3),
++      p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,23,1),
+                                                    minor_breaks = NULL)
+     } else if (xgroup == "mids") {
+       p_breaks <- vroption_list$p_breaks
+@@ -925,7 +929,7 @@ fn_plot_numcases <- function(verif,
+     }
+     p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,720,lt_sep))
+   } else if (xgroup == "valid_hour") {
+-    p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,21,3),
++    p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,23,1),
+                                                  minor_breaks = NULL)
+   } else if (xgroup == "mids") {
+     p_breaks <- vroption_list$p_breaks
+@@ -2079,11 +2083,35 @@ get_param_classes <- function(param,par_unit,score = "freq") {
        scale_mult  <- T
        scale_round <- 0
      }
 +
-+  } else if (param %in% c("H","LE","SW_IN","SW_OUT","LW_IN","LW_OUT")) {	     
++  } else if (param %in% c("H,LE,SW_IN,SW_OUT,LW_IN,LW_OUT")) {
++    
 +    # Assuming hPa as default
 +    if (score %in% c("bias","mean_bias")) {
 +      brks <- seq(-400,-50,50)
@@ -71,7 +90,7 @@ index 09b564c..f1137a3 100644
      
      # Assuming degC as default
      if (score %in% c("bias","mean_bias")) {
-@@ -2095,11 +2122,11 @@ get_param_classes <- function(param,par_unit,score = "freq") {
+@@ -2095,11 +2123,11 @@ get_param_classes <- function(param,par_unit,score = "freq") {
        brks <- seq(0,10,1)
      }
      
@@ -85,7 +104,7 @@ index 09b564c..f1137a3 100644
        # Only need to scale for freq plots
        if (score == "freq") {
          scale_fac   <- 273.15
-@@ -2112,7 +2139,9 @@ get_param_classes <- function(param,par_unit,score = "freq") {
+@@ -2112,7 +2140,9 @@ get_param_classes <- function(param,par_unit,score = "freq") {
        }
      }
      
@@ -96,7 +115,7 @@ index 09b564c..f1137a3 100644
      
      # Assuming g/kg as default
      if (score %in% c("bias","mean_bias")) {
-@@ -2128,7 +2157,7 @@ get_param_classes <- function(param,par_unit,score = "freq") {
+@@ -2128,7 +2158,7 @@ get_param_classes <- function(param,par_unit,score = "freq") {
        scale_fac   <- 1
        scale_mult  <- T
        scale_round <- 0
@@ -105,3 +124,25 @@ index 09b564c..f1137a3 100644
        scale_fac   <- 1/1000
        scale_mult  <- T
        scale_round <- 4
+@@ -2499,8 +2529,20 @@ fn_get_lts_used <- function(vh,cyc,allcycles,alllts){
+ 
+ fn_gen_model_colors <- function(in_names,
+                                 cmap,
+-                                withobs=FALSE){
++                                withobs=FALSE,
++                                custom_colors = NULL){
+   
++  if (!is.null(custom_colors)) {
++    if (length(custom_colors) < length(in_names)) {
++      stop("custom_colors must include at least as many entries as in_names")
++    }
++    if (withobs) {
++      custom_colors <- c(custom_colors, "#4F4F4F")
++    }
++    names(custom_colors) <- c(in_names, if (withobs) "OBS" else NULL)
++    return(custom_colors)
++  }
++
+   # Some fixed model names which the verification scripts know about.
+   # The default below considers 20 known models, corresponding to the number
+   # available from "trubetskoy" in the pals packages (less last two colours).

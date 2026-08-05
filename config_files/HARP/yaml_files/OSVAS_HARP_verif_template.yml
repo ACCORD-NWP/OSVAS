@@ -42,3 +42,10 @@ post:
   - /home/pn56/OSVASgh/RUNS/Majadas_del_tietar/HARPVERIF/
   create_png: true
   cmap: trubetskoy
+  cmap_hex: "magma"                         # Colour pallete for scatterplots (one of "paired", "magma", "viridis", or a scico pallette). Defaults to magma
+  custom_colors:                            # null Optional custom line colours for verification plots, e.g. ["#1f77b4", "#ff7f0e", "#2ca02c"]
+    - "#8cf36b"
+    - "#0f9c08"
+    - "#98DAFF"
+    - "#00588D"    
+  map_cbar_d: FALSE                         # Use discrete breaks instead of a continuous colourbar for the station map plots  
