@@ -84,6 +84,10 @@ if args.stations:
 else:
     stations_to_process = [os.environ.get('STATION_NAME', 'Majadas_del_tietar')]
 
+# Collect Step 3 (Run SURFEX) timings for every station/expname, to be
+# summarised on screen once all stations have been processed
+step3_timings = []
+
 # Process each station
 for station_name in stations_to_process:
     print(f"\n{'='*60}")
@@ -281,6 +285,8 @@ for station_name in stations_to_process:
         seconds_since_midnight = start_dt.hour * 3600 + start_dt.minute * 60 + start_dt.second
         
         for expname in expnames:
+            expname_st = time.time()
+
             run_dir = f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/{expname}/run/"
             out_dir = f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/{expname}/output/"
             os.makedirs(run_dir, exist_ok=True)
@@ -364,8 +370,15 @@ for station_name in stations_to_process:
         
         # Move outputs
         for f in os.listdir(run_dir):
-            if f in ['PGD.nc', 'PREP.nc'] or f.startswith('SURFOUT') or f == 'OPTIONS.nam' or f.endswith('OUT.nc') or f.startswith('LISTI') or f.startswith('Param'):
-                shutil.move(f"{run_dir}/{f}", f"{out_dir}/{f}")
+            if f.startswith('SURFOUT') or f.endswith('OUT.nc') or f.startswith('LISTI') or f.startswith('Param'):
+                    shutil.move(f"{run_dir}/{f}", f"{out_dir}/{f}")
+        for f in os.listdir(run_dir):
+            if f in ['PGD.nc', 'PREP.nc', 'OPTIONS.nam']:
+                    shutil.move(f"{run_dir}/{f}", f"{out_dir}/{f}")
+        expname_dt = round(time.time() - expname_st, 1)
+        step3_timings.append((station_name, expname, expname_dt))
+        print(f"⏱  Step 3 for {expname} ({station_name}) completed in {expname_dt}s")
+
     else:
         print("⏩ Skipping Step 3: Run SURFEX")
 
@@ -538,3 +551,18 @@ for station_name in stations_to_process:
     print(f"OSVAS workflow on ATOS completed for {station_name}.")
 
 print("All stations processed on ATOS.")
+# Print a summary of how long Step 3 (Run SURFEX) took for every
+# station/expname combination that was actually run
+if step3_timings:
+    print(f"\n{'='*60}")
+    print("Step 3 (Run SURFEX) timing summary")
+    print(f"{'='*60}")
+    name_width = max(len(f"{s}/{e}") for s, e, _ in step3_timings)
+    total_dt = 0.0
+    for station_name, expname, dt in step3_timings:
+        label = f"{station_name}/{expname}"
+        print(f"  {label.ljust(name_width)}  {dt:>8.1f}s")
+        total_dt += dt
+    print(f"{'-'*60}")
+    print(f"  {'TOTAL'.ljust(name_width)}  {total_dt:>8.1f}s")
+    print(f"{'='*60}")
