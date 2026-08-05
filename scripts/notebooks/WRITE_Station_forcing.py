@@ -443,13 +443,13 @@ def write_forcing_ascii(Forcing_vars, Forcing_path, Station_forcing, run_start, 
             1, len(Station_forcing_run), delta_t,
             Station_forcing_run.valid_dttm[1].year, Station_forcing_run.valid_dttm[1].month,
             Station_forcing_run.valid_dttm[1].day, 3600*Station_forcing_run.valid_dttm[1].hour,
-            lon, lat, elev, height_T, height_V
+            float(lon), float(lat), float(elev), float(height_T), float(height_V)
         ]
 
         if write_forcing.lower() == 'yes':
             with open(os.path.join(Forcing_path, "Params_config.txt"), 'w') as f:
-                f.write("\n".join(f"{float(v)}" for v in params_lines) + "\n")    
-    
+                f.write("\n".join(map(str, params_lines)) + "\n")    
+                
     except Exception as e:
         print(f"Error encountered: {e}")
         raise

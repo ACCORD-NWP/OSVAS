@@ -1,8 +1,16 @@
 diff --git a/verification/point_verif.R b/verification/point_verif.R
-index fdab08c..ab37ce2 100755
+index fdab08c..92c515b 100755
 --- a/verification/point_verif.R
 +++ b/verification/point_verif.R
-@@ -389,7 +389,7 @@ if (params_list == "ALL") {
+@@ -233,6 +233,7 @@ save_vofp       <- check_config_input(CONFIG,"post","save_vofp",default=F)
+ save_sidrds     <- check_config_input(CONFIG,"post","save_sidrds",default=F)
+ cmap            <- check_config_input(CONFIG,"post","cmap",default="Set2")
+ cmap_hex        <- check_config_input(CONFIG,"post","cmap_hex",default="magma")
++custom_colors   <- check_config_input(CONFIG,"post","custom_colors",default=NULL)
+ map_cbar_d      <- check_config_input(CONFIG,"post","map_cbar_d",default=F)
+ create_scrd     <- check_config_input(CONFIG,"scorecards","create_scrd",default=F)
+ 
+@@ -389,7 +390,7 @@ if (params_list == "ALL") {
  
  # Make the grps for different verification types
  grps_surface_default   <- harpCore::make_verif_groups(c("lead_time",
@@ -11,7 +19,7 @@ index fdab08c..ab37ce2 100755
  grps_UA_default        <- harpCore::make_verif_groups(c("lead_time",
                       "valid_hour"),c("fcst_cycle","station_group"))
  grps_SID_default       <- list("SID",c("SID","valid_hour"))
-@@ -849,6 +849,8 @@ run_verif <- function(prm_info, prm_name) {
+@@ -849,6 +850,8 @@ run_verif <- function(prm_info, prm_name) {
    fcst <- harpCore::expand_date(fcst,valid_dttm)
    fcst <- harpPoint::mutate_list(fcst,
                                   valid_hour = sprintf("%02d",valid_hour))
@@ -20,7 +28,15 @@ index fdab08c..ab37ce2 100755
    
    # If UA variable, restrict to main valid hours i.e. 00, 06, 12, 18 Z
    if (!is.na(vertical_coordinate)) {
-@@ -1064,8 +1066,29 @@ run_verif <- function(prm_info, prm_name) {
+@@ -1011,6 +1014,7 @@ run_verif <- function(prm_info, prm_name) {
+                               rolling_verif = rolling_verif,
+                               cmap          = cmap,
+                               cmap_hex      = cmap_hex,
++			      custom_colors = custom_colors,
+                               lt_split      = lt_split,
+                               fsd           = fsd,
+                               fed           = fed,
+@@ -1064,8 +1068,29 @@ run_verif <- function(prm_info, prm_name) {
      
      st_plot <- Sys.time()
      if (create_png) {
@@ -52,7 +68,7 @@ index fdab08c..ab37ce2 100755
                                 plot_output,
                                 png_projname  = png_projname,
                                 rolling_verif = rolling_verif,
-@@ -1076,7 +1099,32 @@ run_verif <- function(prm_info, prm_name) {
+@@ -1076,7 +1101,32 @@ run_verif <- function(prm_info, prm_name) {
                                 n_stations    = n_stations,
                                 use_parallel  = use_parallel,
                                 plot_num_obs  = TRUE,

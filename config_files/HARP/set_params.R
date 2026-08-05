@@ -313,6 +313,12 @@ params <- list(
       obsmax_val=1,
       error_sd   = 6
     ),
+   USTAR = list(
+      thresholds = c(seq(0, 2.0, 0.1)),
+      obsmin_val=0,
+      obsmax_val=5,
+      error_sd   = 6
+    ),    
     G = list(
       thresholds = c(seq(-20, 40, 5	)),
       obsmin_val=-30,

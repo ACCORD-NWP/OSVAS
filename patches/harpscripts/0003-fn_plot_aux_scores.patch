@@ -1,8 +1,16 @@
 diff --git a/visualization/fn_plot_aux_scores.R b/visualization/fn_plot_aux_scores.R
-index 25f4074..1f0dc51 100644
+index 25f4074..7ae694f 100644
 --- a/visualization/fn_plot_aux_scores.R
 +++ b/visualization/fn_plot_aux_scores.R
-@@ -25,7 +25,8 @@ fn_plot_aux_scores <- function(fcst_input,
+@@ -16,6 +16,7 @@ fn_plot_aux_scores <- function(fcst_input,
+                                     png_projname = NA_character_,
+                                     plot_num_cases = TRUE,
+                                     cmap = "Set2",
++                                    custom_colors = NULL,
+                                     compare_mbr000 = TRUE,
+                                     mbr_plots = FALSE,
+                                     rolling_verif = FALSE,
+@@ -25,7 +26,8 @@ fn_plot_aux_scores <- function(fcst_input,
                                      plot_scat = TRUE,
                                      use_parallel = FALSE,
                                      fsd = NA_character_,
@@ -12,7 +20,25 @@ index 25f4074..1f0dc51 100644
    
    #=================================================#
    # INITIAL CHECKS 
-@@ -290,7 +291,8 @@ fn_plot_aux_scores <- function(fcst_input,
+@@ -137,7 +139,7 @@ fn_plot_aux_scores <- function(fcst_input,
+   # USER INTERACTION
+   #=================================================#
+   
+-  lt_to_use   <- seq(3,48,3) # What lead_times to use (hours)?
++  lt_to_use   <- seq(1,48,1) # What lead_times to use (hours)?
+   if (attr(fcst_input,"lt_unit") != "h") {
+     stop("Lead time generalisation required - raise an issue!")
+   }
+@@ -221,7 +223,7 @@ fn_plot_aux_scores <- function(fcst_input,
+   fig_dpi     <- 200
+ 
+   # Define the colour scheme used in line plots 
+-  mcolors     <- fn_gen_model_colors(models_vec,cmap,withobs = TRUE)
++  mcolors     <- fn_gen_model_colors(models_vec,cmap,withobs = TRUE, custom_colors = custom_colors)
+   
+   # Line stylces
+   line_styles <- c("solid","dashed","dotted","dotdash")
+@@ -290,7 +292,8 @@ fn_plot_aux_scores <- function(fcst_input,
                          "plot_num_cases"    = plot_num_cases,
                          "fig_dpi"           = fig_dpi,
                          "png_projname"      = png_projname,
@@ -22,7 +48,7 @@ index 25f4074..1f0dc51 100644
    
    #=================================================#
    # COMPUTE VARIOUS AUX SCORES
-@@ -298,12 +300,37 @@ fn_plot_aux_scores <- function(fcst_input,
+@@ -298,12 +301,37 @@ fn_plot_aux_scores <- function(fcst_input,
    
    fcst_all <- fcst
    p_list <- list()
@@ -62,7 +88,7 @@ index 25f4074..1f0dc51 100644
    leadtimes <- sort(unique(fcst[["lead_time"]]))
    if (length(leadtimes) > 1) {
      lt_used <- paste0(leadtimes[1],"_",leadtimes[length(leadtimes)])
-@@ -470,9 +497,11 @@ fn_plot_aux_scores <- function(fcst_input,
+@@ -470,9 +498,11 @@ fn_plot_aux_scores <- function(fcst_input,
    } # cycle
    
    } # Loop over leadtime lists

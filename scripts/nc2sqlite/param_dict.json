@@ -35,6 +35,12 @@
         "inputs": ["FMU_ISBA", "FMV_ISBA"],
         "expression": "-sqrt(FMU_ISBA**2 + FMV_ISBA**2)",
         "units": "Pa"
+    },        
+    "USTAR": {
+        "type": "derived",
+        "inputs": ["FMU_ISBA", "FMV_ISBA","T2M_ISBA"],
+        "expression": "T2M_ISBA*sqrt(sqrt(FMU_ISBA**2 + FMV_ISBA**2))/348.37",
+        "units": "m/s"        
     },
     "Bowen_ratio": {
         "type": "derived",
