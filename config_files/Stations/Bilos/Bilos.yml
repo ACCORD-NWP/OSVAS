@@ -1,6 +1,6 @@
 OSVAS_steps:
  Create_forcing: false
- Get_validation: false
+ Get_validation: true
  Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - pgd
@@ -9,8 +9,10 @@ OSVAS_steps:
  Expnames: #Don't forget a space before each item
    - DIFMEBACC
    - DIFMEBACC_RSL
+   - FRACC
+   - FRACC_RSL
  Extract_model_sqlites: true
- Run_HARP: false
+ Run_HARP: true
  Display_HARP: false
 
 Station_metadata:
@@ -53,8 +55,8 @@ Forcing_data:
       Forc_DIR: WD_1      
 
 Validation_data:
-  validation_start: '2021-06-01 00:00:00'
-  validation_end: '2021-09-30 23:30:00'
+  validation_start: '2021-08-15 00:00:00'
+  validation_end: '2021-09-15 23:30:00'
   common_obstable: true
   common_fctable: true
   dataset1: 
@@ -73,7 +75,6 @@ Validation_data:
       T_diag: TA_2
       V_diag: WS_2
       D_diag: WD_2
-
     units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
       SW_OUT: W/m2
       LW_OUT: W/m2
@@ -87,7 +88,6 @@ Validation_data:
       T_diag: degC
       V_diag: m/s
       D_diag: º
-
   dataset2: 
     doi: https://meta.icos-cp.eu/objects/EYxm67-33pkyyHucxZBzEMb2
     timedelta: 30
@@ -95,10 +95,12 @@ Validation_data:
       H: H
       LE: LE
       TAU: TAU
+      USTAR: USTAR
     units:
       H: W/m2
       LE: W/m2
       TAU: Pa
+      USTAR: m/s
 Initialization_data: 
   initialization_start: '2019-1-1 00:00:00'
   initialization_end: '2024-12-31 23:00:00'

@@ -7,12 +7,12 @@ OSVAS_steps:
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
+  - DIFMEB_v9_newalb
   - DIFMEB_v9
-  - DIFMEB_v9DSL
-  - DIFMEB_v9DSLIT
- Extract_model_sqlites: false
- Run_HARP: false
- Display_HARP: true
+  #- DIFMEB_v9DSLIT
+ Extract_model_sqlites: true
+ Run_HARP: true
+ Display_HARP: false
 
 Station_metadata:
   Station_type: ICOS
@@ -28,7 +28,7 @@ Station_metadata:
   
 Forcing_data:
   height_T: 10.0                       # Height of the temperature measurement
-  height_V: 10.0                      # Height of the windspeed   measurement
+  height_V: 10.0                      # Height of the windspeed   measurement (It's actually 9m, but...)
   run_start: '2023-11-01 00:00:00'    # Timestamp for the forcing start
   run_end: '2024-12-31 23:30:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
@@ -66,6 +66,7 @@ Validation_data:
       G: G
       T_diag: TA_2  #Nominally 2m
       RH_diag: RH_2 #Nominally 2m
+      V_diag: WS    #Nominally 9m, forcing level (consistency check))     
     units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
       SW_OUT: W/m2
       LW_OUT: W/m2
@@ -76,6 +77,7 @@ Validation_data:
       G: W/m2
       T_diag: degC
       RH_diag: percent
+      V_diag: m/s
   dataset2: 
     doi: https://meta.icos-cp.eu/objects/No7s1uuHhY2frqKUg6CSIRV-
     timedelta: 30
@@ -91,10 +93,13 @@ Validation_data:
       NEE: W/m2
   dataset3:
     doi: https://meta.icos-cp.eu/objects/5bs2BOVRCqwGfrjHnTJxKe_X
-    variables:
+    timedelta: 30    
+    variables:    
       TAU: TAU
+      USTAR: USTAR       
     units:
-      TAU: Pa 
+      TAU: Pa
+      USTAR: m/s       
 Initialization_data:
   initialization_start: '2020-01-01 00:00:00'
   initialization_end: '2025-12-31 23:00:00'

@@ -321,7 +321,7 @@
 /
 &NAM_SSOn              CROUGH       = 'NONE'
 /
-&NAM_SURF_ATM          XRIMAX       = 0.4    ,
+&NAM_SURF_ATM          XRIMAX       = 1.2    ,
                        LNOSOF       = T       ,
                        LVERTSHIFT   = F
 /
@@ -333,8 +333,8 @@
 &NAM_TREEDRAG
              LRSL=.FALSE.
              LRSLMEB=.FALSE.
-             XDIAGW=31.25
-             XDIAGT=31.25
+             XDIAGW=35.0
+             XDIAGT=35.0
              LRSLHGT=.true.
 /
 &NAM_SURF_CSTS
