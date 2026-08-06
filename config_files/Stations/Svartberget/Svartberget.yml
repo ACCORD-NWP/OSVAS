@@ -7,12 +7,14 @@ OSVAS_steps:
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
-   - DIFMEBACC
-   - DIFMEBACC_RSL
+   - MEB_REFd
+   - MEB_RSLd
+   - FR_REFd
+   - FR_RSLd
  Extract_model_sqlites: true
- Run_HARP: false
+ Run_HARP: true
  Display_HARP: false
-
+ 
 Station_metadata:
   Station_type: ICOS
   Station_name: Svartberget
@@ -28,6 +30,7 @@ Station_metadata:
   Tree_height: 20
   diag_T: 30.0   # AGL height of temperature diagnostic
   diag_RH: 32.5   # AGL height of humidity diagnostic
+  diag_V: 35.0   # For Svartberget, diagnose at height of forcing as a consistency check
 Forcing_data:
   height_T: 35.0  # Height of the temperature measurement https://maq-observations.nl/operational-data/
   height_V: 35.0  # Height of the windspeed   measurement https://maq-observations.nl/operational-data/
@@ -44,7 +47,7 @@ Forcing_data:
       Forc_LW: LW_IN
       Forc_QA: 
       Forc_SCA_SW: 
-      Forc_TA: TA_4, +273.15
+      Forc_TA: TA_2, +273.15
       Forc_PS: PA, *1000
   dataset2:
     doi: https://meta.icos-cp.eu/objects/_jhtvfTkwpS6KGHYQwVkstYB
@@ -59,50 +62,59 @@ Forcing_data:
     variables:
       Forc_RAIN: P_2_1_1, /(timedelta*60)
 Validation_data:
-  validation_start: '2021-06-01 00:00:00'
-  validation_end: '2021-09-30 23:30:00'
-  common_obstable: true
-  common_fctable: true
+  validation_start: '2021-08-15 00:00:00'
+  validation_end: '2021-09-15 23:30:00'
+  common_obstable: false
+  common_fctable: false
   dataset1: 
     doi: https://meta.icos-cp.eu/objects/gzeLiX_AZKcwj3Bqpp73clsC
     timedelta: 30
     variables: # Map ICOS variables (right) to a name (left) in the OBSTABLE
-      SW_OUT: SW_OUT
-      LW_OUT: LW_OUT
-      SW_IN: SW_IN
-      LW_IN: LW_IN  
-      TS_*: TS_*
-      SWC_*: SWC_*
-      G: G_2
-      Tcan: TA_6 #check
-      PA: PA  #Not really needed, but useful for estimation of canopy storage components
-      T_diag: TA_3 
+#      SW_OUT: SW_OUT
+#      LW_OUT: LW_OUT
+#      SW_IN: SW_IN
+#      LW_IN: LW_IN  
+#      TS_*: TS_*
+#      SWC_*: SWC_*
+#      G: G_2
+#      Tcan: TA_6 #check
+#      PA: PA  #Not really needed, but useful for estimation of canopy storage components
+      T_diag: TA_2 
       RH_diag: RH_2
-      V_diag: WS
-    units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
-      SW_OUT: W/m2
-      LW_OUT: W/m2
-      LW_IN: W/m2
-      SW_IN: W/m2
-      TS_*: degC
-      SWC_*: percent
-      G: W/m2
-      Tcan: degC
-      PA: kPa
+
+#    units:  # If compatible, these should be similar to units attribute in output netcdf files. Otherwise a conversion in set_params.R will be needed
+#      SW_OUT: W/m2
+#      LW_OUT: W/m2
+#      LW_IN: W/m2
+#      SW_IN: W/m2
+#      TS_*: degC
+#      SWC_*: percent
+#      G: W/m2
+#      Tcan: degC
+#      PA: kPa
       T_diag: degC
       RH_diag: percent
-      V_diag: m/s     
-  dataset2: 
-    doi: https://meta.icos-cp.eu/objects/MCCzme--Xitf-2f2mKW-cd-m
-    timedelta: 30
-    variables:
-      H: H
-      LE: LE
-      TAU: TAU
+
+#  dataset2: 
+#    doi: https://meta.icos-cp.eu/objects/MCCzme--Xitf-2f2mKW-cd-m
+#    timedelta: 30
+#    variables:
+#      H: H
+#      LE: LE
+#      TAU: TAU
+#      USTAR: USTAR      
+#    units:
+#      H: W/m2
+#      LE: W/m2
+#      TAU: Pa
+#      USTAR: m/s
+  dataset3:
+    doi: https://meta.icos-cp.eu/objects/_jhtvfTkwpS6KGHYQwVkstYB
+    timedelta: 60  # in minutes
+    variables: # Map ICOS variables (right) to a name (left) in the OBSTABLE
+      V_diag: WS
     units:
-      H: W/m2
-      LE: W/m2
-      TAU: Pa
+      V_diag: m/s    
 Initialization_data: 
   initialization_start: '2019-1-1 00:00:00'
   initialization_end: '2024-12-31 23:00:00'

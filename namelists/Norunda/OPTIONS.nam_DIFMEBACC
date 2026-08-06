@@ -321,7 +321,7 @@
 /
 &NAM_SSOn              CROUGH       = 'NONE'
 /
-&NAM_SURF_ATM          XRIMAX       = 0.4    ,
+&NAM_SURF_ATM          XRIMAX       = 1.2    ,
                        LNOSOF       = T       ,
                        LVERTSHIFT   = F
 /

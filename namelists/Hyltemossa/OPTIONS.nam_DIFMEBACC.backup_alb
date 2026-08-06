@@ -39,6 +39,18 @@
                        XUNIF_VEG(5,10)      = .96,
                        XUNIF_VEG(5,11)      = .96,
                        XUNIF_VEG(5,12)      = .96,
+                       XUNIF_EMIS(5,1)      = 0.98,
+                       XUNIF_EMIS(5,2)      = 0.98,
+                       XUNIF_EMIS(5,3)      = 0.98,
+                       XUNIF_EMIS(5,4)      = 0.98,
+                       XUNIF_EMIS(5,5)      = 0.98,
+                       XUNIF_EMIS(5,6)      = 0.98,
+                       XUNIF_EMIS(5,7)      = 0.98,
+                       XUNIF_EMIS(5,8)      = 0.98,
+                       XUNIF_EMIS(5,9)      = 0.98,
+                       XUNIF_EMIS(5,10)     = 0.98,
+                       XUNIF_EMIS(5,11)     = 0.98,
+                       XUNIF_EMIS(5,12)     = 0.98,
                        XUNIF_ROOT_DEPTH(5)     = 1.0,
                        XUNIF_ROOT_LIN(5)       = 0.05,
                        XUNIF_ROOT_EXTINCTION(5)= 0.943
@@ -48,6 +60,18 @@
                        XUNIF_RGL(5)         = 100.,
                        XUNIF_CV(5)          = 0.00002,
                        XUNIF_Z0_O_Z0H(5)    = 10.,
+                       XUNIF_Z0(5,1)          =1.885,
+                       XUNIF_Z0(5,2)          =1.885,
+                       XUNIF_Z0(5,3)          =1.885,
+                       XUNIF_Z0(5,4)          =1.885,
+                       XUNIF_Z0(5,5)          =1.885,
+                       XUNIF_Z0(5,6)          =1.885,
+                       XUNIF_Z0(5,7)          =1.885,
+                       XUNIF_Z0(5,8)          =1.885,
+                       XUNIF_Z0(5,9)          =1.885,
+                       XUNIF_Z0(5,10)          =1.885,
+                       XUNIF_Z0(5,11)          =1.885,
+                       XUNIF_Z0(5,12)          =1.885,
                        XUNIF_ALBUV_VEG(5,1)   = 0.0625,
                        XUNIF_ALBUV_VEG(5,2)   = 0.0625,
                        XUNIF_ALBUV_VEG(5,3)   = 0.0625,
@@ -320,7 +344,6 @@
 		       LOUT_TIMENAME        = T       ,
 		       LWRITE_COORD         = T       ,
                        NB_READ_FORC         = 0       ,
-                       NHALO                = 2       ,
                        LALLOW_ADD_DIM       = F
 
 /
@@ -405,8 +428,8 @@
 &NAM_TREEDRAG
              LRSL=.FALSE.
              LRSLMEB=.FALSE.
-             XDIAGW=11.6
-             XDIAGT=11.6
+             XDIAGW=30
+             XDIAGT=30
              LRSLHGT=.true.
 /
 &NAM_SURF_CSTS

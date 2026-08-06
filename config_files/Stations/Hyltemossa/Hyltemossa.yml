@@ -1,14 +1,16 @@
 OSVAS_steps:
  Create_forcing: false
- Get_validation: false
+ Get_validation: true
  Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - pgd
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
-    - DIFMEBACC
-    - DIFMEBACC_RSL
+   - DIFMEBACC
+   - DIFMEBACC_RSL
+   - FRACC
+   - FRACC_RSL
  Extract_model_sqlites: true
  Run_HARP: false
  Display_HARP: false
@@ -72,8 +74,8 @@ Validation_data:
       LW_OUT: LW_OUT
       SW_IN: SW_IN
       LW_IN: LW_IN  
-     TS_*: TS_*
-     SWC_*: SWC_*
+      TS_*: TS_*
+      SWC_*: SWC_*
       G: G_2
       Tcan: TA_5 #check
       PA: PA  #Not really needed, but useful for estimation of canopy storage components
@@ -94,10 +96,12 @@ Validation_data:
       H: H
       LE: LE
       TAU: TAU
+      USTAR: USTAR      
     units:
       H: W/m2
       LE: W/m2
       TAU: Pa
+      USTAR: m/s      
   dataset3:
     doi: https://meta.icos-cp.eu/objects/4ZMiAEawgs5vYyscbRb7EgSG
     timedelta: 60
