@@ -18,31 +18,31 @@ OSVAS automates the entire cycle:
 
 All documentation is available inside the `docs/` folder and in https://accord-nwp.github.io/OSVAS/ , organized as follows:
 
-### 🔧 <u>[**Setup & Configuration: Install requirements conda & R environments **](docs/installation.md)</u>
+### 🔧 <u>[**Setup & Configuration: Install requirements conda & R environments **](installation.md)</u>
 
-### 🧪 <u>[**OSVAS central control script**](docs/OSVAS_workflow.md)</u>
+### 🧪 <u>[**OSVAS central control script**](OSVAS_workflow.md)</u>
 
 ### 🧪 <u>**Detailed description of steps in the OSVAS Workflow:**</u>
 
-**Step 0:** [Paths & Global Configuration](docs/step0_paths_and_config.md)
+**Step 0:** [Paths & Global Configuration](step0_paths_and_config.md)
    
-**Step 1:** [Forcing Data Generation](docs/step1_forcing.md)
+**Step 1:** [Forcing Data Generation](step1_forcing.md)
  
-**Step 2:** [Validation Data Download](docs/step2_validation.md)
+**Step 2:** [Validation Data Download](step2_validation.md)
 
-**Step 2b:** [Albedo_estimation from site data](docs/step2b_albedo_estimation.md)
+**Step 2b:** [Albedo_estimation from site data](step2b_albedo_estimation.md)
 
-**Step 2c:** [LAI estimation from satellite data](docs/step2c_lai_estimation.md)
+**Step 2c:** [LAI estimation from satellite data](step2c_lai_estimation.md)
  
-**Step 3:** [SURFEX Simulation Runs](docs/step3_surfex_runs.md)
+**Step 3:** [SURFEX Simulation Runs](step3_surfex_runs.md)
 
-**Step 4:** [Extraction of Model Outputs (`nc2sqlite`)](docs/step4_nc2sqlite.md)
+**Step 4:** [Extraction of Model Outputs (`nc2sqlite`)](step4_nc2sqlite.md)
 
-**Step 5:** [HARP Verification](docs/step5_harp_verification.md)
+**Step 5:** [HARP Verification](step5_harp_verification.md)
 
-**Step 6:** [Visualization Apps](docs/step6_visualization.md)
+**Step 6:** [Visualization Apps](step6_visualization.md)
 
-### 🧪 <u>[**ICOS data**](docs/ICOS_data.md)</u>
+### 🧪 <u>[**ICOS data**](ICOS_data.md)</u>
 
 ---
 ## ⚡ Quick Start guide
