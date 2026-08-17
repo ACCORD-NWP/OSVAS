@@ -213,7 +213,7 @@
                        XUNIF_ALBUV_SOIL(10,12) = 0.03327935,
 		       XUNIF_GROUND_DEPTH   = 12,
                        XUNIF_ROOT_DEPTH     = 0.65,
-		       XUNIF_ROOT_LIN       = 0.05,
+		       XUNIF_ROOT_LIN       = 0.30,
 		       XUNIF_ROOT_EXTINCTION= 0.943,
       !XUNIF_WFC(1)      =     0.37 ,
       !XUNIF_WFC(2)      =     0.37 ,

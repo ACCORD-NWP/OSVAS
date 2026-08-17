@@ -24,8 +24,8 @@ Station_metadata:
   lai: 1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9,1.9
   canopy_storage: true
   closure_type: 3
-  estimate_albedo: false  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
-  estimate_lai: false     # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
+  estimate_albedo: true  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
+  estimate_lai: lai     # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
   Tree_height: 21
   
 Forcing_data:

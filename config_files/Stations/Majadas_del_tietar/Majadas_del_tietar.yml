@@ -1,17 +1,20 @@
 OSVAS_steps:
- Create_forcing: true
- Get_validation: true
+ Create_forcing: false
+ Get_validation: false
  Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
   - pgd
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
-  - DIFMEB_v9
-  - DIFMEB_v9DSL
-  - DIFMEB_v9DSLIT
+    - DIFMEB_v9
+    - DIFMEB_v9_LN3
+    - DIFMEB_v9_LN3_Kr
+    - DIFMEB_v9_LN3_Kr_b
+    - DIFMEB_v9_LN3_Kr_b_FCWP
+    - DIFMEB_v9_plusDSL
  Extract_model_sqlites: false
- Run_HARP: false
+ Run_HARP: true
  Display_HARP: false
 
 Station_metadata:
@@ -22,6 +25,8 @@ Station_metadata:
   lat: 39.94033
   lon: -5.77465
   vegtype: 10
+  canopy_storage: false
+  closure_type: 2
   estimate_albedo: true  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
   estimate_lai: true    # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
   
@@ -76,19 +81,23 @@ Validation_data:
       H: H
       LE: LE
       TAU: TAU
+      USTAR: USTAR
     units:
       H: W/m2
       LE: W/m2
       TAU: Pa
+      USTAR: m/s
   dataset3:
     doi: https://meta.icos-cp.eu/objects/bSceGKFPYtSyRgGxAqmfq_DF
     timedelta: 30
     variables:
       RH_diag : RH_2_1_1  #Nominally 1.8m
       T_diag  : TA_2_1_1  #Nominally 1.8m
+      T_diag  : WS_1_1_1  #Nominally 15.6m (consistency check)
     units: 
       RH_diag: percent
       T_diag: degC
+      V_diag: m/s
 Initialization_data: 
   initialization_start: '2020-01-01 00:00:00'
   initialization_end: '2025-12-31 23:00:00'

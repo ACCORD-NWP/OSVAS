@@ -47,5 +47,7 @@ post:
     - "#8cf36b"
     - "#0f9c08"
     - "#98DAFF"
-    - "#00588D"    
+    - "#00588D"
+    - "#F5B027"    
+    - "#fff81f"
   map_cbar_d: FALSE                         # Use discrete breaks instead of a continuous colourbar for the station map plots  

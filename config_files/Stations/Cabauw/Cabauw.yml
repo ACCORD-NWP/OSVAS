@@ -3,13 +3,16 @@ OSVAS_steps:
  Get_validation: true
  Run_surfex: false
  Surfex_steps: #Don't forget a space before each item
-  - PGD
+  - pgd
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
-  - DIFMEB_v9
-    #- DIFMEB_v9DSL
-    #- DIFMEB_v9DSLIT
+    - DIFMEB_v9
+    - DIFMEB_v9_LN3
+    - DIFMEB_v9_LN3_Kr
+    - DIFMEB_v9_LN3_Kr_b
+    - DIFMEB_v9_LN3_Kr_b_FCWP
+    - DIFMEB_v9_plusDSL
  Extract_model_sqlites: false
  Run_HARP: false
  Display_HARP: false
@@ -22,14 +25,16 @@ Station_metadata:
   lat: 51.9703
   lon: 4.9264
   vegtype: 10
+  canopy_storage: false
+  closure_type: 2
   estimate_albedo: true  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
   estimate_lai: true    # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
   
 Forcing_data:
   height_T: 20                       # Height of the temperature measurement
   height_V: 20                      # Height of the windspeed   measurement
-  run_start: '2023-11-01 00:00:00'    # Timestamp for the forcing start
-  run_end: '2024-12-31 23:30:00'      # Timestamp for the forcing end
+  run_start: '2018-11-01 00:00:00'    # Timestamp for the forcing start
+  run_end: '2019-12-31 23:30:00'      # Timestamp for the forcing end
   forcing_format: 'ascii'          # Choose between netcdf or ascii
   dataset1:
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_meteo_lc1_t10/versions/v1.0/files/
@@ -56,7 +61,7 @@ Forcing_data:
       Forc_TA: TA
     
 Validation_data:
-  validation_start: '2024-1-1 00:00:00'
+  validation_start: '2019-1-1 00:00:00'
   validation_end: '2024-12-31 23:00:00'
   common_obstable: true
   common_fctable: true
@@ -80,12 +85,12 @@ Validation_data:
       H: H
       LE: LE
       G: G
-      UST : UST
+      USTAR : UST
     units:
       H: W/m2
       LE: W/m2
       G: W/m2
-    UST: m/s
+    USTAR: m/s
   dataset3:
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_soil_heat_lb1_t10/versions/v1.0/files
     timedelta: 10
@@ -115,19 +120,19 @@ Validation_data:
     timedelta: 10
     type: profile
     variables:
-      TH05: SWC_1 #0.04
-      TH05: SWC_2 #0.05
-      TH19: SWC_3 #0.19
-      TH33: SWC_4 #0.33
-      TH40: SWC_5 #0.40
-      TH56: SWC_6 #0.56
-   units:
-     SWC_1: m3/m3
-     SWC_2: m3/m3
-     SWC_3: m3/m3
-     SWC_4: m3/m3
-     SWC_5: m3/m3
-     SWC_6: m3/m3
+            #SWC_1: TH03  #0.04
+            #SWC_2: TH05  #0.05
+      SWC_1: TH19  #0.19
+      SWC_2: TH33  #0.33
+      SWC_3: TH40  #0.40
+      SWC_4: TH56  #0.56
+    units:
+      SWC_1: m3/m3
+      SWC_2: m3/m3
+      SWC_3: m3/m3
+      SWC_4: m3/m3
+      SWC_5: m3/m3
+      SWC_6: m3/m3
 
   dataset5:
     doi: https://api.dataplatform.knmi.nl/open-data/v1/datasets/cesar_surface_meteo_lc1_t10/versions/v1.0/files/
@@ -142,11 +147,11 @@ Validation_data:
       V_diag: m/s
 
 Initialization_data:
-  initialization_start: '2020-01-01 00:00:00'
-  initialization_end: '2025-12-31 23:00:00'
+  initialization_start: '2017-01-01 00:00:00'
+  initialization_end: '2021-12-31 23:00:00'
   reuse_soil_profile: false
   Init_to_namelist: true   # patch OPTIONS.nam for each expname - Only for SURFEX v9 namelists
   Init_to_prep: false       # patch PREP.txt or PREP.nc for each expname
   soil_depths_ts: [0, 0.02, 0.04, 0.06, 0.08, 0.12, 0.2, 0.3, 0.5] # These will be read first; if absent, they're extracted from metadata file
-  soil_depths_swc: [0.04, 0.05, 0.19, 0.33, 0.40, 0.56] #These will be read first; if absent, they're extracted from metadata file
+  soil_depths_swc: [ 0.19, 0.33, 0.40, 0.56] #These will be read first; if absent, they're extracted from metadata file
 

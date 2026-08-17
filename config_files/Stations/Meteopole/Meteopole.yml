@@ -7,11 +7,14 @@ OSVAS_steps:
   - PREP
   - OFFLINE
  Expnames: #Don't forget a space before each item
-  - DIFMEB_v9_newalb
-  - DIFMEB_v9
-  #- DIFMEB_v9DSLIT
+    - DIFMEB_v9
+    - DIFMEB_v9_LN3
+    - DIFMEB_v9_LN3_Kr
+    - DIFMEB_v9_LN3_Kr_b
+    - DIFMEB_v9_LN3_Kr_b_FCWP
+    - DIFMEB_v9_plusDSL
  Extract_model_sqlites: true
- Run_HARP: true
+ Run_HARP: false
  Display_HARP: false
 
 Station_metadata:
@@ -23,6 +26,8 @@ Station_metadata:
   lon: 1.37474
   vegtype: 10
   lai: 1.85,1.50,1.72,2.35,2.15,1.37,1.3,1.25,1.37,1.45,1.3,1.25
+  canopy_storage: false
+  closure_type: 2
   estimate_albedo: true  # If true, estimate NIR and VIS albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
   estimate_lai: true    # If true, estimate monthly LAIs from Copernicus' Sentinel LAI data
   
@@ -51,7 +56,7 @@ Forcing_data:
 Validation_data:
   validation_start: '2024-1-1 00:00:00'
   validation_end: '2024-12-31 23:00:00'
-  common_obstable: false
+  common_obstable: true
   common_fctable: false
   dataset1: 
     doi: https://meta.icos-cp.eu/objects/ClxZ0M4-XC0WevhDm_cO2LeA
