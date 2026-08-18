@@ -2,7 +2,7 @@ diff --git a/verification/fn_verif_helpers.R b/verification/fn_verif_helpers.R
 index 4bca346..90567e6 100644
 --- a/verification/fn_verif_helpers.R
 +++ b/verification/fn_verif_helpers.R
-@@ -465,7 +465,7 @@ fn_run_verif_groups <- function(fcst = "",
+@@ -575,7 +575,7 @@ fn_run_verif_groups <- function(fcst = "",
          verif_alllt[[t_s_str]] <- dplyr::mutate(verif_alllt[[t_s_str]],
                                                  lead_time  = "All",
                                                  valid_hour = "All",

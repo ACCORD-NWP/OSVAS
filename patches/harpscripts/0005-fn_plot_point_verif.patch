@@ -1,10 +1,10 @@
 diff --git a/visualization/fn_plot_point_verif.R b/visualization/fn_plot_point_verif.R
-index 01fbc7e..4ea9a8f 100644
+index 4ea9a8f..d5e6f7a 100644
 --- a/visualization/fn_plot_point_verif.R
 +++ b/visualization/fn_plot_point_verif.R
-@@ -22,7 +22,8 @@ fn_plot_point_verif <- function(harp_verif_input,
-                                      n_stations = NULL,
-                                      use_parallel = FALSE,
+@@ -26,7 +26,8 @@
+                                      cyc_summary = c("00","12","All"),
+                                      clim_name = NULL,
                                       plot_num_obs = FALSE,
 -                                     fcst = NULL){
 +                                     fcst = NULL,
@@ -12,7 +12,7 @@ index 01fbc7e..4ea9a8f 100644
   
    #=================================================#
    # INITIAL CHECKS
-@@ -355,7 +356,7 @@ fn_plot_point_verif <- function(harp_verif_input,
+@@ -367,7 +368,7 @@
    }
    
    # Define the colour scheme used in line plots
@@ -21,25 +21,23 @@ index 01fbc7e..4ea9a8f 100644
    
    # Line stylces
    line_styles <- c("solid","dashed","dotted","dotdash")
-@@ -419,7 +420,8 @@ fn_plot_point_verif <- function(harp_verif_input,
-                         "png_projname" = png_projname,
+@@ -432,6 +433,7 @@
                          "score_sep"    = score_sep, 
                          "comp_val"     = attributes(verif)$comp_val,
--                        "thr_brks"     = attributes(verif)$thr_brks)
-+                        "thr_brks"     = attributes(verif)$thr_brks,
-+                        "month"        = month)
+                         "thr_brks"     = attributes(verif)$thr_brks,
++                        "month"        = month,
+                         "clim_name"    = clim_name)
    
    #=====================================================#
-   # NOW DO THE PLOTTING
-@@ -663,9 +665,9 @@ fn_plot_point_verif <- function(harp_verif_input,
+@@ -692,9 +694,9 @@
              num_stations <- ns_val
            }
            if (numbers_only(station)) {
 -            subtitle_str <- paste0("Station ",station," (",num_stations,") : ",cy_str)
-+            subtitle_str <- paste0("Month: ",month,", ","Station ",station," (",num_stations,") : ",cy_str)		  
++            subtitle_str <- paste0("Month: ",month,", ","Station ",station," (",num_stations,") : ",cy_str)
            } else {
 -            subtitle_str <- paste0(station," stations (",num_stations,") : ",cy_str)
-+            subtitle_str <- paste0("Month: ",month,", ",station," stations (",num_stations,") : ",cy_str)		  
++            subtitle_str <- paste0("Month: ",month,", ",station," stations (",num_stations,") : ",cy_str)
            }
            # Add in lead times used for valid_dttm
-           if ((xgroup %in% c("valid_dttm")) & (!is.null(alta))) {
+           if ((xgroup %in% c("valid_dttm","valid_ymd")) & (!is.null(alta))) {
