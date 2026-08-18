@@ -62,7 +62,8 @@ python3 scripts/python_scripts/estimate_albedo.py <station> <osvas_root> \
 - Locates existing albedo parameter ranges in experiment namelists
 - Extracts new blocks from estimates
 - Replaces old blocks with new values (preserves indentation)
-- Creates backup copies of original namelists
+- **Fallback:** if no existing albedo blocks are found, inserts all blocks directly into the `&NAM_DATA_ISBA` group instead of failing
+- Creates backup copies of original namelists (`.backup_alb` suffix)
 
 **Usage:**
 ```bash
@@ -71,10 +72,12 @@ python3 scripts/python_scripts/update_namelist_albedos.py <station> <osvas_root>
 ```
 
 **Parameters Updated:**
-- `XUNIF_ALBNIR_VEG(10,1-12)` - Vegetation NIR albedo (12 monthly values)
-- `XUNIF_ALBVIS_VEG(10,1-12)` - Vegetation VIS albedo (12 monthly values)
-- `XUNIF_ALBNIR_SOIL(10,1-12)` - Soil NIR albedo (12 monthly values)
-- `XUNIF_ALBVIS_SOIL(10,1-12)` - Soil VIS albedo (12 monthly values)
+- `XUNIF_ALBNIR_VEG(10,1-12)` - Vegetation NIR albedo (12 monthly values) — from `estimate_albedo.py`
+- `XUNIF_ALBVIS_VEG(10,1-12)` - Vegetation VIS albedo (12 monthly values) — from `estimate_albedo.py`
+- `XUNIF_ALBUV_VEG(10,1-12)` - Vegetation UV albedo (12 monthly values) — fixed at 0.015 (only written when blocks are freshly inserted; existing UV blocks are left untouched)
+- `XUNIF_ALBNIR_SOIL(10,1-12)` - Soil NIR albedo (12 monthly values) — from `estimate_albedo.py`
+- `XUNIF_ALBVIS_SOIL(10,1-12)` - Soil VIS albedo (12 monthly values) — from `estimate_albedo.py`
+- `XUNIF_ALBUV_SOIL(10,1-12)` - Soil UV albedo (12 monthly values) — fixed at 0.06 (only written when blocks are freshly inserted; existing UV blocks are left untouched)
 - (Vegtype index is read from Station_metadata)
 
 ### 3. Workflow Integration
@@ -294,7 +297,7 @@ Step 2b: ✨ Estimate albedos (NEW!)
         ├─ Compute monthly averages
         ├─ Generate namelist blocks → albedo_estimates.nam
         └─ Update experiment namelists with new albedos
-        │   └─ Create backups (OPTIONS.nam.backup)
+        │   └─ Create backups (OPTIONS.nam.backup_alb)
         ▼
 Step 2c: ✨ Estimate LAI (NEW!)
         │
@@ -375,7 +378,7 @@ surfex_OSVAS_run_linux.py
     │   └─ update_namelist_albedos.py
     │       ├─ Read albedo_estimates.nam
     │       ├─ Update OPTIONS.nam_{expname}
-    │       └─ Create .backup files
+    │       └─ Create .backup_alb files
     │
     ├─ Check estimate_lai flag
     │
@@ -519,13 +522,13 @@ Step 6: Saving results
 2. **Verify output files:**
    ```bash
    ls -lh namelists/Cabauw/albedo_estimates.nam
-   ls -lh namelists/Cabauw/OPTIONS.nam_*.backup
+   ls -lh namelists/Cabauw/OPTIONS.nam_*.backup_alb
    ```
 
 3. **Compare albedos:**
    ```bash
    # Before & after
-   diff namelists/Cabauw/OPTIONS.nam_DIFMEB_v9.backup \
+   diff namelists/Cabauw/OPTIONS.nam_DIFMEB_v9.backup_alb \
         namelists/Cabauw/OPTIONS.nam_DIFMEB_v9
    ```
 
