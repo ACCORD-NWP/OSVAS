@@ -52,7 +52,7 @@ cd OSVAS
 cd scripts/bash_scripts
 ./setup_osvas_installation.sh
 ./create_conda_and_R_envs.sh
-conda activate OSVASENV
+conda activate OSVHARP
 ```
 
 #### 3️⃣ Choose your entrypoint and set paths
@@ -61,7 +61,7 @@ Set the station name and paths in your shell (or override via command line argum
 
 ```bash
 export STATION_NAME=Majadas_del_tietar
-export OSVAS=$HOME/OSVASgh
+export OSVAS=$HOME/OSVAS
 export HARPSCRIPTS=$HOME/operharpverif
 ```
 
