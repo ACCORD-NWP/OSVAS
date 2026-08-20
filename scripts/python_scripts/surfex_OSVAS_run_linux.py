@@ -236,7 +236,7 @@ for station_name in stations_to_process:
         
         # SURFEX paths
         surfex_parent = os.path.expanduser('~')
-        surfex_ver = 'SURFEX_ACCORD'
+        surfex_ver = 'SURFEX_ACCORD_5th'
         surfex_home = f"{surfex_parent}/{surfex_ver}"
         surfex_profile = 'profile_surfex-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0'
         surfex_exe = f"{surfex_home}/src/dir_obj-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0/MASTER/"

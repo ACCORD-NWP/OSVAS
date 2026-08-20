@@ -5,6 +5,11 @@ set -euo pipefail
 # OSVAS Conda Environment Setup
 # -----------------------------
 
+# Usage: ./create_conda_and_R_envs.sh [CONDA_ENV_NAME]
+#   CONDA_ENV_NAME  Optional name for the conda environment to create.
+#                   Defaults to OSVHARP if not given.
+CONDAENV="${1:-OSVHARP}"
+
 # 0. Load conda module (ATOS) and name your Conda environment
 IS_ATOS=false
 if [[ -d "/ec/res4/scratch" ]]; then
@@ -26,7 +31,6 @@ if [[ -d "/ec/res4/scratch" ]]; then
     source "$CONDA_BASE/etc/profile.d/conda.sh"
     echo "✅ Conda shell integration sourced from $CONDA_BASE"
 fi
-CONDAENV=OSVHARP
 PYTHON_VERSION=3.11
 
 # Resolve this script location and use absolute renv paths from there
