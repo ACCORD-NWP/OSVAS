@@ -50,8 +50,8 @@ After installing Miniconda, you will be prompted to initialize conda for your sh
 conda config --set auto_activate_base false
 ```
 
-After conda is available, next step is to create the OSVAS conda environment OSVASENV,
-including the installation of HARP's R libraries inside an Renv. This is done by the bash script  create_conda_and_R_envs.sh which, after installing the condas environment (called OSVHARP), runs the script ( renv_{atos,ubuntu}/renv_setup.R) for generating the Renv and installing all the harp packages.
+After conda is available, next step is to create the OSVAS conda environment `OSVHARP`,
+including the installation of HARP's R libraries inside an Renv. This is done by the bash script  create_conda_and_R_envs.sh which, after installing the condas environment (called `OSVHARP` by default — see below for how to override this), runs the script ( renv_{atos,ubuntu}/renv_setup.R) for generating the Renv and installing all the harp packages.
 This installation can take about 30-60 minutes ( it actually compiles HARP packages; in the future this will be avoided by installing pre-compiled packages). Since there is a strict rate limit on "anonymous" installs of R libraries from CRAN mirrors, renv_setup.R must be edited to add your personal github PAT:
 ```# Optional: set your GitHub PAT to avoid rate-limiting on installs
 # (more info here https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/
@@ -67,8 +67,13 @@ cd scripts/bash_scripts
 ./create_conda_and_R_envs.sh
 ```
 
+By default this creates a conda environment named `OSVHARP`. If you want to use a different name, pass it as an argument to the script:
+```bash
+./create_conda_and_R_envs.sh MY_ENV_NAME
+```
+
 This will:
-1. Create an `OSVASHARP` conda environment with Python 3.11 and required packages
+1. Create an `OSVHARP` conda environment (or the name you passed as an argument) with Python 3.11 and required packages
 2. Install Python dependencies from `requirements.txt`
 3. Set up an isolated R environment (renv) for HARP libraries (tested on ATOS and UBUNTU)
 
@@ -131,8 +136,8 @@ conda activate OSVHARP
 
 ### How to make your SURFEX installation known to OSVAS:
 A functional SURFEX installation is required. The workflow expects:
-- SURFEX binaries compiled and available in the system PATH or via environment modules
-- A profile script (e.g., `profile_surfex-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0`) that sets up the compilation environment
+- SURFEX binaries compiled and available in the system PATH
+- A profile script (e.g., `profile_surfex-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0`) which is "sourced" before every SURFEX run to set up the compilation environment
 
 Recommended SURFEX versions:
 - **OpenSurfex 8.1:** https://www.umr-cnrm.fr/surfex/spip.php?article387
@@ -140,7 +145,7 @@ Recommended SURFEX versions:
 - **ACCORD-NWP:** , v9 branch at https://github.com/ACCORD-NWP/SURFEX/tree/SURFEX_V9_DEV_NWP 
 On ATOS, the compilation environment is typically set up via modules. On local systems, ensure the SURFEX home directory is configured (usually via the launcher script's `surfex_home` variable).
 
-Currently, the PATH to your SURFEX setup, executables, profile names, etc, need to be hardcoded in step3 block of the Python launcher script, like this:
+In step3 of the python launcher script, the environment PATH is updated with the information from your SURFEX version. Currently, it is necessary to hardcode this information ({surfex_ver}, {surfex_profile}, {surfex_exe} in the script. Edit it to specify the PATH to your SURFEX setup, executables, profile names, etc, like this:
 ```
         # SURFEX paths
         surfex_parent = os.path.expanduser('~')
@@ -153,7 +158,7 @@ Currently, the PATH to your SURFEX setup, executables, profile names, etc, need 
         paramfiles = f"{surfex_home}/MY_RUN/ECOCLIMAP/"
         dirfiles = f"{os.path.expanduser('~')}/PHYSIO/"
 ```
-If you plan to use ECOCLIMAP files for any paremeter not resolved by namelist, make sure to have the corresponding version available in $dirfiles
+If you plan to use ECOCLIMAP for any paremeter not resolved by namelist, make sure to have available in $dirfiles the files corresponding to the ECOCLIMAP version specified in your namelist.
 ### How to set up access to forcing/validation data & Copernicus Global Land Service LAI data
 #### ICOS login & token
 To download ICOS data via the Python API, you must:
@@ -174,23 +179,27 @@ To download ICOS data via the Python API, you must:
 2. When running Step 2c for generating monthly LAI estimates, you will be prompted to open a link in the browser and log-in; after doing so, the script in the terminal will continue with the data retrieval.
 
 ### Environment variables and paths
-The launcher scripts automatically detect paths based on their script location. However, you can optionally set these environment variables to override the defaults:
+The launcher scripts automatically detect paths based on their script location. However, you can optionally set these environment variables manually or in your .bashrc to override the defaults:
 
 ```bash
-export STATION_NAME=Majadas_del_tietar       # Station to process (required)
-export OSVAS=$HOME/OSVASgh                    # OSVAS root (auto-detected if not set)
-export CONDAENV=OSVASENV                      # Conda environment name (default: OSVHARP)
-export HARPSCRIPTS=$OSVAS/HARPSCRIPTS         # HARP scripts path (auto-detected if not set)
+export STATION_NAME=Majadas_del_tietar       # Station to process
+export OSVAS=$HOME/OSVAS                    # OSVAS root
+export HARPSCRIPTS=$OSVAS/HARPSCRIPTS         # HARP scripts path
 ```
 
 **Typical usage:**
-In most cases, you only need to set `STATION_NAME`. The launcher scripts will automatically:
-- Detect `OSVAS` from their location in `scripts/python_scripts/`
-- Set `HARPSCRIPTS` to `$OSVAS/HARPSCRIPTS`
-- Use `OSVHARP` as the default conda environment
-
-**Command line override:**
-You can also pass these as command line arguments:
+First, activate the conda environment with 
 ```bash
-python surfex_OSVAS_run_linux.py --stations Cabauw Loobos --osvas /path/to/osvas --harpscripts /path/to/harpscripts
+conda activate OSVHARP
 ```
+Secondly, run the corresponding python launcher (ATOS or linux version). In most cases, you only need to set `STATION_NAME`. A list of stations is also possible. The launcher script will automatically:
+- Detect `OSVAS` or use $OSVAS if set in the environment
+- Set `HARPSCRIPTS` to `$OSVAS/HARPSCRIPTS` or use $HARPSCRIPTS if set in the environment
+
+Example:
+```bash
+cd $HOME/$OSVAS
+python scripts/python_scripts/surfex_OSVAS_run_linux.py --stations Cabauw Loobos --harpscripts /path/to/harpscripts
+```
+
+
