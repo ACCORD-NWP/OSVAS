@@ -1,6 +1,7 @@
 {
     "_comment": "Parameter mapping between SURFEX variable names (left column) in netcdf files and observation variable names. Entries can be either a plain string (direct passthrough: netcdf_name -> output_name) or an object describing a derived/postprocessed variable (see TAU and Bowen_ratio below).",
-
+    "air_temperature_2m":"T2m",
+    "relative_humidity_2m":"RH2m",
     "RI_ISBA": "RI",
     "H_ISBA": "H",
     "LE_ISBA": "LE",
