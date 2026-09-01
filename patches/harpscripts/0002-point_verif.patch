@@ -1,8 +1,8 @@
 diff --git a/verification/point_verif.R b/verification/point_verif.R
-index fdab08c..92c515b 100755
+index 92c515b..a1b2c3d 100755
 --- a/verification/point_verif.R
 +++ b/verification/point_verif.R
-@@ -233,6 +233,7 @@ save_vofp       <- check_config_input(CONFIG,"post","save_vofp",default=F)
+@@ -248,6 +248,7 @@
  save_sidrds     <- check_config_input(CONFIG,"post","save_sidrds",default=F)
  cmap            <- check_config_input(CONFIG,"post","cmap",default="Set2")
  cmap_hex        <- check_config_input(CONFIG,"post","cmap_hex",default="magma")
@@ -10,7 +10,7 @@ index fdab08c..92c515b 100755
  map_cbar_d      <- check_config_input(CONFIG,"post","map_cbar_d",default=F)
  create_scrd     <- check_config_input(CONFIG,"scorecards","create_scrd",default=F)
  
-@@ -389,7 +390,7 @@ if (params_list == "ALL") {
+@@ -355,7 +356,7 @@
  
  # Make the grps for different verification types
  grps_surface_default   <- harpCore::make_verif_groups(c("lead_time",
@@ -19,16 +19,16 @@ index fdab08c..92c515b 100755
  grps_UA_default        <- harpCore::make_verif_groups(c("lead_time",
                       "valid_hour"),c("fcst_cycle","station_group"))
  grps_SID_default       <- list("SID",c("SID","valid_hour"))
-@@ -849,6 +850,8 @@ run_verif <- function(prm_info, prm_name) {
+@@ -932,6 +933,8 @@
    fcst <- harpCore::expand_date(fcst,valid_dttm)
    fcst <- harpPoint::mutate_list(fcst,
                                   valid_hour = sprintf("%02d",valid_hour))
 +  fcst <- harpPoint::mutate_list(fcst,
 +                                 month = sprintf("%02d",valid_month))
-   
-   # If UA variable, restrict to main valid hours i.e. 00, 06, 12, 18 Z
-   if (!is.na(vertical_coordinate)) {
-@@ -1011,6 +1014,7 @@ run_verif <- function(prm_info, prm_name) {
+   if (valid_dttm_col == "valid_ymd" ){
+     fcst <- harpPoint::mutate_list(fcst,
+                                    valid_ymd = as.Date(valid_dttm))
+@@ -1098,6 +1101,7 @@
                                rolling_verif = rolling_verif,
                                cmap          = cmap,
                                cmap_hex      = cmap_hex,
@@ -36,7 +36,7 @@ index fdab08c..92c515b 100755
                                lt_split      = lt_split,
                                fsd           = fsd,
                                fed           = fed,
-@@ -1064,8 +1068,29 @@ run_verif <- function(prm_info, prm_name) {
+@@ -1191,8 +1195,29 @@
      
      st_plot <- Sys.time()
      if (create_png) {
@@ -66,11 +66,11 @@ index fdab08c..92c515b 100755
 +      verif_toplot_all <- filter_by_month(verif_toplot, "All")
 +      fn_plot_point_verif(verif_toplot_all,
                                 plot_output,
+                                valid_dttm_col = valid_dttm_col,
                                 png_projname  = png_projname,
-                                rolling_verif = rolling_verif,
-@@ -1076,7 +1101,32 @@ run_verif <- function(prm_info, prm_name) {
-                                n_stations    = n_stations,
+@@ -1205,7 +1230,34 @@
                                 use_parallel  = use_parallel,
+                                clim_name     = climatology_name_local,
                                 plot_num_obs  = TRUE,
 -                               fcst          = fcst)
 +                               fcst          = fcst,
@@ -85,6 +85,7 @@ index fdab08c..92c515b 100755
 +          if (nrow(verif_toplot_mm[[1]]) == 0) next
 +          fn_plot_point_verif(verif_toplot_mm,
 +                                   plot_output,
++                                   valid_dttm_col = valid_dttm_col,
 +                                   png_projname  = png_projname,
 +                                   rolling_verif = rolling_verif,
 +                                   cmap          = cmap,
@@ -93,6 +94,7 @@ index fdab08c..92c515b 100755
 +                                   fed           = fed,
 +                                   n_stations    = n_stations,
 +                                   use_parallel  = use_parallel,
++                                   clim_name     = climatology_name_local,
 +                                   plot_num_obs  = TRUE,
 +                                   fcst          = fcst,
 +                                   month         = mm)

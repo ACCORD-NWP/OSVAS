@@ -1,8 +1,8 @@
 diff --git a/visualization/fn_plot_helpers.R b/visualization/fn_plot_helpers.R
-index 09b564c..2428bba 100644
+index 2428bba..c3d4e5f 100644
 --- a/visualization/fn_plot_helpers.R
 +++ b/visualization/fn_plot_helpers.R
-@@ -182,12 +182,13 @@ fn_png_name <- function(fcst_type,
+@@ -270,12 +270,13 @@
                          station,
                          vlt="NA",
                          vth="NA",
@@ -18,7 +18,7 @@ index 09b564c..2428bba 100644
    png_fname   <- paste0(png_fname,".png")
    if (!is.na(projectname)) {
      png_fname <- paste0(projectname,"-",png_fname)
-@@ -209,6 +210,8 @@ fn_save_png <- function(p_c,
+@@ -297,6 +298,8 @@
                          vth     = "NA",
                          map_ind = FALSE){
    
@@ -27,7 +27,7 @@ index 09b564c..2428bba 100644
  
    png_fname <- fn_png_name(fcst_type,
                             score,
-@@ -220,6 +223,7 @@ fn_save_png <- function(p_c,
+@@ -308,6 +311,7 @@
                             vroption_list$station,
                             vlt = vlt,
                             vth = vth,
@@ -35,7 +35,7 @@ index 09b564c..2428bba 100644
                             projectname = fxoption_list$png_projname)
    
    #if (!is.object(p_c)){
-@@ -742,7 +746,7 @@ fn_plot_point <- function(verif,
+@@ -882,7 +886,7 @@
        }
        p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,720,lt_sep))
      } else if (xgroup == "valid_hour") {
@@ -44,7 +44,7 @@ index 09b564c..2428bba 100644
                                                     minor_breaks = NULL)
      } else if (xgroup == "mids") {
        p_breaks <- vroption_list$p_breaks
-@@ -925,7 +929,7 @@ fn_plot_numcases <- function(verif,
+@@ -1065,7 +1069,7 @@
      }
      p_out <- p_out + ggplot2::scale_x_continuous(breaks = seq(0,720,lt_sep))
    } else if (xgroup == "valid_hour") {
@@ -53,13 +53,13 @@ index 09b564c..2428bba 100644
                                                   minor_breaks = NULL)
    } else if (xgroup == "mids") {
      p_breaks <- vroption_list$p_breaks
-@@ -2079,11 +2083,35 @@ get_param_classes <- function(param,par_unit,score = "freq") {
+@@ -2503,12 +2507,36 @@
        scale_mult  <- T
        scale_round <- 0
      }
 +
 +  } else if (param %in% c("H,LE,SW_IN,SW_OUT,LW_IN,LW_OUT")) {
-+    
++
 +    # Assuming hPa as default
 +    if (score %in% c("bias","mean_bias")) {
 +      brks <- seq(-400,-50,50)
@@ -69,7 +69,7 @@ index 09b564c..2428bba 100644
 +    } else {
 +      brks <- seq(0,15,1)
 +    }
-+    
++
 +    if (par_unit %in% c("W/m2","w/m2")) {
 +      scale_fac   <- 1
 +      scale_mult  <- T
@@ -81,16 +81,17 @@ index 09b564c..2428bba 100644
 +    }
 +
      
-   } else if ((param %in% c("T2m","Td2m","Tmax","Tmin")) || 
+   } else if ((param %in% c("T2m","Td2m","Tmax","Tmin","2t","t2m","skt")) || 
               (grepl("T2m",param,fixed=TRUE)) || 
               (gsub('[0-9]+$','',param) == "T") ||
--             (gsub('[0-9]+$','',param) == "Td")) {
-+             (gsub('[0-9]+$','',param) == "Td")||
+              (gsub('[0-9]+$','',param) == "Td") || 
+-             (gsub('[0-9]+$','',param) == "t")) {
++             (gsub('[0-9]+$','',param) == "t") ||
 +              grepl("^TS", param)) {
      
      # Assuming degC as default
      if (score %in% c("bias","mean_bias")) {
-@@ -2095,11 +2123,11 @@ get_param_classes <- function(param,par_unit,score = "freq") {
+@@ -2520,11 +2548,11 @@
        brks <- seq(0,10,1)
      }
      
@@ -104,7 +105,7 @@ index 09b564c..2428bba 100644
        # Only need to scale for freq plots
        if (score == "freq") {
          scale_fac   <- 273.15
-@@ -2112,7 +2140,9 @@ get_param_classes <- function(param,par_unit,score = "freq") {
+@@ -2537,7 +2565,9 @@
        }
      }
      
@@ -115,7 +116,7 @@ index 09b564c..2428bba 100644
      
      # Assuming g/kg as default
      if (score %in% c("bias","mean_bias")) {
-@@ -2128,7 +2158,7 @@ get_param_classes <- function(param,par_unit,score = "freq") {
+@@ -2553,7 +2583,7 @@
        scale_fac   <- 1
        scale_mult  <- T
        scale_round <- 0
@@ -124,7 +125,7 @@ index 09b564c..2428bba 100644
        scale_fac   <- 1/1000
        scale_mult  <- T
        scale_round <- 4
-@@ -2499,8 +2529,20 @@ fn_get_lts_used <- function(vh,cyc,allcycles,alllts){
+@@ -2925,8 +2955,20 @@
  
  fn_gen_model_colors <- function(in_names,
                                  cmap,

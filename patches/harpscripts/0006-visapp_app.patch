@@ -1,8 +1,8 @@
 diff --git a/visualization/visapp/app.R b/visualization/visapp/app.R
-index 6b0665f..cd6608c 100644
+index cd6608c..e1f2a3b 100644
 --- a/visualization/visapp/app.R
 +++ b/visualization/visapp/app.R
-@@ -585,22 +585,25 @@ ui <- shiny::tags$html(
+@@ -624,22 +624,25 @@
                          ),
                          mainPanel(fluidRow(
                            column(2,
@@ -36,7 +36,7 @@ index 6b0665f..cd6608c 100644
                          ) # Fluid Row
                          ) # MainPanel
                        ) # Sidebar layout
-@@ -659,6 +662,7 @@ ui <- shiny::tags$html(
+@@ -698,6 +701,7 @@
  #================================================#
  
  server <- function(input, output, session) {
@@ -44,7 +44,7 @@ index 6b0665f..cd6608c 100644
    
    observe({
      
-@@ -1252,7 +1256,7 @@ server <- function(input, output, session) {
+@@ -1291,7 +1295,7 @@
      }
    })
    output$validselect <- shiny::renderUI({
@@ -53,7 +53,7 @@ index 6b0665f..cd6608c 100644
                         choices = "Waiting...")
    })
    
-@@ -1344,7 +1348,7 @@ server <- function(input, output, session) {
+@@ -1383,7 +1387,7 @@
      }
    })
    output$thresholdselect <- shiny::renderUI({
@@ -62,7 +62,7 @@ index 6b0665f..cd6608c 100644
                         choices = "Waiting...")
    })
    
-@@ -1402,6 +1406,108 @@ server <- function(input, output, session) {
+@@ -1441,6 +1445,108 @@
    
    
    # Now load the static image output
@@ -171,7 +171,7 @@ index 6b0665f..cd6608c 100644
    output$pngImage <- renderImage({
      
      # Read image width and height according to display
-@@ -1415,6 +1521,7 @@ server <- function(input, output, session) {
+@@ -1454,6 +1560,7 @@
      req(input$inittime)
      req(input$dates)
      req(input$station)
@@ -179,7 +179,7 @@ index 6b0665f..cd6608c 100644
      req(data_dirname())
      
      # Fixed dimensions
-@@ -1452,9 +1559,11 @@ server <- function(input, output, session) {
+@@ -1491,9 +1598,11 @@
        mty <- "det"
      }
      

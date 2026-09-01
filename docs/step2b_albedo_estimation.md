@@ -8,13 +8,15 @@ This document describes the **albedo estimation workflow** in OSVAS, which autom
 
 ## Motivation
 
-SURFEX requires monthly surface albedo parameters for both vegetation and soil surfaces across the NIR and VIS spectral bands:
-- `XUNIF_ALBNIR_VEG` - Vegetation near-infrared albedo (12 monthly values)
-- `XUNIF_ALBVIS_VEG` - Vegetation visible albedo (12 monthly values)
-- `XUNIF_ALBNIR_SOIL` - Soil near-infrared albedo (12 monthly values)
-- `XUNIF_ALBVIS_SOIL` - Soil visible albedo (12 monthly values)
+SURFEX requires monthly surface albedo parameters for vegetation and soil surfaces across the NIR, VIS, and UV spectral bands:
+- `XUNIF_ALBNIR_VEG` - Vegetation near-infrared albedo (12 monthly values) — **estimated from data**
+- `XUNIF_ALBVIS_VEG` - Vegetation visible albedo (12 monthly values) — **estimated from data**
+- `XUNIF_ALBUV_VEG` - Vegetation UV albedo (12 monthly values) — **fixed value** (0.015)
+- `XUNIF_ALBNIR_SOIL` - Soil near-infrared albedo (12 monthly values) — **estimated from data**
+- `XUNIF_ALBVIS_SOIL` - Soil visible albedo (12 monthly values) — **estimated from data**
+- `XUNIF_ALBUV_SOIL` - Soil UV albedo (12 monthly values) — **fixed value** (0.06)
 
-Rather than using generic parameterizations, the albedo estimation workflow derives these values from actual observations at the validation site, improving model realism for the study location.
+Rather than using generic parameterizations, the albedo estimation workflow derives the NIR and VIS values from actual observations at the validation site, improving model realism for the study location. The UV bands are not observed by the standard SW_OUT/SW_IN validation instruments, so `update_namelist_albedos.py` fills them with fixed constants (0.015 for vegetation, 0.06 for soil) rather than estimated values — see [Output Files](#output-files) below for when these constants are written.
 
 ## Physical Basis
 
@@ -92,7 +94,7 @@ Step 4: Extract model outputs
 ### 1. Estimated Albedo Namelist
 **Location:** `namelists/{STATION_NAME}/albedo_estimates.nam`
 
-**Content:** Formatted namelist blocks ready to be included in SURFEX namelists:
+**Content:** Formatted namelist blocks ready to be included in SURFEX namelists. Note that `estimate_albedo.py` only produces the NIR and VIS blocks — the UV blocks are added later by `update_namelist_albedos.py` itself (see below), not read from this file:
 ```fortran
 ! Estimated albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)
 ! Monthly averages for vegetation and soil surfaces
@@ -120,8 +122,13 @@ Step 4: Extract model outputs
 ### 2. Updated Experiment Namelists
 **Location:** `namelists/{STATION_NAME}/OPTIONS.nam_{EXPNAME}`
 
-The script replaces the existing albedo blocks with the estimated values. Backup copies are created:
-- `OPTIONS.nam_{EXPNAME}.backup` - Original namelist before update
+`update_namelist_albedos.py` handles two cases, depending on whether the namelist already contains albedo blocks:
+
+- **Blocks already present** (typical case): the four estimated blocks (`XUNIF_ALBNIR_VEG`, `XUNIF_ALBVIS_VEG`, `XUNIF_ALBNIR_SOIL`, `XUNIF_ALBVIS_SOIL`) are replaced in place with the new values from `albedo_estimates.nam`, preserving indentation. If `XUNIF_ALBUV_VEG`/`XUNIF_ALBUV_SOIL` blocks already exist in the namelist, they are left untouched (there is no estimated UV data to replace them with).
+- **No albedo blocks found**: the script falls back to inserting all six blocks — the four estimated NIR/VIS blocks plus fixed-value `XUNIF_ALBUV_VEG` (0.015) and `XUNIF_ALBUV_SOIL` (0.06) blocks — directly into the `&NAM_DATA_ISBA` namelist group, just before its closing `/`. This previously required manual intervention (see [Troubleshooting](#troubleshooting)); it is now automatic.
+
+Backup copies are created before either path writes to the file:
+- `OPTIONS.nam_{EXPNAME}.backup_alb` - Original namelist before update
 
 ## Manual Execution
 
@@ -215,14 +222,19 @@ Step 2: Updating experiment namelists
   Processing: DIFMEB_v9
     ✓ Found XUNIF_ALBNIR_VEG block
     ✓ Found XUNIF_ALBVIS_VEG block
+    ✓ Found XUNIF_ALBUV_VEG block
     ✓ Found XUNIF_ALBNIR_SOIL block
     ✓ Found XUNIF_ALBVIS_SOIL block
-    ✓ Backup created: OPTIONS.nam_DIFMEB_v9.backup
+    ✓ Found XUNIF_ALBUV_SOIL block
+    ✓ Backup created: OPTIONS.nam_DIFMEB_v9.backup_alb
     ✓ Updated XUNIF_ALBNIR_VEG
     ✓ Updated XUNIF_ALBVIS_VEG
     ✓ Updated XUNIF_ALBNIR_SOIL
     ✓ Updated XUNIF_ALBVIS_SOIL
     ✓ Namelist updated: namelists/Cabauw/OPTIONS.nam_DIFMEB_v9
+
+  (XUNIF_ALBUV_VEG/SOIL are found and left as-is — there are no estimated UV
+  values in albedo_estimates.nam to update them with.)
 
   Processing: DIFMEB_v9DSL
     ...
@@ -322,17 +334,24 @@ plt.show()
 2. Relax time window constraints if needed
 3. Check units of SW_OUT and SW_IN (must be W/m²)
 
-### Issue: Namelist update fails with "Parameter not found"
+### Issue: Albedo blocks missing from a namelist
 
-**Causes:**
-- Namelists don't contain the four albedo parameters
-- Vegetation type (vegtype) in namelists doesn't match `Station_metadata.vegtype`
-- Parameter formatting differs from expected
+**Behavior:** This is no longer a hard failure. If `update_namelist_albedos.py` doesn't find existing `XUNIF_ALB*` blocks in a namelist, it automatically falls back to inserting all six blocks (estimated NIR/VIS + fixed UV) into the `&NAM_DATA_ISBA` group, just before its closing `/`. You'll see:
+```
+  ℹ️  No existing albedo blocks found — inserting into &NAM_DATA_ISBA
+  ✓ Inserted NIR/VIS/UV SOIL/VEG albedo blocks into &NAM_DATA_ISBA
+```
+
+**This can still fail if:**
+- The namelist has no `&NAM_DATA_ISBA` group at all → `❌ &NAM_DATA_ISBA group not found in namelist`
+- The `&NAM_DATA_ISBA` group's closing `/` can't be located → `❌ Could not find closing '/' for &NAM_DATA_ISBA`
+- `albedo_estimates.nam` doesn't contain the expected parameter blocks → `⚠️  Could not extract estimated albedo blocks from albedo file`
 
 **Solution:**
-1. Verify `vegtype` matches in both namelist and YAML config
-2. Manually locate albedo blocks: `grep XUNIF_ALB namelists/{STATION_NAME}/OPTIONS.nam_*`
-3. Check formatting of parameter lines
+1. Check the namelist actually defines a `&NAM_DATA_ISBA` group: `grep NAM_DATA_ISBA namelists/{STATION_NAME}/OPTIONS.nam_*`
+2. Verify `vegtype` matches in both namelist and YAML config
+3. Manually locate any existing albedo blocks: `grep XUNIF_ALB namelists/{STATION_NAME}/OPTIONS.nam_*`
+4. Check `albedo_estimates.nam` was generated correctly and contains `XUNIF_ALBNIR_VEG`/`XUNIF_ALBVIS_VEG`/`XUNIF_ALBNIR_SOIL`/`XUNIF_ALBVIS_SOIL` blocks
 
 ## Advanced Usage
 
