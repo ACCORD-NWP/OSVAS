@@ -2,15 +2,17 @@
 
 **OSVAS** is a workflow developed within the **ACCORD community** to automate the full SURFEX offline validation chain:
 
-* **Generate** SURFEX forcing data from ICOS atmospheric datasets
-* **Download & process** ICOS flux data for validation
-* **Run** SURFEX OFFLINE simulations (PGD, PREP, OFFLINE)
+* **Generate** SURFEX single-point forcing data from atmospheric observational datasets: Currently supported data portals: ICOS[https://data.icos-cp.eu/portal/] and KNMI[https://dataplatform.knmi.nl/] (for Cabauw).
+* **Download & process** observations for validation (radiation components & turbulent fluxes, T,U & RH diagnostics, soil humidities and temperatures, etc).
+* **Run** SURFEX OFFLINE simulations (PGD, PREP, OFFLINE): any number of different experiments with its corresponding namelist settings
 * **Convert** SURFEX outputs to SQLite FCTABLES (via `nc2sqlite`)
 * **Validate** model outputs using **HARP**
 * **Visualize** results with interactive **Shiny apps**
 
 OSVAS automates the entire cycle:
 **Forcing → Simulation → Extraction → Validation → Visualization**
+
+While the first two steps of the process are quite specific in OSVAS for single-point offline runs, it is also possible to run the rest of the workflow e.g. for 2D OFFLINE SURFEX runs, if the 2D forcing and domain observations are provided. In the future, even grib files from a fully-coupled NWP run will be admitted by the **Conversion** step (vía grib2sqlite), making possible to run specialized surface verification of NWP systems & comparing results with simpler & more ideal 2D or 1D OFFLINE SURFEX RUNS.
 
 ---
 
