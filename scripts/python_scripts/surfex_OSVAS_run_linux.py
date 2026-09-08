@@ -367,7 +367,7 @@ for station_name in stations_to_process:
             cmd = [
                 'python3', 'nc2sqlite.py',
                 '-p', 'param_dict.json',
-                '-s', '../../sqlites/station_list_SURFEX.csv',
+                '-sl', '../../sqlites/station_list_SURFEX.csv',
                 '-st', str(sid),
                 '-o', f"{os.environ['OSVAS']}/sqlites/FCTABLES/{os.environ['STATION_NAME']}/",
                 '-m', expname,
