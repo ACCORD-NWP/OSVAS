@@ -154,6 +154,106 @@ def get_grid_geometry(lat_grid, lon_grid, ncfile=None):
     return points, _GRID_CACHE["tri"], _GRID_CACHE["kdtree"], _GRID_CACHE["bbox"]
 
 
+def _is_precip_like_name(*names):
+    """True if any of the given variable/output names look like a
+    precipitation-related field: matches 'pcp', 'precip', or 'rain'
+    anywhere in the name, case-insensitive (e.g. 'Rainf', 'TotalPcp',
+    'precipitation_amount_acc')."""
+    keywords = ("pcp", "precip", "rain")
+    for name in names:
+        if name and any(k in name.lower() for k in keywords):
+            return True
+    return False
+
+
+def _is_precip_flux_units(units_str):
+    """True if a units string represents a precipitation-style mass flux
+    (kg/m2/s, i.e. a RATE), as opposed to an already-accumulated depth
+    (kg/m2). Tolerates common NetCDF notational variants: spaces, dots,
+    carets/asterisks for exponents, and slash- vs exponent-style forms
+    ('kg/m2/s', 'kg m-2 s-1', 'kg.m-2.s-1', 'kg/m^2/s', 'kg m^-2 s^-1', ...).
+    """
+    if not units_str:
+        return False
+    s = units_str.lower().strip()
+    s = s.replace(" ", "").replace(".", "").replace("^", "").replace("*", "")
+    normalized_flux_forms = {
+        "kg/m2/s", "kg/m^2/s", "kgm-2s-1", "kg/(m2s)", "kg/(m2*s)",
+        "kgm-2*s-1", "kgm2-1s-1",
+    }
+    return s in normalized_flux_forms
+
+
+def maybe_convert_precip_flux(values, units, dt_seconds_file, *name_candidates):
+    """If a variable's name suggests precipitation (name contains 'pcp',
+    'precip', or 'rain', case-insensitive) AND its units indicate a mass
+    FLUX (kg/m2/s or an equivalent notation), convert it to an accumulated
+    DEPTH (kg/m2, numerically identical to mm of liquid water) by
+    multiplying by the timestep interval: kg/m2/s * s = kg/m2.
+
+    dt_seconds_file is the interval derived from the file's own consecutive
+    timesteps (see compute_dt_seconds); if the file only has a single
+    timestep (dt can't be derived), falls back to the common default of
+    3600s (1 hour), with a printed warning so the assumption is visible
+    rather than silent.
+
+    Variables that don't match both the name and units criteria are
+    returned unchanged.
+    """
+    if not _is_precip_like_name(*name_candidates):
+        return values, units
+    if not _is_precip_flux_units(units):
+        return values, units
+
+    label = "/".join(n for n in name_candidates if n)
+    dt = dt_seconds_file
+    if dt is None:
+        dt = 3600.0
+        print(f"⚠️ {label}: flux units ('{units}') detected but this file has only a "
+              f"single timestep, so the accumulation interval can't be derived from "
+              f"consecutive times. Assuming the common default of 3600s (1 hour) — "
+              f"verify this matches the file's real accumulation period.")
+
+    print(f"Converting {label} from flux ('{units}') to accumulated depth (kg/m2) "
+          f"using dt={dt:.0f}s")
+    return values * dt, "kg/m2"
+
+
+def compute_dt_seconds(times):
+    """Derive the (assumed uniform) interval between consecutive timesteps,
+    in seconds, directly from the file's own time coordinate — the same
+    file-derived approach used for the standalone plotting scripts, rather
+    than hardcoding a value. Returns None if the file only has a single
+    timestep (nothing to derive an interval from)."""
+    if len(times) < 2:
+        return None
+    diffs = [(times[i + 1] - times[i]).total_seconds() for i in range(len(times) - 1)]
+    if not all(abs(d - diffs[0]) < 1e-6 for d in diffs):
+        print(f"⚠️ Non-uniform timestep spacing detected ({diffs[:5]}... seconds) — "
+              f"using the first interval ({diffs[0]:.0f}s) for any flux→accumulation "
+              f"conversion; verify this file's time axis if precip variables look off.")
+    return diffs[0]
+
+
+def _detect_latlon_vars(ds):
+    """Find the lat/lon coordinate variables in a dataset, tolerating the
+    naming/shape conventions seen across different model outputs:
+      - 2D grid style: 'latitude'/'longitude' with shape (y, x)   [an_*.nc]
+      - flattened SURFEX FORCING style: 'LAT'/'LON' with shape (Number_of_points,)
+    Returns (lat_name, lon_name) or (None, None) if neither pattern matches.
+    Works for either 1D (flattened point cloud) or 2D (meshgrid) coordinates —
+    interpolation doesn't care which, since points get raveled either way."""
+    for lat_name, lon_name in (
+        ("latitude", "longitude"),
+        ("LAT", "LON"),
+        ("lat", "lon"),
+        ("Latitude", "Longitude"),
+    ):
+        if lat_name in ds.variables and lon_name in ds.variables:
+            return lat_name, lon_name
+    return None, None
+
+
 def extract_variable_series(ds, var_name, preserve_grid=False):
     """Read the full time series of a raw NetCDF variable.
 
@@ -175,15 +275,15 @@ def extract_variable_series(ds, var_name, preserve_grid=False):
         time_dim_index = var_dims.index("time")
         if preserve_grid and len(var_dims) > 1:
             slicing = tuple(slice(None) for _ in range(len(var_dims)))
-            values = np.array(var[slicing], dtype=float)
+            values = np.array(var[slicing], dtype=np.float32)
         else:
             slicing = [slice(None) if i == time_dim_index else 0 for i in range(len(var_dims))]
-            values = np.array(var[tuple(slicing)], dtype=float)
+            values = np.array(var[tuple(slicing)], dtype=np.float32)
     elif "time" in ds.variables and ds.variables["time"].size == 1:
         # SURFEX 2D field with a singleton time axis: value is valid for the
         # one time slot held in the global time variable, but the field itself
         # is stored without a time dimension.
-        values = np.array(var[:], dtype=float)
+        values = np.array(var[:], dtype=np.float32)
         if preserve_grid:
             values = values[np.newaxis, ...]
         else:
@@ -240,7 +340,7 @@ def evaluate_derived(spec, ds, values_cache, units_cache, preserve_grid=False):
         namespace[name] = values
 
     result = eval(expression, {"__builtins__": {}}, namespace)
-    result = np.asarray(result, dtype=float)
+    result = np.asarray(result, dtype=np.float32)
     return result, units
 
 
@@ -252,9 +352,27 @@ def write_station_rows(station_rows, output_name, units, experiment_name, output
     The values/times arrays are for a single station across the available time
     steps. All rows for a given month/file are inserted into a single SQLite
     connection to avoid reopening the same output file for every station.
-    """
+
+    The forecast cycle (fcst_dttm) is anchored ONCE per call, at midnight of
+    the *earliest* timestep across all rows — not re-derived per individual
+    row. One call here always corresponds to one NetCDF file's worth of data
+    for one variable, i.e. one forecast cycle, so every timestep in it (even
+    ones that fall on a later calendar day, e.g. hour 24+ of a 48-hour SURFEX
+    FORCING file) is a lead time of that SAME cycle rather than being treated
+    as the start of a new one. Truncating each row's own valid time to
+    midnight (the old behaviour) silently split a single forecast run into a
+    separate fcst_dttm per calendar day it crossed."""
     if not station_rows:
         return
+
+    all_times = [t for *_, times in station_rows for t in times]
+    if not all_times:
+        return
+    anchor_dt = min(all_times)
+    if anchor_dt.tzinfo is None:
+        anchor_dt = anchor_dt.replace(tzinfo=timezone.utc)
+    fcst_dt = datetime(anchor_dt.year, anchor_dt.month, anchor_dt.day, tzinfo=timezone.utc)
+    fcst_time = int(fcst_dt.timestamp())
 
     conn = None
     cursor = None
@@ -271,8 +389,6 @@ def write_station_rows(station_rows, output_name, units, experiment_name, output
                 valid_dt = valid_dt.replace(tzinfo=timezone.utc)
             valid_time = int(valid_dt.timestamp())
 
-            fcst_dt = datetime(valid_dt.year, valid_dt.month, valid_dt.day, tzinfo=timezone.utc)
-            fcst_time = int(fcst_dt.timestamp())
             lead_time = (valid_dt - fcst_dt).total_seconds() / 3600.0
 
             month_key = (fcst_dt.year, fcst_dt.month)
@@ -338,26 +454,49 @@ def process_netcdf_file(ncfile, param_dict, SID, z, lat, lon, experiment_name, o
         if times[0].tzinfo is None:
             times = [t.replace(tzinfo=timezone.utc) for t in times]
 
+        # Derived once per file, from the file's own time coordinate — used
+        # to convert any precipitation-named flux variable (kg/m2/s) into an
+        # accumulated depth (kg/m2) before writing. None if this file only
+        # has a single timestep (e.g. a per-hour an_*.nc grid file).
+        dt_seconds_file = compute_dt_seconds(times)
+
         # Cache of already-processed variables for this file, keyed by their
         # generic output name, so that derived variables defined further down
         # in param_dict.json can reuse them as inputs.
         values_cache = {}
         units_cache = {}
 
-        # Detect whether this dataset contains 2D latitude/longitude grids
-        grid_mode_global = (
-            'latitude' in ds.variables and 'longitude' in ds.variables
-            and getattr(ds.variables['latitude'], 'ndim', 1) == 2
-            and getattr(ds.variables['longitude'], 'ndim', 1) == 2
-        )
+        # Only variables actually referenced as an "input" by some derived
+        # spec anywhere in param_dict.json need to stay in values_cache for
+        # the rest of the file — everything else is a plain passthrough that
+        # gets interpolated/written once and is never looked up again. With
+        # no pruning, values_cache retains EVERY processed variable's full
+        # array simultaneously (for a 25-timestep, 6.25M-point SURFEX FORCING
+        # file, ~0.6 GB each even at float32 — several GB total with a
+        # typical multi-variable param_dict), which is the dominant driver of
+        # memory usage for these files. Skipping the cache entirely for
+        # variables nothing downstream needs avoids that buildup.
+        needed_as_input = set()
+        for spec in param_dict.values():
+            if isinstance(spec, dict) and spec.get("type") == "derived":
+                needed_as_input.update(spec.get("inputs", []))
+
+        # Detect whether this dataset contains lat/lon coordinates suitable for
+        # grid interpolation — either a 2D (y, x) meshgrid or a flattened 1D
+        # point cloud (e.g. SURFEX FORCING's Number_of_points layout). Either
+        # shape works identically for Delaunay/KD-tree interpolation once
+        # raveled to a flat list of (lat, lon) points.
+        latlon_var_names = _detect_latlon_vars(ds)
+        grid_mode_global = latlon_var_names[0] is not None
 
         # Build (or reuse) the interpolation geometry once per file, not once
         # per station/timestep/variable. get_grid_geometry() checks the grid
         # fingerprint and only rebuilds if the domain actually changed.
         geom_points = geom_tri = geom_kdtree = geom_bbox = None
         if grid_mode_global and station_info is not None and args is not None:
-            lat_grid = np.array(ds.variables['latitude'][:])
-            lon_grid = np.array(ds.variables['longitude'][:])
+            lat_name, lon_name = latlon_var_names
+            lat_grid = np.array(ds.variables[lat_name][:])
+            lon_grid = np.array(ds.variables[lon_name][:])
             geom_points, geom_tri, geom_kdtree, geom_bbox = get_grid_geometry(
                 lat_grid, lon_grid, ncfile=ncfile
             )
@@ -385,6 +524,7 @@ def process_netcdf_file(ncfile, param_dict, SID, z, lat, lon, experiment_name, o
                     # Derived / postprocessed variable: the JSON key IS the
                     # generic output name.
                     output_name = key
+                    var_name = None
                     print(f"processing derived variable {output_name} = {spec.get('expression')}")
                     values, units = evaluate_derived(spec, ds, values_cache, units_cache, preserve_grid=preserve_grid)
                 else:
@@ -397,14 +537,41 @@ def process_netcdf_file(ncfile, param_dict, SID, z, lat, lon, experiment_name, o
                     print(f"processing {var_name} as {output_name}")
                     values, units = extract_variable_series(ds, var_name, preserve_grid=preserve_grid)
 
-                values_cache[output_name] = values
-                units_cache[output_name] = units
+                # Precipitation-named flux variables (kg/m2/s) get converted
+                # to an accumulated depth (kg/m2) here, before anything else
+                # sees them — so values_cache, interpolation, and the FCTABLE
+                # write all consistently use the converted depth.
+                values, units = maybe_convert_precip_flux(
+                    values, units, dt_seconds_file, var_name, output_name
+                )
 
-                # If values are gridded (time, y, x) and lat/lon arrays exist,
+                if output_name in needed_as_input:
+                    values_cache[output_name] = values
+                    units_cache[output_name] = units
+
+                # Accumulation-type variables (precipitation, etc.) have no
+                # meaningful value at the very first timestep of a forecast
+                # cycle — there's no prior timestep for it to accumulate
+                # since, so a 0 there is an artifact of the initial state,
+                # not a real observation. Drop that leading timestep (and its
+                # matching time) before writing, for any variable whose
+                # output name contains "Pcp". This only affects what gets
+                # written to the FCTABLE — values_cache above still holds the
+                # full untrimmed series, so any derived variable further down
+                # in param_dict.json that uses this one as an input still
+                # gets the complete, correctly time-aligned array.
+                write_values, write_times = values, times
+                if "Pcp" in output_name and isinstance(values, np.ndarray) and values.ndim >= 1 and values.shape[0] > 1:
+                    write_values = values[1:]
+                    write_times = times[1:]
+
+                # If values are gridded — either (time, y, x) from a 2D mesh,
+                # or (time, Number_of_points) from a flattened point cloud
+                # like SURFEX FORCING files — and lat/lon coordinates exist,
                 # interpolate to all stations in the station list that fall
                 # inside the grid bounds. Otherwise fall back to original
                 # single-station behaviour.
-                if isinstance(values, np.ndarray) and values.ndim >= 3 and grid_mode_global and station_info is not None and args is not None:
+                if isinstance(write_values, np.ndarray) and write_values.ndim >= 2 and grid_mode_global and station_info is not None and args is not None:
                     try:
                         if not station_points_in_bbox:
                             station_rows = []
@@ -416,10 +583,10 @@ def process_netcdf_file(ncfile, param_dict, SID, z, lat, lon, experiment_name, o
                             # N_stations separate O(grid) triangulations into a
                             # single one per timestep.
                             n_stations = len(station_points_in_bbox)
-                            series = np.full((values.shape[0], n_stations), np.nan)
+                            series = np.full((write_values.shape[0], n_stations), np.nan)
 
-                            for t_idx in range(values.shape[0]):
-                                gridvals = values[t_idx].ravel()
+                            for t_idx in range(write_values.shape[0]):
+                                gridvals = write_values[t_idx].ravel()
                                 if not np.any(~np.isnan(gridvals)):
                                     continue
 
@@ -432,7 +599,7 @@ def process_netcdf_file(ncfile, param_dict, SID, z, lat, lon, experiment_name, o
                                 series[t_idx, :] = interp_vals
 
                             station_rows = [
-                                (sid, sz, slat, slon, series[:, i], times)
+                                (sid, sz, slat, slon, series[:, i], write_times)
                                 for i, (sid, slat, slon, sz) in enumerate(station_points_in_bbox)
                             ]
 
@@ -453,7 +620,7 @@ def process_netcdf_file(ncfile, param_dict, SID, z, lat, lon, experiment_name, o
                             f"<station_id> if this file contains point/station data."
                         )
                     write_variable_to_sqlite(
-                        values, times, output_name, units,
+                        write_values, write_times, output_name, units,
                         SID, z, lat, lon, experiment_name, output_base, common_fctable
                     )
 
