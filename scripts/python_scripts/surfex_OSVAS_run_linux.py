@@ -10,6 +10,7 @@ import argparse
 import socket
 import time
 from pathlib import Path
+from surfex_configuration import load_surfex_configuration
 
 def is_port_available(port):
     """Check if a port is available for binding."""
@@ -233,32 +234,7 @@ for station_name in stations_to_process:
     # Step 3: Configure and run SURFEX simulations
     if run_surfex:
         print("▶ Running Step 3: Run SURFEX offline simulations")
-        
-        # SURFEX paths
-        surfex_parent = os.path.expanduser('~')
-        surfex_ver = 'SURFEX_ACCORD_5th'
-        surfex_home = f"{surfex_parent}/{surfex_ver}"
-        surfex_profile = 'profile_surfex-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0'
-        surfex_exe = f"{surfex_home}/src/dir_obj-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0/MASTER/"
-        os.environ['PATH'] = f"{surfex_exe}:{os.environ['PATH']}"
-        
-        paramfiles = f"{surfex_home}/MY_RUN/ECOCLIMAP/"
-        dirfiles = f"{os.path.expanduser('~')}/PHYSIO/"
-        
-        # Source SURFEX profile and capture environment
-        result = subprocess.run(['bash', '-c', f'source {surfex_home}/conf/{surfex_profile} ; env'], capture_output=True, text=True, check=True)
-        for line in result.stdout.split('\n'):
-            if '=' in line:
-                key, value = line.split('=', 1)
-                os.environ[key] = value
-        
-        print(f"PATH after sourcing: {os.environ.get('PATH', '')}")
-        # Check OFFLINE
-        try:
-            subprocess.run(['which', 'OFFLINE'], check=True, capture_output=True)
-            print("OFFLINE found")
-        except subprocess.CalledProcessError:
-            print("OFFLINE not found")
+        surfex_config_path = (Path(os.environ['OSVAS']) / 'config_files/SURFEX/surfex_configuration.yaml').resolve()
         
         # Get dates
         run_start = config['Forcing_data']['run_start']
@@ -273,6 +249,31 @@ for station_name in stations_to_process:
         
         for expname in expnames:
             expname_st = time.time()
+
+            surfex_settings = load_surfex_configuration(surfex_config_path, 'linux', expname)
+            surfex_home = surfex_settings['surfex_home']
+            surfex_profile = surfex_settings['surfex_profile']
+            surfex_exe = surfex_settings['surfex_exe']
+            paramfiles = surfex_settings['paramfiles']
+            physiography_paths = surfex_settings['physiography_paths']
+
+            result = subprocess.run(
+                ['bash', '-c', f'source "{surfex_home}/conf/{surfex_profile}" && env'],
+                capture_output=True, text=True, check=True
+            )
+            for line in result.stdout.split('\n'):
+                if '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ[key] = value
+            if not os.environ.get('PATH', '').startswith(f'{surfex_exe}:'):
+                os.environ['PATH'] = f"{surfex_exe}:{os.environ.get('PATH', '')}"
+
+            print(f"PATH after sourcing: {os.environ.get('PATH', '')}")
+            try:
+                subprocess.run(['which', 'OFFLINE'], check=True, capture_output=True)
+                print("OFFLINE found")
+            except subprocess.CalledProcessError:
+                print("OFFLINE not found")
 
             run_dir = f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/{expname}/run/"
             out_dir = f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/{expname}/output/"
@@ -298,7 +299,7 @@ for station_name in stations_to_process:
             shutil.copy(f"{os.environ['OSVAS']}/namelists/{os.environ['STATION_NAME']}/OPTIONS.nam_{expname}", f"{run_dir}/OPTIONS.nam")
             
             # Link physiography
-            for p in [paramfiles, dirfiles]:
+            for p in [paramfiles, *physiography_paths]:
                 if os.path.exists(p):
                     for f in os.listdir(p):
                         src = f"{p}/{f}"
