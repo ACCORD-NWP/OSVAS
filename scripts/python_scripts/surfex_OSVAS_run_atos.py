@@ -10,6 +10,7 @@ import argparse
 import socket
 import time
 from pathlib import Path
+from surfex_configuration import load_surfex_configuration
 
 def is_port_available(port):
     """Check if a port is available for binding."""
@@ -239,39 +240,7 @@ for station_name in stations_to_process:
     # Step 3: Configure and run SURFEX simulations
     if run_surfex:
         print("▶ Running Step 3: Run SURFEX offline simulations")
-        
-        # SURFEX paths for ATOS
-        surfex_parent = os.environ.get('PERM', '/perm/sp3c/')
-        surfex_ver = 'SURFEX_ACCORD'
-        surfex_home = f"{surfex_parent}/{surfex_ver}"
-        surfex_profile = 'profile_surfex-atos-gnu-SFX-V9-1-0-MPIAUTO-OMP-O2-X0'
-        surfex_exe = f"{surfex_home}/src/dir_obj-atos-gnu-SFX-V9-1-0-MPIAUTO-OMP-O2-X0/MASTER/"
-        os.environ['PATH'] = f"{surfex_exe}:{os.environ['PATH']}"
-        
-        paramfiles = f"{surfex_home}/MY_RUN/ECOCLIMAP/"
-        hm_cldata = '/ec/res4/hpcperm/hlam/data/climate'
-        ecosg_data_path = f"{hm_cldata}/ECOCLIMAP-SG"
-        gmted2010_data_path = f"{hm_cldata}/GMTED2010" #PATH to GMTED's dir and hdr files, not really used
-        soilgrid_data_path = f"{hm_cldata}/SOILGRID"   #PATH to SOILGRID's dir and hdr files, not really used
-        #gmted_path = '/ec/res4/scratch/sp3c/hm_home/harmonie46h111/climate/DKCOEXP/'
-        #soilgrids_path = '/ec/res4/scratch/sp3c/hm_home/harmonie46h111/climate/DKCOEXP/'
-        gmted_path= '/perm/sbu/gmted_carra2/'   #Switch to these accord-accessible paths with data above 30ºN latitude
-        soilgrids_path= '/perm/sbu/soilgrid_carra2/' #Switch to these accord-accessible paths with data above 30ºN latitude
-        
-        # Source SURFEX profile and capture environment
-        result = subprocess.run(['bash', '-c', f'source {surfex_home}/conf/{surfex_profile} ; env'], capture_output=True, text=True, check=True)
-        for line in result.stdout.split('\n'):
-            if '=' in line:
-                key, value = line.split('=', 1)
-                os.environ[key] = value
-        
-        print(f"PATH after sourcing: {os.environ.get('PATH', '')}")
-        # Check OFFLINE
-        try:
-            subprocess.run(['which', 'OFFLINE'], check=True, capture_output=True)
-            print("OFFLINE found")
-        except subprocess.CalledProcessError:
-            print("OFFLINE not found")
+        surfex_config_path = (Path(os.environ['OSVAS']) / 'config_files/SURFEX/surfex_configuration.yaml').resolve()
         
         # Get dates
         run_start = config['Forcing_data']['run_start']
@@ -286,6 +255,31 @@ for station_name in stations_to_process:
         
         for expname in expnames:
             expname_st = time.time()
+
+            surfex_settings = load_surfex_configuration(surfex_config_path, 'atos', expname)
+            surfex_home = surfex_settings['surfex_home']
+            surfex_profile = surfex_settings['surfex_profile']
+            surfex_exe = surfex_settings['surfex_exe']
+            paramfiles = surfex_settings['paramfiles']
+            physiography_paths = surfex_settings['physiography_paths']
+
+            result = subprocess.run(
+                ['bash', '-c', f'source "{surfex_home}/conf/{surfex_profile}" && env'],
+                capture_output=True, text=True, check=True
+            )
+            for line in result.stdout.split('\n'):
+                if '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ[key] = value
+            if not os.environ.get('PATH', '').startswith(f'{surfex_exe}:'):
+                os.environ['PATH'] = f"{surfex_exe}:{os.environ.get('PATH', '')}"
+
+            print(f"PATH after sourcing: {os.environ.get('PATH', '')}")
+            try:
+                subprocess.run(['which', 'OFFLINE'], check=True, capture_output=True)
+                print("OFFLINE found")
+            except subprocess.CalledProcessError:
+                print("OFFLINE not found")
 
             run_dir = f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/{expname}/run/"
             out_dir = f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/{expname}/output/"
@@ -311,19 +305,7 @@ for station_name in stations_to_process:
             shutil.copy(f"{os.environ['OSVAS']}/namelists/{os.environ['STATION_NAME']}/OPTIONS.nam_{expname}", f"{run_dir}/OPTIONS.nam")
             
             # Link physiography (ATOS specific)
-            physio_paths = [
-                f"{hm_cldata}/PGD",
-                ecosg_data_path,
-                gmted2010_data_path,
-                soilgrid_data_path,
-                f"{ecosg_data_path}/LAI_SAT",
-                f"{ecosg_data_path}/ALB_SAT",
-                f"{ecosg_data_path}/COVER",
-                f"{ecosg_data_path}/HT",
-                gmted_path,
-                soilgrids_path,
-                paramfiles
-            ]
+            physio_paths = [paramfiles, *physiography_paths]
             for p in physio_paths:
                 if os.path.exists(p):
                     print(f"Trying to link: {p}")                    
@@ -333,51 +315,46 @@ for station_name in stations_to_process:
                         if not os.path.exists(dst):
                             os.symlink(src, dst)
         
-        # Modify namelist
-        namelist = f"{run_dir}/OPTIONS.nam"
-        with open(namelist, 'r') as f:
-            content = f.read()
-        content = re.sub(r'(NYEAR\s*=\s*)[0-9]+', lambda m: m.group(1) + str(year_start), content)
-        content = re.sub(r'(NMONTH\s*=\s*)[0-9]+', lambda m: m.group(1) + str(month_start), content)
-        content = re.sub(r'(NDAY\s*=\s*)[0-9]+', lambda m: m.group(1) + str(day_start), content)
-        content = re.sub(r'(XTIME\s*=\s*)[0-9.]+', lambda m: m.group(1) + str(seconds_since_midnight) + '.', content)
-        content = re.sub(r"CFORCING_FILETYPE\s*=\s*'.*'", f"CFORCING_FILETYPE = '{forcing_format}'", content)
-        with open(namelist, 'w') as f:
-            f.write(content)
-        
-        # Apply soil initialization to namelist if enabled
-        if init_to_namelist:
-            print(f"Applying soil initialization to namelist for {expname}")
-            subprocess.run([
-                'python3', f"{os.environ['OSVAS']}/scripts/python_scripts/apply_soil_initialization.py",
-                os.environ['STATION_NAME'], os.environ['OSVAS'], 'namelist'
-            ], check=True)
-        
-        # Run SURFEX steps
-        surfex_steps = [s.upper() for s in config['OSVAS_steps']['Surfex_steps']]
-        os.chdir(run_dir)
-        for step in surfex_steps:
-            print(f"Running {step} for {expname}")
-            subprocess.run([step], check=True)
-            
-            # Apply soil initialization to PREP files after PREP step if enabled
-            if step == 'PREP' and init_to_prep:
-                print(f"Applying soil initialization to PREP files for {expname}")
+            # Modify namelist
+            namelist = f"{run_dir}/OPTIONS.nam"
+            with open(namelist, 'r') as f:
+                content = f.read()
+            content = re.sub(r'(NYEAR\s*=\s*)[0-9]+', lambda m: m.group(1) + str(year_start), content)
+            content = re.sub(r'(NMONTH\s*=\s*)[0-9]+', lambda m: m.group(1) + str(month_start), content)
+            content = re.sub(r'(NDAY\s*=\s*)[0-9]+', lambda m: m.group(1) + str(day_start), content)
+            content = re.sub(r'(XTIME\s*=\s*)[0-9.]+', lambda m: m.group(1) + str(seconds_since_midnight) + '.', content)
+            content = re.sub(r"CFORCING_FILETYPE\s*=\s*'.*'", f"CFORCING_FILETYPE = '{forcing_format}'", content)
+            with open(namelist, 'w') as f:
+                f.write(content)
+
+            if init_to_namelist:
+                print(f"Applying soil initialization to namelist for {expname}")
                 subprocess.run([
                     'python3', f"{os.environ['OSVAS']}/scripts/python_scripts/apply_soil_initialization.py",
-                    os.environ['STATION_NAME'], os.environ['OSVAS'], 'prep'
+                    os.environ['STATION_NAME'], os.environ['OSVAS'], 'namelist'
                 ], check=True)
-        
-        # Move outputs
-        for f in os.listdir(run_dir):
-            if f.startswith('SURFOUT') or f.endswith('OUT.nc') or f.startswith('LISTI') or f.startswith('Param'):
+
+            surfex_steps = [s.upper() for s in config['OSVAS_steps']['Surfex_steps']]
+            os.chdir(run_dir)
+            for step in surfex_steps:
+                print(f"Running {step} for {expname}")
+                subprocess.run([step], check=True)
+                if step == 'PREP' and init_to_prep:
+                    print(f"Applying soil initialization to PREP files for {expname}")
+                    subprocess.run([
+                        'python3', f"{os.environ['OSVAS']}/scripts/python_scripts/apply_soil_initialization.py",
+                        os.environ['STATION_NAME'], os.environ['OSVAS'], 'prep'
+                    ], check=True)
+
+            for f in os.listdir(run_dir):
+                if f.startswith('SURFOUT') or f.endswith('OUT.nc') or f.startswith('LISTI') or f.startswith('Param'):
                     shutil.move(f"{run_dir}/{f}", f"{out_dir}/{f}")
-        for f in os.listdir(run_dir):
-            if f in ['PGD.nc', 'PREP.nc', 'OPTIONS.nam']:
+            for f in os.listdir(run_dir):
+                if f in ['PGD.nc', 'PREP.nc', 'OPTIONS.nam']:
                     shutil.move(f"{run_dir}/{f}", f"{out_dir}/{f}")
-        expname_dt = round(time.time() - expname_st, 1)
-        step3_timings.append((station_name, expname, expname_dt))
-        print(f"⏱  Step 3 for {expname} ({station_name}) completed in {expname_dt}s")
+            expname_dt = round(time.time() - expname_st, 1)
+            step3_timings.append((station_name, expname, expname_dt))
+            print(f"⏱  Step 3 for {expname} ({station_name}) completed in {expname_dt}s")
 
     else:
         print("⏩ Skipping Step 3: Run SURFEX")

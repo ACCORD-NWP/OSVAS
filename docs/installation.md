@@ -135,30 +135,45 @@ conda activate OSVHARP
 ```
 
 ### How to make your SURFEX installation known to OSVAS:
-A functional SURFEX installation is required. The workflow expects:
-- SURFEX binaries compiled and available in the system PATH
-- A profile script (e.g., `profile_surfex-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0`) which is "sourced" before every SURFEX run to set up the compilation environment
+A functional SURFEX installation is required, including its compiled executables and profile script. Before each run, OSVAS sources the configured profile to set up the environment and adds the configured executable directory to `PATH`.
 
 Recommended SURFEX versions:
 - **OpenSurfex 8.1:** https://www.umr-cnrm.fr/surfex/spip.php?article387
 - **ACCORD's SURFEX_NWP:** https://github.com/ACCORD-NWP/SURFEX-NWP
 - **ACCORD-NWP:** , v9 branch at https://github.com/ACCORD-NWP/SURFEX/tree/SURFEX_V9_DEV_NWP 
-On ATOS, the compilation environment is typically set up via modules. On local systems, ensure the SURFEX home directory is configured (usually via the launcher script's `surfex_home` variable).
+Configure the installation in `config_files/SURFEX/surfex_configuration.yaml`; the launchers no longer require edits to set installation paths. The `general` block provides shared defaults, while `platforms.linux` and `platforms.atos` provide runner-specific settings. `surfex_exe` and `paramfiles` can be specified relative to `surfex_home`. `physiography_paths` is an optional list of additional directories whose files are linked into each run directory.
 
-In step3 of the python launcher script, the environment PATH is updated with the information from your SURFEX version. Currently, it is necessary to hardcode this information ({surfex_ver}, {surfex_profile}, {surfex_exe} in the script. Edit it to specify the PATH to your SURFEX setup, executables, profile names, etc, like this:
+Example layout:
+```yaml
+general:
+  surfex_home: "${HOME}/SURFEX_ACCORD_5th"
+  surfex_profile: profile_surfex-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0
+  surfex_exe: src/dir_obj-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0/MASTER
+  paramfiles: MY_RUN/ECOCLIMAP
+  physiography_paths:
+    - "${HOME}/PHYSIO"
+
+platforms:
+  atos:
+    surfex_home: "${PERM:-/perm/sp3c}/SURFEX_ACCORD"
+    surfex_profile: profile_surfex-atos-gnu-SFX-V9-1-0-MPIAUTO-OMP-O2-X0
+    surfex_exe: src/dir_obj-atos-gnu-SFX-V9-1-0-MPIAUTO-OMP-O2-X0/MASTER
+    paramfiles: MY_RUN/ECOCLIMAP
+    physiography_paths:
+      - /ec/res4/hpcperm/hlam/data/climate/PGD
+      - /ec/res4/hpcperm/hlam/data/climate/ECOCLIMAP-SG
+      - /perm/sbu/gmted_carra2
+      - /perm/sbu/soilgrid_carra2
+
+# Optional block named exactly like an entry in the station's OSVAS_steps.Expnames:
+MY_EXPERIMENT:
+  surfex_profile: profile_for_this_experiment
+  paramfiles: /path/to/experiment/ECOCLIMAP
 ```
-        # SURFEX paths
-        surfex_parent = os.path.expanduser('~')
-        surfex_ver = 'SURFEX_ACCORD'
-        surfex_home = f"{surfex_parent}/{surfex_ver}"
-        surfex_profile = 'profile_surfex-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0'
-        surfex_exe = f"{surfex_home}/src/dir_obj-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0/MASTER/"
-        os.environ['PATH'] = f"{surfex_exe}:{os.environ['PATH']}"
-        
-        paramfiles = f"{surfex_home}/MY_RUN/ECOCLIMAP/"
-        dirfiles = f"{os.path.expanduser('~')}/PHYSIO/"
-```
-If you plan to use ECOCLIMAP for any paremeter not resolved by namelist, make sure to have available in $dirfiles the files corresponding to the ECOCLIMAP version specified in your namelist.
+
+Settings are merged in this order: `general`, the selected `platforms` block, then the top-level block whose name exactly matches the experiment. Only keys specified in a later block are overridden. Experiment-specific settings are configured in this shared SURFEX YAML file (not in the station YAML). Paths support `~`, `$VAR`, and `${VAR:-default}` expansion; absolute `surfex_exe` or `paramfiles` paths can be used when they are outside `surfex_home`.
+
+If you use ECOCLIMAP files that are not resolved by the namelist, include their directory in `physiography_paths` (or the configured `paramfiles`) so the files are available in the run directory.
 ### How to set up access to forcing/validation data & Copernicus Global Land Service LAI data
 #### ICOS login & token
 To download ICOS data via the Python API, you must:

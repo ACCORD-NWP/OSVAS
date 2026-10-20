@@ -1,0 +1,37 @@
+# Settings are merged in this order: general, platforms.<runner>, then the
+# top-level block matching the experiment name. Paths support ~, $VAR, and
+# ${VAR:-default} expansion.
+general:
+  surfex_home: "${HOME}/SURFEX_ACCORD_5th"
+  surfex_profile: profile_surfex-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0
+  surfex_exe: src/dir_obj-LXgfortran-SFX-V8-1-1-NOMPI-OMP-O2-X0/MASTER
+  paramfiles: MY_RUN/ECOCLIMAP
+  physiography_paths:
+    - "${HOME}/PHYSIO"
+
+platforms:
+  atos:
+    surfex_home: "${PERM:-/perm/sp3c}/SURFEX_ACCORD"
+    surfex_profile: profile_surfex-atos-gnu-SFX-V9-1-0-MPIAUTO-OMP-O2-X0
+    surfex_exe: src/dir_obj-atos-gnu-SFX-V9-1-0-MPIAUTO-OMP-O2-X0/MASTER
+    paramfiles: MY_RUN/ECOCLIMAP
+    physiography_paths:
+      - /ec/res4/hpcperm/hlam/data/climate/PGD
+      - /ec/res4/hpcperm/hlam/data/climate/ECOCLIMAP-SG
+      - /ec/res4/hpcperm/hlam/data/climate/GMTED2010
+      - /ec/res4/hpcperm/hlam/data/climate/SOILGRID
+      - /ec/res4/hpcperm/hlam/data/climate/ECOCLIMAP-SG/LAI_SAT
+      - /ec/res4/hpcperm/hlam/data/climate/ECOCLIMAP-SG/ALB_SAT
+      - /ec/res4/hpcperm/hlam/data/climate/ECOCLIMAP-SG/COVER
+      - /ec/res4/hpcperm/hlam/data/climate/ECOCLIMAP-SG/HT
+      - /perm/sbu/gmted_carra2
+      - /perm/sbu/soilgrid_carra2
+
+# Add optional experiment-specific settings as top-level blocks, for example:
+# MY_EXPERIMENT:
+#   surfex_home: /path/to/another/SURFEX
+#   surfex_profile: profile_for_this_experiment
+#   surfex_exe: /path/to/MASTER
+#   paramfiles: /path/to/ECOCLIMAP
+#   physiography_paths:
+#     - /path/to/extra/physiography
