@@ -1,5 +1,7 @@
 import os
 import re
+import subprocess
+from pathlib import Path
 
 import yaml
 
@@ -49,3 +51,33 @@ def load_surfex_configuration(config_path, platform, experiment):
         if not os.path.isabs(settings[key]):
             settings[key] = os.path.join(surfex_home, settings[key])
     return settings
+
+
+def load_surfex_environment(surfex_home, surfex_profile, surfex_exe, base_environment):
+    profile_path = os.path.join(surfex_home, "conf", surfex_profile)
+    result = subprocess.run(
+        ["bash", "-c", 'source "$1"; env', "surfex-profile", profile_path],
+        env=base_environment,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    environment = base_environment.copy()
+    for line in result.stdout.splitlines():
+        if "=" in line:
+            key, value = line.split("=", 1)
+            environment[key] = value
+
+    if not environment.get("PATH", "").startswith(f"{surfex_exe}:"):
+        environment["PATH"] = f"{surfex_exe}:{environment.get('PATH', '')}"
+    return environment
+
+
+def resolve_surfex_executable(surfex_exe, executable):
+    executable_path = Path(surfex_exe) / executable
+    if not executable_path.is_file() or not os.access(executable_path, os.X_OK):
+        raise FileNotFoundError(
+            f"Configured SURFEX executable for {executable} is missing or not executable: "
+            f"{executable_path}"
+        )
+    return str(executable_path.resolve())

@@ -10,7 +10,11 @@ import argparse
 import socket
 import time
 from pathlib import Path
-from surfex_configuration import load_surfex_configuration
+from surfex_configuration import (
+    load_surfex_configuration,
+    load_surfex_environment,
+    resolve_surfex_executable,
+)
 
 def is_port_available(port):
     """Check if a port is available for binding."""
@@ -246,6 +250,7 @@ for station_name in stations_to_process:
         month_start = start_dt.month
         day_start = start_dt.day
         seconds_since_midnight = start_dt.hour * 3600 + start_dt.minute * 60 + start_dt.second
+        surfex_base_environment = os.environ.copy()
         
         for expname in expnames:
             expname_st = time.time()
@@ -257,23 +262,13 @@ for station_name in stations_to_process:
             paramfiles = surfex_settings['paramfiles']
             physiography_paths = surfex_settings['physiography_paths']
 
-            result = subprocess.run(
-                ['bash', '-c', f'source "{surfex_home}/conf/{surfex_profile}" && env'],
-                capture_output=True, text=True, check=True
+            surfex_environment = load_surfex_environment(
+                surfex_home, surfex_profile, surfex_exe, surfex_base_environment
             )
-            for line in result.stdout.split('\n'):
-                if '=' in line:
-                    key, value = line.split('=', 1)
-                    os.environ[key] = value
-            if not os.environ.get('PATH', '').startswith(f'{surfex_exe}:'):
-                os.environ['PATH'] = f"{surfex_exe}:{os.environ.get('PATH', '')}"
-
-            print(f"PATH after sourcing: {os.environ.get('PATH', '')}")
-            try:
-                subprocess.run(['which', 'OFFLINE'], check=True, capture_output=True)
-                print("OFFLINE found")
-            except subprocess.CalledProcessError:
-                print("OFFLINE not found")
+            os.environ.clear()
+            os.environ.update(surfex_environment)
+            offline_binary = resolve_surfex_executable(surfex_exe, 'OFFLINE')
+            print(f"Using OFFLINE executable: {offline_binary}")
 
             run_dir = f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/{expname}/run/"
             out_dir = f"{os.environ['OSVAS']}/RUNS/{os.environ['STATION_NAME']}/{expname}/output/"
@@ -331,8 +326,9 @@ for station_name in stations_to_process:
             surfex_steps = [s.upper() for s in config['OSVAS_steps']['Surfex_steps']]
             os.chdir(run_dir)
             for step in surfex_steps:
-                print(f"Running {step} for {expname}")
-                subprocess.run([step], check=True)
+                step_binary = resolve_surfex_executable(surfex_exe, step)
+                print(f"Running {step} for {expname}: {step_binary}")
+                subprocess.run([step_binary], check=True)
                 
                 # Apply soil initialization to PREP files after PREP step if enabled
                 if step == 'PREP' and init_to_prep:
@@ -354,6 +350,9 @@ for station_name in stations_to_process:
             expname_dt = round(time.time() - expname_st, 1)
             step3_timings.append((station_name, expname, expname_dt))
             print(f"⏱  Step 3 for {expname} ({station_name}) completed in {expname_dt}s")
+
+            os.environ.clear()
+            os.environ.update(surfex_base_environment)
 
     else:
 
