@@ -45,13 +45,22 @@ params <- list(
     # Surface parameters
     T2m = list(
       thresholds = c(-20, -10, seq(-5, 25, 5)),
+      scale_fcst = list(scaling = 0.0, new_units = "K"),
+      scale_obs  = list(scaling = 0.0, new_units = "K"),
+      #obsmin_val = - 30,
+      #obsmax_val = + 50,
+      error_sd   = 10,
+      models_to_scale = NULL
+    ),
+    T_2m = list(
+      thresholds = c(-20, -10, seq(-5, 25, 5)),
       scale_fcst = list(scaling = -273.15, new_units = "degC"),
-      scale_obs  = list(scaling = 0, new_units = "degC"),
+      scale_obs  = list(scaling = -273.15, new_units = "degC"),
       obsmin_val = - 30,
       obsmax_val = + 50,
       error_sd   = 6,
       models_to_scale = NULL
-    ),
+    ),	       
     Td2m = list(
       thresholds = c(-20, -10, seq(-5, 30, 5)),
       scale_fcst = list(scaling = -273.15, new_units = "degC"),
@@ -78,8 +87,8 @@ params <- list(
     ),
     RH2m = list(
       thresholds = c(30,50,65,75,85,95),
-      scale_fcst = list(scaling = 100, new_units = "%", mult = TRUE),
-      scale_obs  = list(scaling = 1, new_units = "%", mult = TRUE),      
+      scale_fcst = list(scaling = 1, new_units = "%", mult = TRUE),
+      scale_obs  = list(scaling = 1, new_units = "%", mult = TRUE),
       obsmin_val = 12.5,
       obsmax_val = 100,
       error_sd   = 6
@@ -138,51 +147,57 @@ params <- list(
     ),
     AccPcp1h = list(
       thresholds = c(0.1,0.5,1,2.5,5,7.5,10,15,20),
-      scale_fcst = list(scaling = 0.0, new_units = "kg/m^2"),
+      scale_fcst = list(scaling = 1000, new_units = "kg/m^2", mult= TRUE),
       scale_obs  = list(scaling = 0.0, new_units = "kg/m^2"),
       obsmin_val = 0,
       obsmax_val = 1000,
-      error_sd   = 8
+      error_sd   = 8,
+      models_to_scale=c("GDT_iekm")     
     ),
     Pcp = list(
       thresholds = c(0.1,0.5,1,2.5,5,7.5,10,15,20),
-      scale_fcst = list(scaling = 0.0, new_units = "kg/m^2"),
+      scale_fcst = list(scaling = 1000, new_units = "kg/m^2", mult= TRUE),
       scale_obs  = list(scaling = 0.0, new_units = "kg/m^2"),
       obsmin_val = 0,
       obsmax_val = 1000,
-      error_sd   = 8
+      error_sd   = 8,
+      models_to_scale=c("GDT_iekm")                            
     ),
     AccPcp3h = list(
       thresholds = c(0.1,0.5,1,2.5,5,7.5,10,15,20,25,30,40),
-      scale_fcst = list(scaling = 0.0, new_units = "kg/m^2"),
+      scale_fcst = list(scaling = 1000, new_units = "kg/m^2", mult= TRUE),
       scale_obs  = list(scaling = 0.0, new_units = "kg/m^2"),
       obsmin_val = 0,
       obsmax_val = 1000,
-      error_sd   = 8
+      error_sd   = 8,
+      models_to_scale=c("GDT_iekm")
     ),
-    AccPcp6h = list(
+    AccPcp6h = list(      
       thresholds = c(0.1,0.5,1,2.5,5,7.5,10,15,20,25,30,40,50,60),
-      scale_fcst = list(scaling = 0.0, new_units = "kg/m^2"),
+      scale_fcst = list(scaling = 1000, new_units = "kg/m^2", mult= TRUE),
       scale_obs  = list(scaling = 0.0, new_units = "kg/m^2"),
       obsmin_val = 0,
       obsmax_val = 1000,
-      error_sd   = 8
+      error_sd   = 8,
+      models_to_scale=c("GDT_iekm")                            
     ),
     AccPcp12h = list(
       thresholds = c(0.1,0.5,1,2.5,5,7.5,10,15,20,25,30,40,50,60,70,80),
-      scale_fcst = list(scaling = 0.0, new_units = "kg/m^2"),
+      scale_fcst = list(scaling = 1000, new_units = "kg/m^2", mult= TRUE),
       scale_obs  = list(scaling = 0.0, new_units = "kg/m^2"),
       obsmin_val = 0,
       obsmax_val = 1000,
-      error_sd   = 8
+      error_sd   = 8,
+      models_to_scale=c("GDT_iekm")                            
     ),
     AccPcp24h = list(
       thresholds = c(0.1,0.5,1,2.5,5,7.5,10,15,20,25,30,40,50,60,70,80,90,100),
-      scale_fcst = list(scaling = 0.0, new_units = "kg/m^2"),
+      scale_fcst = list(scaling = 1000, new_units = "kg/m^2", mult= TRUE),
       scale_obs  = list(scaling = 0.0, new_units = "kg/m^2"),
       obsmin_val = 0,
       obsmax_val = 1000,
-      error_sd   = 8
+      error_sd   = 8,
+      models_to_scale=c("GDT_iekm")                            
     ),
     CCtot = list(
       thresholds = seq(0, 100, 20),
