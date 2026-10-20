@@ -1,23 +1,14 @@
 #!/usr/bin/env python3
 """
-Estimate surface albedo (NIR, VIS, UV) from validation data.
+Estimate surface albedo (NIR and VIS) from validation data.
 
 This script:
 1. Reads validation data from SQLite OBSTABLEs (SW_OUT, SW_IN)
 2. Selects observations between 11:00-13:00 UTC daily
-3. Calculates daily albedos as SW_OUT/SW_IN (broadband)
-4. Computes monthly averages, using only that month's own data (no annual
-   mean is computed or relied upon). Months without data are filled from
-   the closest month that has data (see compute_monthly_averages).
-5. Decomposes each month's broadband albedo into VIS/NIR/UV using a single
-   first-order spectral-shape assumption (see estimate_surface_albedos).
-   The SAME decomposition is used for vegetation and soil -- soil is not
-   derived from vegetation cover fraction or from a separate residual
-   method, it is simply the same spectral split scaled up slightly to
-   reflect that soil is typically somewhat brighter than vegetation.
-6. Generates namelist format text for the six SURFEX/ISBA namelist
-   variables: XUNIF_ALB{NIR,VIS,UV}_{VEG,SOIL}
-7. Saves output to station namelist directory
+3. Calculates daily albedos as SW_OUT/SW_IN
+4. Computes monthly averages
+5. Generates namelist format text for both vegetation and soil
+6. Saves output to station namelist directory
 
 Useage:
     python3 estimate_albedo.py <station_name> <osvas_root> [--run-period start_date end_date]
@@ -36,97 +27,6 @@ import numpy as np
 import pandas as pd
 from collections import defaultdict
 import yaml
-
-
-# ---------------------------------------------------------------------------
-# First-order spectral decomposition assumptions
-# ---------------------------------------------------------------------------
-# The radiometer measures broadband albedo (SW_OUT/SW_IN), integrated over the
-# whole solar spectrum. SURFEX/ISBA needs it split into VIS, NIR and UV bands.
-# We approximate the broadband value as a solar-irradiance-weighted average of
-# UV/VIS/NIR band albedos, and assume a fixed *spectral shape* (ratios between
-# bands) taken from typical literature values, anchoring the absolute level to
-# the in-situ measurement for that same month. These are first-order,
-# order-of-magnitude assumptions meant for configuring an experiment quickly
-# -- not a spectral retrieval.
-#
-# Vegetation and soil are given by the SAME spectral decomposition of the
-# same measured monthly value -- there is no vegetation-fraction unmixing and
-# no separate soil spectral shape. Soil is only distinguished from vegetation
-# by a single "soil is usually brighter" boost factor applied uniformly
-# across all three bands.
-
-# Fraction of broadband solar irradiance carried by each band
-W_UV, W_VIS, W_NIR = 0.05, 0.45, 0.50
-
-# Single spectral shape (ratios relative to VIS) used for both surfaces.
-# Values taken from typical closed-canopy literature ranges: strong VIS
-# absorption (chlorophyll), strong NIR scattering (multiple within-canopy
-# reflections), UV slightly below VIS.
-SURFACE_UV_VIS_RATIO = 0.23
-SURFACE_NIR_VIS_RATIO = 1.15
-
-# Soil is usually somewhat brighter than vegetation across the solar
-# spectrum (less absorption, no chlorophyll/photosynthetic pigments), so its
-# namelist values are the same spectral split scaled up by this factor. This
-# is a deliberately simple, uniform boost -- not a different spectral shape.
-SOIL_BOOST_FACTOR = 1.20
-
-# Physical plausibility bounds used to clip the decomposition
-VIS_RANGE = (0.02, 0.40)
-NIR_RANGE = (0.05, 0.60)
-
-
-def split_spectral_bands(alpha_total, uv_vis_ratio, nir_vis_ratio,
-                          w_uv=W_UV, w_vis=W_VIS, w_nir=W_NIR):
-    """Decompose a broadband albedo into UV/VIS/NIR assuming a fixed spectral
-    shape (band ratios relative to VIS) and solar-irradiance band weights.
-
-    alpha_total = w_uv*(r_uv*VIS) + w_vis*VIS + w_nir*(r_nir*VIS)
-    => VIS = alpha_total / (w_uv*r_uv + w_vis + w_nir*r_nir)
-    """
-    denom = w_uv * uv_vis_ratio + w_vis + w_nir * nir_vis_ratio
-    vis = alpha_total / denom
-    uv = uv_vis_ratio * vis
-    nir = nir_vis_ratio * vis
-    return uv, vis, nir
-
-
-def estimate_surface_albedos(monthly_total, soil_boost_factor=SOIL_BOOST_FACTOR):
-    """Decompose each month's broadband albedo into VIS/NIR/UV, using a
-    single spectral-shape strategy applied identically to vegetation and
-    soil.
-
-    Each month is decomposed independently from that month's own measured
-    value only -- no annual mean, no vegetation-fraction correction, no
-    separate residual method for soil. Vegetation values come directly from
-    the spectral split; soil values are the same split scaled up by
-    `soil_boost_factor` (soil is typically somewhat brighter than
-    vegetation), then clipped to a physically plausible range.
-    """
-    nir_veg, vis_veg, uv_veg = [], [], []
-    nir_soil, vis_soil, uv_soil = [], [], []
-
-    for alpha_total in monthly_total:
-        uv, vis, nir = split_spectral_bands(alpha_total, SURFACE_UV_VIS_RATIO,
-                                             SURFACE_NIR_VIS_RATIO)
-
-        vis_veg.append(float(np.clip(vis, *VIS_RANGE)))
-        nir_veg.append(float(np.clip(nir, *NIR_RANGE)))
-        uv_veg.append(float(np.clip(uv, *VIS_RANGE)))
-
-        vis_soil.append(float(np.clip(vis * soil_boost_factor, *VIS_RANGE)))
-        nir_soil.append(float(np.clip(nir * soil_boost_factor, *NIR_RANGE)))
-        uv_soil.append(float(np.clip(uv * soil_boost_factor, *VIS_RANGE)))
-
-    return {
-        'nir_veg': nir_veg,
-        'vis_veg': vis_veg,
-        'uv_veg': uv_veg,
-        'nir_soil': nir_soil,
-        'vis_soil': vis_soil,
-        'uv_soil': uv_soil,
-    }
 
 
 def get_obstable_files(obstable_path, osvas_root, run_start=None, run_end=None):
@@ -238,81 +138,43 @@ def calculate_daily_albedos(df_midday):
     return daily_albedos
 
 
-def _fill_missing_months(monthly_avg):
-    """Fill months without data using the closest month (by calendar
-    distance, wrapping across the year boundary) that does have data.
-
-    No annual mean is used: each filled month simply borrows the value of
-    its nearest available neighbour, so a filled month always reflects a
-    real measured month rather than a whole-period average.
-    """
-    available_months = sorted(monthly_avg.keys())
-    if not available_months:
-        raise ValueError("No monthly data available to fill from.")
-
-    monthly_values = []
-    for m in range(1, 13):
-        if m in monthly_avg:
-            monthly_values.append(monthly_avg[m])
-        else:
-            nearest = min(available_months,
-                          key=lambda am: min(abs(am - m), 12 - abs(am - m)))
-            monthly_values.append(monthly_avg[nearest])
-    return monthly_values
-
-
 def compute_monthly_averages(daily_albedos):
     """Compute monthly average albedos from daily data.
-
-    Each month's value comes only from that month's own daily observations
-    (no annual mean is computed). If the data spans more than 12 months,
-    only the most recent 12 months (a rolling 365-day window ending at the
-    last available observation) are used to pick a single representative
-    year's worth of data. Months with no data in that window are filled
-    from the closest month that has data (see _fill_missing_months) rather
-    than from any whole-period average.
-
-    A rolling window (rather than requiring exact alignment with Jan 1 -
-    Dec 31 of a calendar year) is used deliberately: anchoring on "last
-    observation is in December with day==31" is fragile -- if the very
-    last valid midday observation happens to fall a day or two before the
-    31st (a normal occurrence with real data), that calendar-year check
-    would wrongly discard the whole most-recent year and fall back to the
-    previous one, even though it is almost entirely covered by data.
+    
+    If the data spans more than 12 months, only the last complete calendar
+    year is used (e.g. Nov 2022 – Jan 2024 → uses Jan–Dec 2023).
     """
     daily_albedos = daily_albedos.copy()
     daily_albedos['date'] = pd.to_datetime(daily_albedos['date'])
 
-    # Determine the window to use
+    # Determine the year to use
     min_date = daily_albedos['date'].min()
     max_date = daily_albedos['date'].max()
     span_months = (max_date.year - min_date.year) * 12 + (max_date.month - min_date.month)
 
     if span_months > 12:
-        window_start = max_date - pd.Timedelta(days=365)
-        print(f"  Data spans {span_months} months — using the most recent 12 months "
-              f"({window_start.date()} to {max_date.date()})")
-        mask = daily_albedos['date'] >= window_start
+        # Find the last calendar year that is fully contained in the data
+        last_year = max_date.year
+        if max_date.month < 12 or max_date.day < 31:
+            last_year -= 1  # current year is incomplete, step back one
+
+        print(f"  Data spans {span_months} months — using calendar year {last_year}")
+        mask = daily_albedos['date'].dt.year == last_year
         daily_albedos = daily_albedos[mask]
 
         if daily_albedos.empty:
-            raise ValueError(f"No data found in the most recent 12 months "
-                              f"({window_start.date()} to {max_date.date()}).")
+            raise ValueError(f"No data found for selected year {last_year}.")
 
     daily_albedos['month'] = daily_albedos['date'].dt.month
     monthly_avg = daily_albedos.groupby('month')['albedo'].mean().to_dict()
 
-    missing = [m for m in range(1, 13) if m not in monthly_avg]
-    if missing:
-        print(f"  Months without data: {missing} — filling each from its "
-              f"closest month with data")
-
-    monthly_values = _fill_missing_months(monthly_avg)
+    # Fill any missing months with the annual mean of the selected period
+    annual_mean = daily_albedos['albedo'].mean()
+    monthly_values = [monthly_avg.get(m, annual_mean) for m in range(1, 13)]
 
     print("\n  Monthly albedo averages:")
     for month in range(1, 13):
-        flag = "  (filled)" if month in missing else ""
-        print(f"    Month {month:2d}: {monthly_values[month-1]:.8f}{flag}")
+        print(f"    Month {month:2d}: {monthly_values[month-1]:.8f}")
 
     return monthly_values
 
@@ -343,49 +205,32 @@ def generate_namelist_block(vegtype, albedo_monthly, param_name):
     return '\n'.join(lines)
 
 
-def generate_complete_albedo_namelist(vegtype, nir_veg, vis_veg, uv_veg,
-                                       nir_soil, vis_soil, uv_soil):
-    """Generate complete namelist text with all six albedo parameters
-    (VIS/NIR/UV x vegetation/soil). Both surfaces come from the same
-    monthly spectral decomposition (see estimate_surface_albedos); soil is
-    simply that same split scaled up by SOIL_BOOST_FACTOR."""
+def generate_complete_albedo_namelist(vegtype, niralbedo_monthly, visalbedo_monthly):
+    """Generate complete namelist text with all four albedo parameters."""
     output = []
     output.append("\n! Estimated albedos from validation data (SW_OUT/SW_IN 11:00-13:00 UTC)")
-    output.append("! Single spectral-decomposition strategy applied to both vegetation and")
-    output.append(f"! soil per month (no annual mean, no vegetation fraction); soil = same split "
-                  f"x {SOIL_BOOST_FACTOR:.2f}")
-    output.append("! (see estimate_surface_albedos in this script)\n")
-
+    output.append("! Monthly averages for vegetation and soil surfaces\n")
+    
     # Vegetation NIR albedo
     output.append("! Vegetation NIR albedo (monthly)")
-    output.append(generate_namelist_block(vegtype, nir_veg, 'XUNIF_ALBNIR_VEG'))
+    output.append(generate_namelist_block(vegtype, niralbedo_monthly, 'XUNIF_ALBNIR_VEG'))
     output.append("")
-
+    
     # Vegetation VIS albedo
     output.append("! Vegetation VIS albedo (monthly)")
-    output.append(generate_namelist_block(vegtype, vis_veg, 'XUNIF_ALBVIS_VEG'))
+    output.append(generate_namelist_block(vegtype, visalbedo_monthly, 'XUNIF_ALBVIS_VEG'))
     output.append("")
-
-    # Vegetation UV albedo
-    output.append("! Vegetation UV albedo (monthly)")
-    output.append(generate_namelist_block(vegtype, uv_veg, 'XUNIF_ALBUV_VEG'))
+    
+    # Soil NIR albedo (same as vegetation initially, can be adjusted separately)
+    output.append("! Soil NIR albedo (monthly) - estimated same as vegetation")
+    output.append(generate_namelist_block(vegtype, niralbedo_monthly, 'XUNIF_ALBNIR_SOIL'))
     output.append("")
-
-    # Soil NIR albedo
-    output.append("! Soil NIR albedo (monthly) - same spectral split as vegetation, scaled up")
-    output.append(generate_namelist_block(vegtype, nir_soil, 'XUNIF_ALBNIR_SOIL'))
+    
+    # Soil VIS albedo (same as vegetation initially, can be adjusted separately)
+    output.append("! Soil VIS albedo (monthly) - estimated same as vegetation")
+    output.append(generate_namelist_block(vegtype, visalbedo_monthly, 'XUNIF_ALBVIS_SOIL'))
     output.append("")
-
-    # Soil VIS albedo
-    output.append("! Soil VIS albedo (monthly) - same spectral split as vegetation, scaled up")
-    output.append(generate_namelist_block(vegtype, vis_soil, 'XUNIF_ALBVIS_SOIL'))
-    output.append("")
-
-    # Soil UV albedo
-    output.append("! Soil UV albedo (monthly) - same spectral split as vegetation, scaled up")
-    output.append(generate_namelist_block(vegtype, uv_soil, 'XUNIF_ALBUV_SOIL'))
-    output.append("")
-
+    
     return '\n'.join(output)
 
 
@@ -460,31 +305,31 @@ def main():
         print("❌ Could not calculate daily albedos")
         sys.exit(1)
     
-    # Step 4: Compute monthly averages (own-month data only, nearest-month fill)
+    # Step 4: Compute monthly averages
     print("\nStep 4: Computing monthly averages")
     monthly_albedos = compute_monthly_averages(daily_albedos)
-
-    # Step 5: Read vegtype from station config, then decompose each month's
-    # broadband albedo into VIS/NIR/UV using the single shared spectral
-    # strategy for both vegetation and soil (see estimate_surface_albedos)
-    print("\nStep 5: Decomposing broadband albedo into VIS/NIR/UV (vegetation & soil)")
-
+    
+    # For now, assume NIR and VIS albedos are the same (can be refined later)
+    # In reality, vegetation typically has different NIR vs VIS albedos
+    nir_albedos = monthly_albedos
+    vis_albedos = monthly_albedos
+    
+    # Step 5: Generate namelist format
+    print("\nStep 5: Generating namelist format")
+    
+    # Read vegtype from station config
+    config_file = osvas_root / 'config_files' / 'Stations' / station_name / f'{station_name}.yml'
     if not config_file.exists():
         print(f"⚠️  Warning: Station config not found: {config_file}")
         vegtype = 10  # default
     else:
+        with open(config_file) as f:
+            config = yaml.safe_load(f)
         vegtype = config.get('Station_metadata', {}).get('vegtype', 10)
-
+    
     print(f"  Using vegtype: {vegtype}")
-
-    split = estimate_surface_albedos(monthly_albedos)
-    nir_albedos, vis_albedos, uv_albedos = split['nir_veg'], split['vis_veg'], split['uv_veg']
-    nir_soil_albedos, vis_soil_albedos, uv_soil_albedos = split['nir_soil'], split['vis_soil'], split['uv_soil']
-
-    namelist_text = generate_complete_albedo_namelist(
-        vegtype, nir_albedos, vis_albedos, uv_albedos,
-        nir_soil_albedos, vis_soil_albedos, uv_soil_albedos
-    )
+    
+    namelist_text = generate_complete_albedo_namelist(vegtype, nir_albedos, vis_albedos)
     
     # Step 6: Save output
     print("\nStep 6: Saving results")
@@ -498,12 +343,8 @@ def main():
     output_path.write_text(namelist_text)
     
     print(f"  ✅ Albedo estimates saved to: {output_path}")
-    print(f"\n  VEG  NIR: min={min(nir_albedos):.8f}, max={max(nir_albedos):.8f}, mean={np.mean(nir_albedos):.8f}")
-    print(f"  VEG  VIS: min={min(vis_albedos):.8f}, max={max(vis_albedos):.8f}, mean={np.mean(vis_albedos):.8f}")
-    print(f"  VEG  UV : min={min(uv_albedos):.8f}, max={max(uv_albedos):.8f}, mean={np.mean(uv_albedos):.8f}")
-    print(f"  SOIL NIR: min={min(nir_soil_albedos):.8f}, max={max(nir_soil_albedos):.8f}, mean={np.mean(nir_soil_albedos):.8f}")
-    print(f"  SOIL VIS: min={min(vis_soil_albedos):.8f}, max={max(vis_soil_albedos):.8f}, mean={np.mean(vis_soil_albedos):.8f}")
-    print(f"  SOIL UV : min={min(uv_soil_albedos):.8f}, max={max(uv_soil_albedos):.8f}, mean={np.mean(uv_soil_albedos):.8f}")
+    print(f"\n  NIR albedo:  min={min(nir_albedos):.8f}, max={max(nir_albedos):.8f}, mean={np.mean(nir_albedos):.8f}")
+    print(f"  VIS albedo:  min={min(vis_albedos):.8f}, max={max(vis_albedos):.8f}, mean={np.mean(vis_albedos):.8f}")
     print(f"\n{'='*70}")
     print("✅ Albedo estimation completed successfully")
     print(f"{'='*70}\n")
