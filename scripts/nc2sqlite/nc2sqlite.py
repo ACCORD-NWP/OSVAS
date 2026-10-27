@@ -17,12 +17,18 @@ from scipy.interpolate import LinearNDInterpolator
 def parse_args():
     parser = argparse.ArgumentParser(description="Convert point NetCDF SURFEX output to SQLite.")
     parser.add_argument("-p", "--param_dict", required=True, help="Path to param_dict.json")
-    parser.add_argument("-sl", "--station_list", required=True, help="Path to station_list_default.csv")
+    parser.add_argument("-sl", "--station_list", required=True,
+                        help="Path to a valid station list CSV (columns SID, lat, lon, elev). "
+                             "Always required: it is the source of station coordinates in "
+                             "both gridded and single-station modes.")
     parser.add_argument("-st", "--station", required=False, type=int, default=None,
-                        help="Station ID for single-station (point NetCDF) mode. "
-                             "Omit this when feeding 2D gridded fields with -sl: all "
-                             "stations in the station list falling inside the grid "
-                             "will be interpolated to.")
+                        help="Optional. Station ID (must exist in the -sl station list), used "
+                             "only for input files that are NOT gridded fields with "
+                             "lat/lon coordinates (e.g. point-extracted NetCDF), to say "
+                             "which station the data belongs to. For gridded fields, "
+                             "omit it: the script interpolates to every station in the "
+                             "-sl list that falls inside the grid. If given together "
+                             "with a gridded file, it is ignored.")
     parser.add_argument("-o", "--output", required=True, help="Output base directory")
     parser.add_argument("-m", "--experiment_name", required=True, help="Experiment name")
     parser.add_argument("--common_fctable", action="store_true", default=False, help="Use common fctable directory (sqlites/model_data/common_fctables/) instead of station-specific")
@@ -156,10 +162,10 @@ def get_grid_geometry(lat_grid, lon_grid, ncfile=None):
 
 def _is_precip_like_name(*names):
     """True if any of the given variable/output names look like a
-    precipitation-related field: matches 'pcp', 'precip', or 'rain'
-    anywhere in the name, case-insensitive (e.g. 'Rainf', 'TotalPcp',
-    'precipitation_amount_acc')."""
-    keywords = ("pcp", "precip", "rain")
+    precipitation-related field: matches 'pcp', 'precip', 'rain', or
+    'snow' anywhere in the name, case-insensitive (e.g. 'Rainf', 'Snowf',
+    'TotalPcp', 'precipitation_amount_acc')."""
+    keywords = ("pcp", "precip", "rain", "snow")
     for name in names:
         if name and any(k in name.lower() for k in keywords):
             return True
@@ -186,7 +192,7 @@ def _is_precip_flux_units(units_str):
 
 def maybe_convert_precip_flux(values, units, dt_seconds_file, *name_candidates):
     """If a variable's name suggests precipitation (name contains 'pcp',
-    'precip', or 'rain', case-insensitive) AND its units indicate a mass
+    'precip', 'rain', or 'snow', case-insensitive) AND its units indicate a mass
     FLUX (kg/m2/s or an equivalent notation), convert it to an accumulated
     DEPTH (kg/m2, numerically identical to mm of liquid water) by
     multiplying by the timestep interval: kg/m2/s * s = kg/m2.
@@ -662,16 +668,47 @@ def main():
     from glob import glob
     import fnmatch
 
+    def _walk_paths(base):
+        """Yield every file and folder under `base`. Unlike Path.rglob, this
+        follows symlinked folders (rglob silently skips them, so a run tree
+        whose date folders are symlinks looked empty) and reports folders it
+        can't read instead of silently skipping them. Guards against symlink
+        cycles."""
+        seen_dirs = set()
+
+        def _onerror(err):
+            print(f"\u26a0\ufe0f Can't read directory {err.filename}: {err.strerror}")
+
+        for root, dirs, files in os.walk(str(base), followlinks=True, onerror=_onerror):
+            real_root = os.path.realpath(root)
+            if real_root in seen_dirs:
+                dirs[:] = []  # already visited (symlink cycle / alias): don't descend again
+                continue
+            seen_dirs.add(real_root)
+            for d in dirs:
+                yield Path(root) / d
+            for f in files:
+                yield Path(root) / f
+
     def _add_nc_path(p):
         p = Path(p)
         if p.is_dir():
-            nc_files.extend(list(p.rglob('*.nc')))
+            for q in _walk_paths(p):
+                if q.is_file() and q.name.lower().endswith('.nc'):
+                    nc_files.append(q)
         elif p.is_file() and str(p).lower().endswith('.nc'):
             nc_files.append(p)
 
+    # Resolve nc input argument(s): each entry can be a directory (searched
+    # recursively for *.nc), a glob pattern, or an explicit file path.
+    # args.ncdir has nargs='+' so a shell-expanded wildcard that matches
+    # several files is accepted directly.
     for nc_input in args.ncdir:
-        if any(ch in nc_input for ch in ["*", "?", "["]):
-            # First try: expand the glob as given (should work when shell didn't
+        n_before = len(nc_files)
+        has_wildcard = any(ch in nc_input for ch in ["*", "?", "["])
+
+        if has_wildcard:
+            # First try: expand the glob as given (works when the shell didn't
             # expand it). If that yields matches, process them.
             matches = glob(nc_input, recursive=True)
             if matches:
@@ -690,27 +727,44 @@ def main():
                     base = Path(base_dir)
                     pattern = os.path.basename(nc_input)
                     if base.exists():
-                        for p in base.rglob('*'):
+                        for p in _walk_paths(base):
                             if fnmatch.fnmatch(p.name, pattern):
                                 _add_nc_path(p)
-                    else:
-                        # Last resort: try a global recursive glob from cwd
-                        for m in glob(nc_input, recursive=True):
-                            _add_nc_path(m)
         else:
             p = Path(nc_input)
             if p.is_dir():
-                nc_files.extend(list(p.rglob('*.nc')))
+                _add_nc_path(p)
             elif p.is_file():
                 nc_files.append(p)
             else:
-                # Maybe the user passed an unexpanded wildcard-like token; try
-                # globbing from cwd
+                # Maybe an unexpanded wildcard-like token; try globbing from cwd
                 for m in glob(nc_input, recursive=True):
                     _add_nc_path(m)
 
-    # Deduplicate and sort
-    nc_files = sorted(list(dict.fromkeys(nc_files)))
+        if len(nc_files) == n_before:
+            if not has_wildcard and not os.path.exists(nc_input):
+                print(f"\u26a0\ufe0f Input path does not exist (or isn't visible from this "
+                      f"process/node): {nc_input}")
+            else:
+                print(f"\u26a0\ufe0f No .nc files found for input: {nc_input} "
+                      f"(check the path/pattern, and any 'Can't read directory' warnings above)")
+
+    # Sort, then drop paths that resolve to a file already in the list — e.g.
+    # raw_air_temperature_2m.nc -> raw.nc symlinks would otherwise make the
+    # same data get processed (and written to the FCTABLEs) several times.
+    nc_files = sorted(dict.fromkeys(nc_files))
+    unique_files, seen_real = [], set()
+    for f in nc_files:
+        real = os.path.realpath(f)
+        if real in seen_real:
+            continue
+        seen_real.add(real)
+        unique_files.append(f)
+    n_dups = len(nc_files) - len(unique_files)
+    nc_files = unique_files
+    if n_dups:
+        print(f"Skipped {n_dups} path(s) that are symlinks/duplicates of a file already "
+              f"in the list (e.g. raw_*.nc -> raw.nc)")
 
     print(f"Found {len(nc_files)} NetCDF files to process")
 
