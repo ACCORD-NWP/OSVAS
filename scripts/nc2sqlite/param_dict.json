@@ -1,7 +1,10 @@
 {
-    "_comment": "Parameter mapping between SURFEX variable names (left column) in netcdf files and observation variable names. Entries can be either a plain string (direct passthrough: netcdf_name -> output_name) or an object describing a derived/postprocessed variable (see TAU and Bowen_ratio below).",
+    "_comment": "Parameter mapping between SURFEX variable names (left column) in netcdf files and observation variable names. Entries can be a plain string (direct passthrough: netcdf_name -> output_name), an object {\"name\": ..., \"method\": ...} (passthrough with its own interpolation method), or an object describing a derived/postprocessed variable (see TAU and Bowen_ratio below). Keys starting with '_' are not variables.",
+    "_interpolation": "bilin",
+    "_interpolation_comment": "Default method for all entries without their own \"method\": 'bilin' (default) or 'nearest'. Priority: per-variable \"method\" > _interpolation > --int on the command line > bilin.",
     "air_temperature_2m":"T2m",
     "relative_humidity_2m":"RH2m",
+    "Rainf": {"name": "Pcp", "method": "nearest"},
     "RI_ISBA": "RI",
     "H_ISBA": "H",
     "LE_ISBA": "LE",

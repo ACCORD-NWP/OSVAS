@@ -11,8 +11,56 @@ import csv
 import sys
 import traceback
 import hashlib
-from scipy.spatial import Delaunay, cKDTree
-from scipy.interpolate import LinearNDInterpolator
+from scipy.spatial import cKDTree
+
+# ---------------------------------------------------------------------------
+# Interpolation-method selection
+# ---------------------------------------------------------------------------
+# Canonical names are the same as in grib2sqlite ("bilin", "nearest").
+_METHOD_ALIASES = {
+    "bilin": "bilin", "bilinear": "bilin",
+    "nearest": "nearest", "np": "nearest",
+}
+DEFAULT_METHOD = "bilin"
+
+
+def normalize_method(value, where="interpolation method"):
+    """Map a user-supplied method string to 'bilin' or 'nearest'."""
+    key = str(value).strip().lower()
+    if key not in _METHOD_ALIASES:
+        raise ValueError(
+            f"unknown {where} '{value}' (valid: {', '.join(sorted(_METHOD_ALIASES))})"
+        )
+    return _METHOD_ALIASES[key]
+
+
+def resolve_default_method(param_dict, args=None):
+    """Default method for variables without their own 'method':
+    param file '_interpolation'  >  --int on the command line  >  'bilin'."""
+    if "_interpolation" in param_dict:
+        return normalize_method(param_dict["_interpolation"], "'_interpolation' in param file")
+    cli = getattr(args, "interp", None) if args is not None else None
+    if cli is not None:
+        return normalize_method(cli, "--int value")
+    return DEFAULT_METHOD
+
+
+def validate_param_methods(param_dict, args=None):
+    """Fail fast on typos: per-variable errors are otherwise swallowed by the
+    per-variable try/except and the variable would just be skipped."""
+    resolve_default_method(param_dict, args)
+    for key, spec in param_dict.items():
+        if key.startswith("_"):
+            continue
+        if isinstance(spec, dict):
+            if "method" in spec:
+                normalize_method(spec["method"], f"'method' for '{key}'")
+            if spec.get("type") != "derived" and "name" not in spec:
+                raise ValueError(
+                    f"param entry '{key}' is an object but is neither a derived "
+                    f"variable (\"type\": \"derived\") nor a passthrough with a \"name\""
+                )
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Convert point NetCDF SURFEX output to SQLite.")
@@ -37,8 +85,11 @@ def parse_args():
                              "file paths, and/or glob patterns. Accepts multiple values "
                              "so a shell-expanded wildcard (e.g. 'raw_*') that matches "
                              "several files works directly.")
-    parser.add_argument("--int", dest="interp", choices=["bilinear", "np"], default="bilinear",
-                        help="Interpolation method for 2D fields: 'bilinear' (default) or 'np' (nearest point)")
+    parser.add_argument("--int", dest="interp", choices=sorted(_METHOD_ALIASES), default=None,
+                        help="Default interpolation method for 2D fields: 'bilinear' (alias "
+                             "'bilin', the default) or 'nearest' (alias 'np'). Overridden by "
+                             "\"_interpolation\" in the param file, which in turn is overridden "
+                             "by a per-variable \"method\" entry.")
     return parser.parse_args()
 
 def load_station_info(station_list_path):
@@ -104,29 +155,33 @@ SAFE_FUNCTIONS = {
 
 
 # ---------------------------------------------------------------------------
-# Grid-geometry cache for point interpolation
+# Grid-geometry cache and interpolation weights
 # ---------------------------------------------------------------------------
 #
-# Building a Delaunay triangulation / KD-tree over a 2500x2500 lat/lon grid is
-# expensive (this is what made 8-station interpolation take ~590s: it was
-# being rebuilt from scratch once per station, per timestep). Since the grid
-# geometry is normally identical across every file in a run, we build it once
-# and reuse it — but only after confirming the lat/lon arrays actually match
-# what we cached, so a domain/resolution change can never silently reuse a
-# stale triangulation.
+# Same idea as grib2sqlite: interpolation weights (flat grid indices + weights
+# per station) are trained ONCE per grid/station set and then applied to every
+# variable and timestep as a simple weighted sum. The grid geometry is
+# normally identical across every file in a run, so the KD-tree and the
+# weights are cached, guarded by a fingerprint of the actual lat/lon values so
+# a domain/resolution change can never silently reuse stale weights.
 _GRID_CACHE = {
     "fingerprint": None,
-    "tri": None,      # scipy.spatial.Delaunay over (lat, lon) grid points
-    "kdtree": None,    # scipy.spatial.cKDTree over the same points
+    "kdtree": None,    # scipy.spatial.cKDTree over the grid points (unit-sphere xyz)
     "bbox": None,      # (min_lat, max_lat, min_lon, max_lon)
+    "weights": {},     # (method, station-set hash) -> (sel, flat_idx, w)
 }
+_WARNED = set()
+
+
+def _warn_once(msg):
+    if msg not in _WARNED:
+        _WARNED.add(msg)
+        print(msg)
 
 
 def _grid_fingerprint(lat_grid, lon_grid):
     """Cheap-but-safe fingerprint of a grid's geometry: shape + a hash of the
-    actual coordinate values. Two grids with the same shape but different
-    coordinates (different domain, resampled resolution, shifted origin,
-    etc.) will always produce a different fingerprint."""
+    actual coordinate values."""
     h = hashlib.sha1()
     h.update(str(lat_grid.shape).encode())
     h.update(np.ascontiguousarray(lat_grid, dtype=np.float64).tobytes())
@@ -134,30 +189,156 @@ def _grid_fingerprint(lat_grid, lon_grid):
     return h.hexdigest()
 
 
+def _to_xyz(lat, lon):
+    """lat/lon (deg) -> points on the unit sphere. Nearest-neighbour search in
+    this space is isotropic (no cos(lat) distortion, no dateline problem)."""
+    la = np.radians(np.asarray(lat, dtype=np.float64))
+    lo = np.radians(np.asarray(lon, dtype=np.float64))
+    return np.column_stack((np.cos(la) * np.cos(lo), np.cos(la) * np.sin(lo), np.sin(la)))
+
+
 def get_grid_geometry(lat_grid, lon_grid, ncfile=None):
-    """Return (points, tri, kdtree, bbox) for this lat/lon grid, rebuilding
-    and re-caching only when the grid's fingerprint differs from what's
-    cached (first call, or a genuine domain/resolution change)."""
+    """Return (kdtree, bbox) for this lat/lon grid, rebuilding and re-caching
+    (and dropping the cached weights) only when the grid's fingerprint differs
+    from what's cached (first call, or a genuine domain/resolution change)."""
     fp = _grid_fingerprint(lat_grid, lon_grid)
-    points = np.column_stack((lat_grid.ravel(), lon_grid.ravel()))
 
     if _GRID_CACHE["fingerprint"] != fp:
         label = f" (triggered by {ncfile})" if ncfile is not None else ""
         if _GRID_CACHE["fingerprint"] is None:
-            print(f"Building grid triangulation/KD-tree for interpolation{label}")
+            print(f"Building grid KD-tree for interpolation{label}")
         else:
-            print(f"⚠️ Grid geometry changed{label} — rebuilding triangulation/KD-tree "
-                  f"(this should only happen if the domain/resolution actually changed)")
+            print(f"⚠️ Grid geometry changed{label} — rebuilding KD-tree and interpolation "
+                  f"weights (this should only happen if the domain/resolution actually changed)")
 
         _GRID_CACHE["fingerprint"] = fp
-        _GRID_CACHE["tri"] = Delaunay(points)
-        _GRID_CACHE["kdtree"] = cKDTree(points)
+        _GRID_CACHE["kdtree"] = cKDTree(_to_xyz(lat_grid.ravel(), lon_grid.ravel()))
         _GRID_CACHE["bbox"] = (
             float(np.nanmin(lat_grid)), float(np.nanmax(lat_grid)),
             float(np.nanmin(lon_grid)), float(np.nanmax(lon_grid)),
         )
+        _GRID_CACHE["weights"] = {}
 
-    return points, _GRID_CACHE["tri"], _GRID_CACHE["kdtree"], _GRID_CACHE["bbox"]
+    return _GRID_CACHE["kdtree"], _GRID_CACHE["bbox"]
+
+
+_EARTH_RADIUS_KM = 6371.0
+
+
+def _bilinear_cell(lat_grid, lon_grid, slat, slon, j_near, i_near, tol=1e-6):
+    """Find the grid cell around (slat, slon) and its bilinear weights.
+
+    Works for any 2D (curvilinear) lat/lon grid, so no projection or dx == dy
+    assumption is needed. The four cells touching the nearest grid node are
+    tried; in each, the inverse bilinear mapping (s, t) in [0,1]^2 is solved
+    with Newton iterations in a local tangent-plane (km) frame around the
+    station. Returns (flat_indices[4], weights[4]) or None if the point is
+    not inside any of those cells (i.e. outside the grid).
+
+    Corner order: (j,i), (j,i+1), (j+1,i), (j+1,i+1), with the grid stored as
+    [y][x] (row-major, flat index = j*nx + i).
+    """
+    ny, nx = lat_grid.shape
+    coslat = np.cos(np.radians(slat))
+
+    def local(j, i):
+        dlon = (lon_grid[j, i] - slon + 180.0) % 360.0 - 180.0
+        return np.array([np.radians(dlon) * coslat * _EARTH_RADIUS_KM,
+                         np.radians(lat_grid[j, i] - slat) * _EARTH_RADIUS_KM])
+
+    best = None
+    for jc in (j_near - 1, j_near):
+        for ic in (i_near - 1, i_near):
+            if jc < 0 or ic < 0 or jc > ny - 2 or ic > nx - 2:
+                continue
+            p00, p10, p01, p11 = local(jc, ic), local(jc, ic + 1), local(jc + 1, ic), local(jc + 1, ic + 1)
+            if not np.all(np.isfinite([p00, p10, p01, p11])):
+                continue
+            b, c, d = p10 - p00, p01 - p00, p00 - p10 - p01 + p11
+            s = t = 0.5
+            for _ in range(30):
+                f = p00 + s * b + t * c + s * t * d   # station sits at the origin
+                jac = np.column_stack((b + t * d, c + s * d))
+                det = jac[0, 0] * jac[1, 1] - jac[0, 1] * jac[1, 0]
+                if abs(det) < 1e-12:
+                    break
+                ds = (jac[1, 1] * f[0] - jac[0, 1] * f[1]) / det
+                dt = (-jac[1, 0] * f[0] + jac[0, 0] * f[1]) / det
+                s, t = s - ds, t - dt
+                if abs(ds) < 1e-12 and abs(dt) < 1e-12:
+                    break
+            viol = max(0.0, -s, s - 1.0, -t, t - 1.0)
+            if best is None or viol < best[0]:
+                best = (viol, jc, ic, s, t)
+            if viol <= tol:
+                break
+
+    if best is None or best[0] > tol:
+        return None
+    _, jc, ic, s, t = best
+    s, t = min(max(s, 0.0), 1.0), min(max(t, 0.0), 1.0)
+    flat = np.array([jc * nx + ic, jc * nx + ic + 1, (jc + 1) * nx + ic, (jc + 1) * nx + ic + 1])
+    w = np.array([(1 - s) * (1 - t), s * (1 - t), (1 - s) * t, s * t])
+    return flat, w
+
+
+def get_interp_weights(lat_grid, lon_grid, station_points, method):
+    """Train (or fetch cached) interpolation weights for a station set.
+
+    station_points: list of (sid, lat, lon, z).
+    Returns (sel, flat_idx, w):
+      sel      indices into station_points of the stations that could be
+               interpolated (for bilinear: those inside the grid),
+      flat_idx (n_sel, k) flat grid indices (k=4 bilinear, k=1 nearest),
+      w        (n_sel, k) weights, rows sum to 1.
+    """
+    q = np.array([[sp[1], sp[2]] for sp in station_points], dtype=np.float64)
+    key = (method, hashlib.sha1(q.tobytes()).hexdigest())
+    cached = _GRID_CACHE["weights"].get(key)
+    if cached is not None:
+        return cached
+
+    _, nn = _GRID_CACHE["kdtree"].query(_to_xyz(q[:, 0], q[:, 1]))
+
+    use_method = method
+    if method == "bilin" and lat_grid.ndim != 2:
+        _warn_once("⚠️ Bilinear interpolation needs a 2D (y, x) lat/lon grid; this file has a "
+                   "flattened point cloud, so falling back to nearest neighbour for it.")
+        use_method = "nearest"
+
+    if use_method == "nearest":
+        sel = np.arange(len(q))
+        flat_idx = nn[:, None].astype(np.int64)
+        w = np.ones((len(q), 1))
+    else:
+        j_near, i_near = np.unravel_index(nn, lat_grid.shape)
+        sel, flats, ws = [], [], []
+        for n in range(len(q)):
+            res = _bilinear_cell(lat_grid, lon_grid, q[n, 0], q[n, 1], j_near[n], i_near[n])
+            if res is None:
+                sid = station_points[n][0]
+                print(f"⚠️ Station {sid} (lat={q[n, 0]:.4f}, lon={q[n, 1]:.4f}) is not inside the "
+                      f"model grid — skipped for bilinear interpolation")
+                continue
+            sel.append(n)
+            flats.append(res[0])
+            ws.append(res[1])
+        sel = np.array(sel, dtype=int)
+        flat_idx = np.array(flats, dtype=np.int64).reshape(len(sel), 4)
+        w = np.array(ws, dtype=np.float64).reshape(len(sel), 4)
+
+    _GRID_CACHE["weights"][key] = (sel, flat_idx, w)
+    return sel, flat_idx, w
+
+
+def interp_with_weights(values, flat_idx, w):
+    """values: (time, ...grid) -> (time, n_sel) weighted sums.
+    Zero-weight corners are ignored, so a NaN neighbour (e.g. masked cell)
+    only matters if it actually contributes."""
+    flat = np.asarray(values, dtype=np.float64).reshape(values.shape[0], -1)
+    picked = flat[:, flat_idx]                       # (time, n_sel, k)
+    contrib = np.where(w[None, :, :] > 0, picked * w[None, :, :], 0.0)
+    return contrib.sum(axis=2)
 
 
 def _is_precip_like_name(*names):
@@ -498,33 +679,43 @@ def process_netcdf_file(ncfile, param_dict, SID, z, lat, lon, experiment_name, o
         # Build (or reuse) the interpolation geometry once per file, not once
         # per station/timestep/variable. get_grid_geometry() checks the grid
         # fingerprint and only rebuilds if the domain actually changed.
-        geom_points = geom_tri = geom_kdtree = geom_bbox = None
+        geom_kdtree = geom_bbox = None
+        lat_grid = lon_grid = None
+        station_points_in_bbox = []
         if grid_mode_global and station_info is not None and args is not None:
             lat_name, lon_name = latlon_var_names
-            lat_grid = np.array(ds.variables[lat_name][:])
-            lon_grid = np.array(ds.variables[lon_name][:])
-            geom_points, geom_tri, geom_kdtree, geom_bbox = get_grid_geometry(
-                lat_grid, lon_grid, ncfile=ncfile
-            )
+            lat_grid = np.array(np.ma.filled(ds.variables[lat_name][:], np.nan), dtype=np.float64)
+            lon_grid = np.array(np.ma.filled(ds.variables[lon_name][:], np.nan), dtype=np.float64)
+            geom_kdtree, geom_bbox = get_grid_geometry(lat_grid, lon_grid, ncfile=ncfile)
             bbox_min_lat, bbox_max_lat, bbox_min_lon, bbox_max_lon = geom_bbox
 
-            # Stations inside the grid's bounding box, resolved once per file.
+            # Stations inside the grid's bounding box, resolved once per file
+            # (a cheap pre-filter; bilinear additionally drops stations that
+            # are not inside any grid cell).
             station_points_in_bbox = [
                 (sid, sinfo['lat'], sinfo['lon'], sinfo['z'])
                 for sid, sinfo in station_info.items()
                 if bbox_min_lat <= sinfo['lat'] <= bbox_max_lat
                 and bbox_min_lon <= sinfo['lon'] <= bbox_max_lon
             ]
-            query_latlon = np.array([[slat, slon] for _, slat, slon, _ in station_points_in_bbox])
-            method = 'linear' if args.interp == 'bilinear' else 'nearest'
+
+        # Default interpolation method for variables without their own
+        # "method": param file "_interpolation" > --int > "bilin".
+        default_method = resolve_default_method(param_dict, args)
 
         for key, spec in param_dict.items():
-            if key.startswith("_comment"):
+            if key.startswith("_"):   # "_comment", "_interpolation", ...
                 continue
 
             try:
                 # Decide whether to preserve grid for this variable
                 preserve_grid = grid_mode_global
+
+                # Interpolation method for this variable: its own "method"
+                # entry if it has one, else the global default.
+                var_method = default_method
+                if isinstance(spec, dict) and "method" in spec:
+                    var_method = normalize_method(spec["method"], f"'method' for '{key}'")
 
                 if isinstance(spec, dict) and spec.get("type") == "derived":
                     # Derived / postprocessed variable: the JSON key IS the
@@ -537,7 +728,7 @@ def process_netcdf_file(ncfile, param_dict, SID, z, lat, lon, experiment_name, o
                     # Original behaviour: direct passthrough mapping
                     # {netcdf_name: output_name}
                     var_name = key
-                    output_name = spec
+                    output_name = spec["name"] if isinstance(spec, dict) else spec
                     if var_name not in ds.variables:
                         continue
                     print(f"processing {var_name} as {output_name}")
@@ -582,32 +773,23 @@ def process_netcdf_file(ncfile, param_dict, SID, z, lat, lon, experiment_name, o
                         if not station_points_in_bbox:
                             station_rows = []
                         else:
-                            # One interpolator built per timestep (reusing the
-                            # cached triangulation/KD-tree — no re-triangulation),
-                            # queried for ALL stations at once instead of once
-                            # per station. This is the change that turns
-                            # N_stations separate O(grid) triangulations into a
-                            # single one per timestep.
-                            n_stations = len(station_points_in_bbox)
-                            series = np.full((write_values.shape[0], n_stations), np.nan)
-
-                            for t_idx in range(write_values.shape[0]):
-                                gridvals = write_values[t_idx].ravel()
-                                if not np.any(~np.isnan(gridvals)):
-                                    continue
-
-                                if method == 'linear':
-                                    interp_vals = LinearNDInterpolator(geom_tri, gridvals)(query_latlon)
-                                else:
-                                    _, nn_idx = geom_kdtree.query(query_latlon)
-                                    interp_vals = gridvals[nn_idx]
-
-                                series[t_idx, :] = interp_vals
-
-                            station_rows = [
-                                (sid, sz, slat, slon, series[:, i], write_times)
-                                for i, (sid, slat, slon, sz) in enumerate(station_points_in_bbox)
-                            ]
+                            # Weights are trained once per grid/station set/method
+                            # (cached), then every timestep is interpolated at once.
+                            sel, flat_idx, w = get_interp_weights(
+                                lat_grid, lon_grid, station_points_in_bbox, var_method
+                            )
+                            if len(sel) == 0:
+                                station_rows = []
+                            else:
+                                series = interp_with_weights(write_values, flat_idx, w)
+                                print(f"  interpolated {output_name} to {len(sel)} station(s) "
+                                      f"using {var_method}")
+                                station_rows = [
+                                    (station_points_in_bbox[n][0], station_points_in_bbox[n][3],
+                                     station_points_in_bbox[n][1], station_points_in_bbox[n][2],
+                                     series[:, k], write_times)
+                                    for k, n in enumerate(sel)
+                                ]
 
                         if station_rows:
                             write_station_rows(
@@ -658,6 +840,12 @@ def main():
     # Load param_dict from JSON file
     with open(args.param_dict) as f:
         param_dict = json.load(f)  # {netcdf_name: output_name} or {output_name: {derived spec}}
+
+    try:
+        validate_param_methods(param_dict, args)
+    except ValueError as e:
+        print(f"Error in param file {args.param_dict}: {e}")
+        sys.exit(1)
 
     # Resolve nc input argument(s): each entry can be a directory, a glob
     # pattern, or an explicit file path. nc_input is now a list (args.ncdir
